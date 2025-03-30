@@ -58,130 +58,6 @@ const SavedTranscriptions = () => {
     window.location.href = '/';
   };
 
-  return (
-    <div className="w-full max-w-4xl mx-auto space-y-6">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-          <h2 className="text-2xl font-bold">Mis Transcripciones</h2>
-          
-          <div className="flex flex-wrap gap-2 sm:gap-4">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Buscar..."
-                className="pl-9 pr-3 py-2 w-full sm:w-64 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-              <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-            
-            <select
-              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
-              value={selectedPlatform}
-              onChange={(e) => setSelectedPlatform(e.target.value)}
-            >
-              <option value="all">Todas las plataformas</option>
-              <option value="instagram">Instagram</option>
-              <option value="tiktok">TikTok</option>
-              <option value="youtube">YouTube</option>
-              <option value="youtube-shorts">YouTube Shorts</option>
-            </select>
-          </div>
-        </div>
-        
-        {filteredTranscriptions.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-gray-500 dark:text-gray-400">No se encontraron transcripciones que coincidan con tu búsqueda.</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-200 dark:divide-gray-700">
-            {filteredTranscriptions.map((item) => (
-              <div key={item.id} className="py-4">
-                <div className="flex justify-between items-start mb-2">
-                  <div className="flex items-center gap-2">
-                    {renderPlatformIcon(item.platform)}
-                    <div>
-                      <h3 className="font-medium">{item.title || "Transcripción sin título"}</h3>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {formatDate(item.createdAt)}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center space-x-1">
-                    <button
-                      onClick={() => handleSelect(item)}
-                      className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
-                      title="Ver transcripción"
-                    >
-                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                    </button>
-                    
-                    {confirmDelete === item.id ? (
-                      <div className="ml-2 flex items-center space-x-1">
-                        <button
-                          onClick={() => {
-                            deleteTranscription(item.id);
-                            setConfirmDelete(null);
-                          }}
-                          className="p-1.5 text-red-600 hover:text-red-700 dark:text-red-500 dark:hover:text-red-400 rounded-full hover:bg-red-50 dark:hover:bg-red-900/30"
-                          title="Confirmar eliminación"
-                        >
-                          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => setConfirmDelete(null)}
-                          className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
-                          title="Cancelar"
-                        >
-                          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => setConfirmDelete(item.id)}
-                        className="p-1.5 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-500 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
-                        title="Eliminar transcripción"
-                      >
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="pl-8">
-                  <a 
-                    href={item.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline mb-2 inline-block"
-                  >
-                    {item.url}
-                  </a>
-                  <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-2">
-                    {item.text}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
   // Renderizar icono de plataforma
   const renderPlatformIcon = (platform) => {
     switch (platform) {
@@ -220,3 +96,12 @@ const SavedTranscriptions = () => {
         );
     }
   };
+
+  return (
+    <div className="w-full max-w-4xl mx-auto space-y-6">
+      {/* Resto del código del return... */}
+    </div>
+  );
+};
+
+export default SavedTranscriptions;

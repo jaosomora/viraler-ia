@@ -41,7 +41,12 @@ temp/
 tmp/
 *.tmp
 *.temp
+estructura.txt
 
 # Archivos de cache
 .cache/
 .vite/
+
+# Archivos no versionables del proyecto
+index.html
+server.js
