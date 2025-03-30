@@ -1,5 +1,8 @@
 // api/transcribeAudio.js
-import OpenAI from 'openai';
+import { Configuration, OpenAIApi } from 'openai';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
 
 /**
  * Transcribe el audio utilizando la API de OpenAI (Whisper)
@@ -13,31 +16,39 @@ export async function transcribeAudio(audioBuffer) {
       throw new Error('API Key de OpenAI no configurada');
     }
     
-    const openai = new OpenAI({
+    const configuration = new Configuration({
       apiKey: process.env.OPENAI_API_KEY,
     });
     
-    // Crear un objeto Blob a partir del buffer
-    const audioBlob = new Blob([audioBuffer], { type: 'audio/mp3' });
+    const openai = new OpenAIApi(configuration);
     
-    // Crear un objeto File para enviar a la API
-    const file = new File([audioBlob], 'audio.mp3', { type: 'audio/mp3' });
+    // Guardar el buffer en un archivo temporal
+    const tempDir = os.tmpdir();
+    const tempFilename = `audio-for-transcription-${Date.now()}.mp3`;
+    const tempPath = path.join(tempDir, tempFilename);
+    
+    fs.writeFileSync(tempPath, audioBuffer);
     
     console.log('Enviando audio a OpenAI para transcripción...');
     
     // Enviar el archivo a la API de OpenAI para transcribir
-    const transcription = await openai.audio.transcriptions.create({
-      file: file,
-      model: 'whisper-1',
-      language: 'es', // Puedes hacer este parámetro configurable
-      response_format: 'json'
-    });
+    const response = await openai.createTranscription(
+      fs.createReadStream(tempPath),
+      'whisper-1',
+      undefined,
+      undefined,
+      0.2,
+      'es' // Puedes hacer este parámetro configurable
+    );
+    
+    // Eliminar el archivo temporal
+    fs.unlinkSync(tempPath);
     
     console.log('Transcripción completada con éxito');
     
     return {
-      text: transcription.text,
-      language: transcription.language || 'es'
+      text: response.data.text,
+      language: response.data.language || 'es'
     };
   } catch (error) {
     console.error('Error al transcribir audio:', error);

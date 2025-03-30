@@ -7,6 +7,7 @@
  * @returns {string} - Nombre de la plataforma detectada
  */
 export function detectPlatform(url) {
+  try {
     const urlObj = new URL(url);
     const hostname = urlObj.hostname;
     
@@ -23,25 +24,28 @@ export function detectPlatform(url) {
     } else {
       throw new Error('URL no compatible. Soportamos YouTube, Instagram Reels y TikTok.');
     }
+  } catch (error) {
+    throw new Error('URL inválida o no compatible. Soportamos YouTube, Instagram Reels y TikTok.');
   }
-  
-  /**
-   * Valida si la URL es compatible con las plataformas soportadas
-   * 
-   * @param {string} url - URL a validar
-   * @returns {boolean} - True si la URL es válida, false en caso contrario
-   */
-  export function isValidUrl(url) {
-    try {
-      const supportedPlatforms = [
-        { name: 'Instagram', regex: /https:\/\/(www\.)?instagram\.com\/(reel|p)\/[a-zA-Z0-9_-]+\/?/ },
-        { name: 'TikTok', regex: /https:\/\/(www\.)?tiktok\.com\/@[\w.-]+\/video\/\d+/ },
-        { name: 'YouTube', regex: /https:\/\/(www\.)?youtube\.com\/watch\?v=[\w-]+/ },
-        { name: 'YouTube Shorts', regex: /https:\/\/(www\.)?youtube\.com\/shorts\/[\w-]+/ }
-      ];
-  
-      return supportedPlatforms.some(platform => platform.regex.test(url));
-    } catch (error) {
-      return false;
-    }
+}
+
+/**
+ * Valida si la URL es compatible con las plataformas soportadas
+ * 
+ * @param {string} url - URL a validar
+ * @returns {boolean} - True si la URL es válida, false en caso contrario
+ */
+export function isValidUrl(url) {
+  try {
+    const supportedPlatforms = [
+      { name: 'Instagram', regex: /https:\/\/(www\.)?instagram\.com\/(reel|p)\/[a-zA-Z0-9_-]+\/?/ },
+      { name: 'TikTok', regex: /https:\/\/(www\.)?tiktok\.com\/@[\w.-]+\/video\/\d+/ },
+      { name: 'YouTube', regex: /https:\/\/(www\.)?youtube\.com\/watch\?v=[\w-]+/ },
+      { name: 'YouTube Shorts', regex: /https:\/\/(www\.)?youtube\.com\/shorts\/[\w-]+/ }
+    ];
+
+    return supportedPlatforms.some(platform => platform.regex.test(url));
+  } catch (error) {
+    return false;
   }
+}

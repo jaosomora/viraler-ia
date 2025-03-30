@@ -1,14 +1,9 @@
 // api/transcribeVideo.js
-import { extractAudio } from './extractAudio';
-import { transcribeAudio } from './transcribeAudio';
-import { isValidUrl } from './utils/platformDetector';
+import { extractAudio } from './extractAudio.js';
+import { transcribeAudio } from './transcribeAudio.js';
+import { isValidUrl } from './utils/platformDetector.js';
 
-export default async function handler(req, res) {
-  // Solo aceptar solicitudes POST
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Método no permitido' });
-  }
-
+export default async function transcribeVideo(req, res) {
   try {
     const { url } = req.body;
 
