@@ -46,3 +46,4 @@ estructura.txt
 # Archivos de cache
 .cache/
 .vite/data/usage.json
+data/
