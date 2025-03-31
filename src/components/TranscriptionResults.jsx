@@ -54,7 +54,7 @@ const TranscriptionResults = () => {
         );
       default:
         return (
-          <svg className="h-5 w-5 text-gray-500" viewBox="0 0 24 24" fill="currentColor">
+          <svg className="h-5 w-5 text-gray-500 dark:text-gray-300" viewBox="0 0 24 24" fill="currentColor">
             <path d="M19 3H5c-1.11 0-2 .89-2 2v14c0 1.11.89 2 2 2h14c1.11 0 2-.89 2-2V5c0-1.11-.89-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
           </svg>
         );
@@ -67,13 +67,13 @@ const TranscriptionResults = () => {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-2">
             {renderPlatformIcon()}
-            <h3 className="text-lg font-medium">Transcripción completada</h3>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">Transcripción completada</h3>
           </div>
           <div className="flex space-x-2">
             {usageInfo && (
               <button
                 onClick={toggleUsageInfo}
-                className="flex items-center gap-1 py-1 px-3 text-sm bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/30 dark:hover:bg-blue-800/40 text-blue-700 dark:text-blue-300 rounded-full transition"
+                className="flex items-center gap-1 py-1 px-3 text-sm bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/40 dark:hover:bg-blue-800/50 text-blue-700 dark:text-blue-300 rounded-full transition"
               >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -83,7 +83,7 @@ const TranscriptionResults = () => {
             )}
             <button
               onClick={handleCopy}
-              className="flex items-center gap-1 py-1 px-3 text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-full transition"
+              className="flex items-center gap-1 py-1 px-3 text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white rounded-full transition"
             >
               {copySuccess ? (
                 <>
@@ -107,8 +107,8 @@ const TranscriptionResults = () => {
               disabled={isSaved}
               className={`flex items-center gap-1 py-1 px-3 text-sm ${
                 isSaved
-                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
-                  : 'bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-800/40'
+                  ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
+                  : 'bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/40 dark:text-purple-300 dark:hover:bg-purple-800/50'
               } rounded-full transition`}
             >
               {isSaved ? (
@@ -132,16 +132,16 @@ const TranscriptionResults = () => {
 
         {/* Información de uso y costos */}
         {showUsageInfo && usageInfo && (
-          <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+          <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border dark:border-blue-800 rounded-lg">
             <h4 className="text-sm font-medium text-blue-700 dark:text-blue-300 mb-2">Información de uso de API</h4>
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div className="flex justify-between">
                 <span className="text-gray-600 dark:text-gray-300">Duración estimada:</span>
-                <span className="font-medium">{Math.round(usageInfo.durationInSeconds)} seg</span>
+                <span className="font-medium dark:text-white">{Math.round(usageInfo.durationInSeconds)} seg</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600 dark:text-gray-300">Costo:</span>
-                <span className="font-medium">${usageInfo.estimatedCost.toFixed(4)} USD</span>
+                <span className="font-medium dark:text-white">${usageInfo.estimatedCost.toFixed(4)} USD</span>
               </div>
             </div>
           </div>
@@ -162,8 +162,8 @@ const TranscriptionResults = () => {
         </div>
 
         <div>
-          <h4 className="font-medium mb-2">Transcripción:</h4>
-          <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg max-h-96 overflow-y-auto whitespace-pre-wrap">
+          <h4 className="font-medium mb-2 text-gray-900 dark:text-white">Transcripción:</h4>
+          <div className="p-4 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-lg max-h-96 overflow-y-auto whitespace-pre-wrap text-gray-800 dark:text-gray-100">
             {text}
           </div>
         </div>

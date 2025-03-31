@@ -121,7 +121,7 @@ const AdminPanel = () => {
     <div className="flex flex-col space-y-8 max-w-4xl mx-auto">
       {/* Mensaje de acción exitosa */}
       {actionSuccess && (
-        <div className="bg-green-100 dark:bg-green-900/30 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 p-4 rounded-lg flex items-center">
+        <div className="bg-green-100 dark:bg-green-900/30 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 p-4 rounded-lg flex items-center">
           <svg className="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
           </svg>
@@ -140,7 +140,7 @@ const AdminPanel = () => {
 
       {/* Controles de administración */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
-        <h2 className="text-xl font-semibold mb-4">Acciones</h2>
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Acciones</h2>
         <div className="flex flex-wrap gap-4">
           <button
             onClick={handleResetClick}
@@ -174,7 +174,7 @@ const AdminPanel = () => {
               </svg>
             </div>
           </div>
-          <p className="mt-4 text-3xl font-bold">{usageData.totalTranscriptions}</p>
+          <p className="mt-4 text-3xl font-bold text-gray-900 dark:text-white">{usageData.totalTranscriptions}</p>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">transcripciones totales</p>
         </div>
 
@@ -187,7 +187,7 @@ const AdminPanel = () => {
               </svg>
             </div>
           </div>
-          <p className="mt-4 text-3xl font-bold">{formatNumber(usageData.totalAudioMinutes)}</p>
+          <p className="mt-4 text-3xl font-bold text-gray-900 dark:text-white">{formatNumber(usageData.totalAudioMinutes)}</p>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">minutos procesados</p>
         </div>
 
@@ -200,7 +200,7 @@ const AdminPanel = () => {
               </svg>
             </div>
           </div>
-          <p className="mt-4 text-3xl font-bold">{formatPrice(usageData.estimatedCost)}</p>
+          <p className="mt-4 text-3xl font-bold text-gray-900 dark:text-white">{formatPrice(usageData.estimatedCost)}</p>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">costo estimado (USD)</p>
         </div>
       </div>
@@ -208,32 +208,32 @@ const AdminPanel = () => {
       {/* Estadísticas adicionales */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-xl font-semibold">Estadísticas detalladas</h2>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Estadísticas detalladas</h2>
         </div>
         <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Promedio por transcripción</h3>
-            <div className="bg-gray-50 dark:bg-gray-750 p-4 rounded-lg">
+            <div className="bg-gray-50 dark:bg-gray-750 dark:bg-gray-900/50 p-4 rounded-lg border dark:border-gray-700">
               <div className="flex justify-between mb-2">
                 <span className="text-gray-600 dark:text-gray-300">Costo</span>
-                <span className="font-medium">{formatPrice(usageData.averageCostPerTranscription)}</span>
+                <span className="font-medium text-gray-900 dark:text-white">{formatPrice(usageData.averageCostPerTranscription)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600 dark:text-gray-300">Duración</span>
-                <span className="font-medium">{formatNumber(usageData.averageAudioMinutesPerTranscription)} min</span>
+                <span className="font-medium text-gray-900 dark:text-white">{formatNumber(usageData.averageAudioMinutesPerTranscription)} min</span>
               </div>
             </div>
           </div>
           <div>
             <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Información de Whisper API</h3>
-            <div className="bg-gray-50 dark:bg-gray-750 p-4 rounded-lg">
+            <div className="bg-gray-50 dark:bg-gray-750 dark:bg-gray-900/50 p-4 rounded-lg border dark:border-gray-700">
               <div className="flex justify-between mb-2">
                 <span className="text-gray-600 dark:text-gray-300">Modelo</span>
-                <span className="font-medium">whisper-1</span>
+                <span className="font-medium text-gray-900 dark:text-white">whisper-1</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600 dark:text-gray-300">Costo por minuto</span>
-                <span className="font-medium">$0.006</span>
+                <span className="font-medium text-gray-900 dark:text-white">$0.006</span>
               </div>
             </div>
           </div>
@@ -243,11 +243,11 @@ const AdminPanel = () => {
       {/* Historial de uso */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-xl font-semibold">Historial de uso reciente</h2>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Historial de uso reciente</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-750">
+            <thead className="bg-gray-50 dark:bg-gray-750 dark:bg-gray-900/50">
               <tr>
                 <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Fecha</th>
                 <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Transcripciones</th>
@@ -258,7 +258,7 @@ const AdminPanel = () => {
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {usageData.recentHistory && usageData.recentHistory.map((entry, index) => (
-                <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-750">
+                <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-750 dark:hover:bg-gray-900/30">
                   <td className="py-3 px-6 text-sm font-medium text-gray-900 dark:text-white">{entry.date}</td>
                   <td className="py-3 px-6 text-sm text-gray-500 dark:text-gray-300">{entry.transcriptions}</td>
                   <td className="py-3 px-6 text-sm text-gray-500 dark:text-gray-300">{formatNumber(entry.audioMinutes)}</td>
@@ -292,7 +292,7 @@ const AdminPanel = () => {
       {showResetConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md mx-auto p-6 shadow-xl">
-            <h3 className="text-lg font-medium mb-3">Confirmar reinicio de datos</h3>
+            <h3 className="text-lg font-medium mb-3 text-gray-900 dark:text-white">Confirmar reinicio de datos</h3>
             <p className="text-gray-600 dark:text-gray-300 mb-4">
               ¿Estás seguro de que deseas reiniciar los contadores de uso? Esta acción no se puede deshacer.
             </p>
@@ -324,7 +324,7 @@ const AdminPanel = () => {
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md mx-auto p-6 shadow-xl">
-            <h3 className="text-lg font-medium mb-3">Confirmar eliminación</h3>
+            <h3 className="text-lg font-medium mb-3 text-gray-900 dark:text-white">Confirmar eliminación</h3>
             <p className="text-gray-600 dark:text-gray-300 mb-4">
               ¿Estás seguro de que deseas eliminar el registro del {deleteTarget}? Esta acción no se puede deshacer.
             </p>
