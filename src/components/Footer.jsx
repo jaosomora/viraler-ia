@@ -22,6 +22,9 @@ const Footer = () => {
             <Link to="/mis-resultados" className="text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition">
               Mis Resultados
             </Link>
+            <Link to="/admin" className="text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition">
+              Admin
+            </Link>
           </div>
           
           <div className="flex space-x-4">

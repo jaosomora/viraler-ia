@@ -82,6 +82,16 @@ const Header = () => {
             >
               Mis Resultados
             </Link>
+            <Link
+              to="/admin"
+              className={`font-medium transition ${
+                isActive('/admin') 
+                  ? 'text-purple-600 dark:text-purple-400' 
+                  : 'text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400'
+              }`}
+            >
+              Admin
+            </Link>
             
             <button
               onClick={toggleDarkMode}
@@ -190,6 +200,17 @@ const Header = () => {
               }`}
             >
               Mis Resultados
+            </Link>
+            <Link
+              to="/admin"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className={`block py-2 px-4 rounded ${
+                isActive('/admin') 
+                  ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400' 
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+              }`}
+            >
+              Admin
             </Link>
           </nav>
         )}

@@ -12,12 +12,14 @@ Una aplicación web moderna que permite transcribir contenido de videos de difer
 - ✅ Interfaz moderna y responsive
 - ✅ Modo oscuro/claro
 - ✅ Búsqueda y filtrado de transcripciones guardadas
+- ✅ Panel de administración para monitorear uso y costos de API
+- ✅ Seguimiento detallado del uso de la API de OpenAI y costos estimados
 
 ## Tecnologías
 
-- **Frontend**: React 18, React Router, TanStack Query, Tailwind CSS
-- **Backend**: Funciones serverless (Vercel/Netlify)
-- **Extracción de audio**: youtube-dl-exec
+- **Frontend**: React 18, React Router, Tailwind CSS
+- **Backend**: Express.js, Node.js
+- **Extracción de audio**: yt-dlp
 - **Transcripción**: OpenAI Whisper API
 - **Empaquetado**: Vite
 
@@ -26,10 +28,8 @@ Una aplicación web moderna que permite transcribir contenido de videos de difer
 - Node.js 18.0 o superior
 - Cuenta en OpenAI con API key
 - yt-dlp instalado en el sistema (para extracción de audio)
-- Vercel CLI (para las funciones serverless)
+- FFmpeg instalado (requerido para procesar audio)
 - Git (para clonar el repositorio)
-
-NOTA: La aplicación utiliza funciones serverless de Vercel para manejar la extracción de audio y la transcripción, por lo que es necesario tener configurado el entorno de desarrollo de Vercel.
 
 ## Instalación y Ejecución
 
@@ -44,12 +44,31 @@ NOTA: La aplicación utiliza funciones serverless de Vercel para manejar la extr
    npm install
    ```
 
-3. Crea un archivo `.env` en la raíz del proyecto con tu API key de OpenAI:
+3. Crea un archivo `.env` en la raíz del proyecto basado en el `.env.example`:
    ```
-   OPENAI_API_KEY=tu-api-key-aquí
+   cp .env.example .env
    ```
 
-4. Instala yt-dlp (necesario para extraer audio de los videos):
+4. Edita el archivo `.env` para agregar tu API key de OpenAI y configurar la ruta a FFmpeg si es necesario:
+   ```
+   OPENAI_API_KEY=tu-api-key-aquí
+   FFMPEG_PATH=/ruta/a/ffmpeg  # Opcional, si FFmpeg no está en el PATH
+   ```
+
+5. Asegúrate de tener FFmpeg instalado:
+   ```
+   # macOS con Homebrew
+   brew install ffmpeg
+   
+   # Ubuntu/Debian
+   sudo apt update
+   sudo apt install ffmpeg
+   
+   # Windows (con chocolatey)
+   choco install ffmpeg
+   ```
+
+6. Instala yt-dlp (necesario para extraer audio de los videos):
    ```
    # macOS con Homebrew
    brew install yt-dlp
@@ -62,55 +81,17 @@ NOTA: La aplicación utiliza funciones serverless de Vercel para manejar la extr
    choco install yt-dlp
    ```
 
-5. Instala la CLI de Vercel (necesaria para las funciones serverless):
+7. Crea una carpeta `data` en la raíz del proyecto para almacenar los datos de uso:
    ```
-   npm install -g vercel
-   ```
-
-6. Ejecuta el entorno de desarrollo serverless:
-   ```
-   vercel dev
+   mkdir data
    ```
 
-7. En otra terminal, ejecuta el servidor de desarrollo frontend:
+8. Ejecuta el servidor de desarrollo:
    ```
    npm run dev
    ```
 
-8. Abre tu navegador en la dirección indicada (normalmente http://localhost:5173)
-   
-NOTA: Debes tener ambos servidores ejecutándose simultáneamente (el servidor frontend y el servidor de funciones serverless).
-
-## Despliegue en Producción
-
-### Vercel (Recomendado)
-
-Esta aplicación está diseñada para desplegarse en Vercel:
-
-1. Instala la CLI de Vercel (si aún no lo has hecho):
-   ```
-   npm install -g vercel
-   ```
-
-2. Inicia sesión en Vercel:
-   ```
-   vercel login
-   ```
-
-3. Despliega tu aplicación:
-   ```
-   vercel
-   ```
-
-4. Configura las variables de entorno en el dashboard de Vercel:
-   - `OPENAI_API_KEY`: Tu API key de OpenAI
-
-5. Realiza el despliegue final:
-   ```
-   vercel --prod
-   ```
-
-IMPORTANTE: Asegúrate de que Vercel tenga acceso a yt-dlp en su entorno. Puedes necesitar configurar opciones adicionales en el archivo `vercel.json` para instalar dependencias del sistema.
+9. Abre tu navegador en la dirección indicada (normalmente http://localhost:5173)
 
 ## Uso de la Aplicación
 
@@ -122,6 +103,7 @@ IMPORTANTE: Asegúrate de que Vercel tenga acceso a yt-dlp en su entorno. Puedes
 
 2. **Ver y guardar transcripciones**:
    - Una vez completado, verás la transcripción en pantalla
+   - Puedes ver información del costo con el botón "Info"
    - Puedes copiar el texto usando el botón "Copiar"
    - Guarda la transcripción haciendo clic en "Guardar"
 
@@ -131,27 +113,33 @@ IMPORTANTE: Asegúrate de que Vercel tenga acceso a yt-dlp en su entorno. Puedes
    - Puedes buscar por texto o filtrar por plataforma
    - Haz clic en el ícono de ojo para ver el contenido completo
 
-4. **Eliminar transcripciones**:
-   - En la sección "Mis Resultados"
-   - Haz clic en el ícono de papelera junto a la transcripción
-   - Confirma la eliminación
+4. **Monitorear uso y costos**:
+   - Haz clic en "Admin" en la navegación
+   - Verás estadísticas de uso incluyendo:
+     - Número total de transcripciones
+     - Minutos de audio procesados
+     - Costo estimado basado en tarifas de OpenAI
+   - También verás un historial de uso por fecha
+   - Puedes reiniciar contadores o eliminar registros específicos
 
-NOTA: Las transcripciones se almacenan localmente en tu navegador. Si limpias los datos del navegador, perderás tus transcripciones guardadas.
+NOTA: Las transcripciones se almacenan localmente en tu navegador. Si limpias los datos del navegador, perderás tus transcripciones guardadas. Sin embargo, el registro de uso se guarda en el servidor en la carpeta `data`.
 
 ## Estructura del proyecto
 
 ```
 viraler-ia/
-├── api/                  # Funciones serverless (Vercel Functions)
-│   ├── utils/            # Utilidades para las funciones serverless
-│   │   └── platformDetector.js  # Detector de plataformas de video
+├── api/                  # Lógica del backend
+│   ├── utils/            # Utilidades para el backend
+│   │   ├── platformDetector.js  # Detector de plataformas de video
+│   │   └── usageTracker.js  # Seguimiento de uso de API
 │   ├── extractAudio.js   # Función para extraer audio
 │   ├── transcribeAudio.js # Función para transcribir con Whisper
 │   └── transcribeVideo.js # Endpoint principal que conecta todo
+├── data/                 # Almacenamiento de datos de uso (creada manualmente)
+│   └── usage.json        # Registro de uso de la API (generado automáticamente)
 ├── public/               # Activos estáticos
-│   ├── assets/           # Imágenes y otros recursos
-│   ├── favicon.ico       # Icono del sitio
-│   └── logo.svg          # Logo de la aplicación
+│   ├── logo.svg          # Logo de la aplicación
+│   └── screenshot.png    # Captura de pantalla para el README
 ├── src/                  # Código fuente del frontend
 │   ├── components/       # Componentes React
 │   │   ├── Footer.jsx    # Pie de página
@@ -166,11 +154,13 @@ viraler-ia/
 │   │   ├── useLocalStorage.js # Hook para persistencia en localStorage
 │   │   └── useTranscription.js # Hook para gestión de transcripciones
 │   ├── pages/            # Páginas de la aplicación
+│   │   ├── AdminPanel.jsx # Panel de administración y estadísticas
 │   │   ├── Home.jsx      # Página principal
 │   │   ├── MyResults.jsx # Página de resultados guardados
 │   │   └── NotFound.jsx  # Página 404
 │   ├── services/         # Servicios para API
 │   │   ├── api.js        # Cliente API
+│   │   ├── usageStats.js # Servicio para estadísticas de uso
 │   │   └── videoExtractor.js # Servicio de extracción de videos
 │   ├── utils/            # Utilidades y helpers
 │   │   ├── formatters.js # Formateo de datos
@@ -179,29 +169,39 @@ viraler-ia/
 │   ├── index.css         # Estilos globales con Tailwind
 │   └── main.jsx          # Punto de entrada de React
 ├── .env                  # Variables de entorno (no incluido en el repo)
+├── .env.example          # Ejemplo de variables de entorno
 ├── package.json          # Dependencias y scripts
 ├── postcss.config.js     # Configuración de PostCSS
 ├── README.md             # Documentación
+├── server.js             # Servidor Express
 ├── tailwind.config.js    # Configuración de Tailwind CSS
-├── vercel.json           # Configuración de Vercel (si es necesario)
 └── vite.config.js        # Configuración de Vite
 ```
 
-## Contribución
+## Monitoreo de Uso y Costos
 
-Las contribuciones son bienvenidas. Por favor, abre un issue primero para discutir lo que te gustaría cambiar o añadir.
+La aplicación incluye un sistema completo de seguimiento de uso de la API de OpenAI:
 
-## Licencia
+- **Panel de administración**: Accesible en la ruta `/admin`
+- **Métricas que se rastrean**:
+  - Número total de transcripciones realizadas
+  - Minutos totales de audio procesados
+  - Costo estimado basado en tarifas actuales de OpenAI
+  - Historial de uso por fecha
+- **Acciones disponibles**:
+  - Reiniciar contadores (manteniendo o eliminando historial)
+  - Eliminar registros específicos por fecha
+  - Visualizar estadísticas detalladas
 
-[MIT](LICENSE)
+Estos datos se almacenan en el archivo `data/usage.json` y proporcionan transparencia sobre el uso y costo de la API.
 
 ## Solución de Problemas
 
 ### Errores Comunes
 
-1. **Error: "No se puede conectar con el servidor de funciones"**
-   - Asegúrate de tener ejecutando `vercel dev` en una terminal
-   - Verifica que no haya otro servicio usando el puerto 3000
+1. **Error: "FFmpeg not found"**
+   - Instala FFmpeg en tu sistema
+   - O especifica la ruta a FFmpeg en el archivo .env con FFMPEG_PATH=/ruta/a/ffmpeg
 
 2. **Error: "No se pudo extraer audio del video"**
    - Verifica que yt-dlp esté correctamente instalado: `yt-dlp --version`
@@ -210,7 +210,7 @@ Las contribuciones son bienvenidas. Por favor, abre un issue primero para discut
 
 3. **Error: "API Key de OpenAI no configurada"**
    - Verifica que el archivo .env exista y contenga OPENAI_API_KEY=tu-api-key
-   - Reinicia los servidores de desarrollo
+   - Reinicia el servidor de desarrollo
 
 4. **Error: "No se pudo transcribir el audio"**
    - Verifica que tu API key de OpenAI sea válida
@@ -221,13 +221,16 @@ Las contribuciones son bienvenidas. Por favor, abre un issue primero para discut
 - La aplicación está diseñada para videos cortos (menos de 10 minutos)
 - Algunos videos pueden estar protegidos y no ser accesibles
 - Las transcripciones se almacenan solo localmente (no en la nube)
+- Los costos estimados son aproximados y basados en las tarifas publicadas de OpenAI
 
-## Contacto y Soporte
+## Contribución
 
-Para preguntas, problemas o sugerencias:
-1. Abre un issue en este repositorio
-2. Describe detalladamente el problema incluyendo:
-   - Pasos para reproducir el error
-   - Mensajes de error (si existen)
-   - Información del entorno (sistema operativo, versión de Node.js)
-   - URL del video (si es relevante y no es privado)
+1. Haz un fork del proyecto
+2. Crea tu rama de característica (`git checkout -b feature/amazing-feature`)
+3. Haz commit de tus cambios (`git commit -m 'feat: add amazing feature'`)
+4. Haz push a la rama (`git push origin feature/amazing-feature`)
+5. Abre un Pull Request
+
+## Licencia
+
+Este proyecto está bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) para más detalles.

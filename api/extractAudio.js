@@ -31,8 +31,13 @@ export async function extractAudio(url) {
         '--no-check-certificate',
         '--prefer-free-formats',
         '--no-playlist',
-        url
       ];
+      
+      // Especificar la ubicación de FFmpeg si está definida en las variables de entorno
+      if (process.env.FFMPEG_PATH) {
+        args.push('--ffmpeg-location', process.env.FFMPEG_PATH);
+        console.log(`Usando FFmpeg desde: ${process.env.FFMPEG_PATH}`);
+      }
       
       // Si estamos en Instagram o TikTok, agregar headers para evitar bloqueos
       if (platform === 'instagram' || platform === 'tiktok') {
@@ -40,6 +45,9 @@ export async function extractAudio(url) {
         args.push('--add-header', 'Accept-Language: en-US,en;q=0.9');
         args.push('--add-header', 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8');
       }
+      
+      // Añadir la URL al final de los argumentos
+      args.push(url);
       
       // Ejecutar yt-dlp para extraer audio
       const ytdlProcess = spawn('yt-dlp', args);
@@ -49,10 +57,12 @@ export async function extractAudio(url) {
       
       ytdlProcess.stdout.on('data', (data) => {
         stdoutData += data.toString();
+        console.log(`yt-dlp stdout: ${data.toString()}`);
       });
       
       ytdlProcess.stderr.on('data', (data) => {
         stderrData += data.toString();
+        console.error(`yt-dlp stderr: ${data.toString()}`);
       });
       
       ytdlProcess.on('close', async (code) => {
@@ -67,7 +77,17 @@ export async function extractAudio(url) {
         }
         
         // Ejecutar yt-dlp nuevamente para obtener metadatos
-        const infoProcess = spawn('yt-dlp', ['--dump-json', '--no-check-certificate', url]);
+        const metadataArgs = ['--dump-json', '--no-check-certificate'];
+        
+        // Agregar la ubicación de FFmpeg si está definida
+        if (process.env.FFMPEG_PATH) {
+          metadataArgs.push('--ffmpeg-location', process.env.FFMPEG_PATH);
+        }
+        
+        // Agregar la URL al final
+        metadataArgs.push(url);
+        
+        const infoProcess = spawn('yt-dlp', metadataArgs);
         
         let infoData = '';
         

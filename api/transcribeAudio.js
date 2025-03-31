@@ -3,14 +3,16 @@ import { Configuration, OpenAIApi } from 'openai';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import { trackUsage } from './utils/usageTracker.js';
 
 /**
  * Transcribe el audio utilizando la API de OpenAI (Whisper)
  * 
  * @param {Buffer} audioBuffer - Buffer del archivo de audio
+ * @param {Object} metadata - Metadatos del audio/video
  * @returns {Promise<Object>} - Objeto con la transcripción
  */
-export async function transcribeAudio(audioBuffer) {
+export async function transcribeAudio(audioBuffer, metadata = {}) {
   try {
     if (!process.env.OPENAI_API_KEY) {
       throw new Error('API Key de OpenAI no configurada');
@@ -46,9 +48,18 @@ export async function transcribeAudio(audioBuffer) {
     
     console.log('Transcripción completada con éxito');
     
+    // Registrar el uso de la API
+    const usageInfo = trackUsage(audioBuffer, metadata);
+    
+    if (usageInfo) {
+      console.log(`Duración estimada: ${Math.round(usageInfo.durationInSeconds)} segundos`);
+      console.log(`Costo estimado: $${usageInfo.estimatedCost.toFixed(4)}`);
+    }
+    
     return {
       text: response.data.text,
-      language: response.data.language || 'es'
+      language: response.data.language || 'es',
+      usageInfo
     };
   } catch (error) {
     console.error('Error al transcribir audio:', error);

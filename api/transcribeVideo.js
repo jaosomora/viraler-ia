@@ -22,7 +22,7 @@ export default async function transcribeVideo(req, res) {
 
     // Transcribir el audio
     console.log('Transcribiendo audio...');
-    const { text, language } = await transcribeAudio(audioBuffer);
+    const { text, language, usageInfo } = await transcribeAudio(audioBuffer, metadata);
 
     // Devolver la transcripción y metadatos
     return res.status(200).json({
@@ -33,7 +33,8 @@ export default async function transcribeVideo(req, res) {
       title: metadata.title,
       duration: metadata.duration,
       channel: metadata.channel,
-      thumbnail: metadata.thumbnail
+      thumbnail: metadata.thumbnail,
+      usageInfo: usageInfo || null
     });
 
   } catch (error) {

@@ -5,7 +5,7 @@
  * En desarrollo: http://localhost:3000
  * En producción: relativa a la URL actual
  */
-const API_BASE_URL = import.meta.env.MODE === 'development' 
+export const API_BASE_URL = import.meta.env.MODE === 'development' 
   ? 'http://localhost:3000/api' 
   : '/api';
 
@@ -33,6 +33,21 @@ export const transcribeVideo = async (url) => {
     return await response.json();
   } catch (error) {
     console.error('Error en la API:', error);
+    throw error;
+  }
+};
+
+/**
+ * Verifica la salud del servidor
+ * 
+ * @returns {Promise<Object>} - Estado de salud del servidor
+ */
+export const checkHealth = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/health`);
+    return await response.json();
+  } catch (error) {
+    console.error('Error al verificar la salud del servidor:', error);
     throw error;
   }
 };

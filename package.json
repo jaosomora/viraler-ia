@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "Aplicación para transcribir contenido de videos con IA",
+  "type": "module",
   "scripts": {
     "dev:frontend": "vite",
     "dev:backend": "nodemon server.js",

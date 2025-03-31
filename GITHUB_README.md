@@ -13,10 +13,12 @@ Una aplicación web moderna que permite transcribir contenido de videos de difer
 - **Almacenamiento local** de transcripciones
 - **Interfaz moderna** con modo oscuro/claro
 - **Búsqueda y filtrado** de transcripciones guardadas
+- **Panel de administración** para monitoreo de uso y costos
+- **Seguimiento detallado** del uso de la API de OpenAI
 
 ## 🛠️ Stack tecnológico
 
-- **Frontend**: React, React Router, TanStack Query, Tailwind CSS
+- **Frontend**: React, React Router, Tailwind CSS
 - **Backend**: Express.js, Node.js
 - **Extracción**: youtube-dl-exec (yt-dlp)
 - **IA**: OpenAI Whisper API
@@ -26,6 +28,7 @@ Una aplicación web moderna que permite transcribir contenido de videos de difer
 
 - Node.js 18.0 o superior
 - yt-dlp instalado
+- FFmpeg instalado
 - Cuenta en OpenAI con API key
 
 ## 🔧 Instalación
@@ -47,16 +50,32 @@ Una aplicación web moderna que permite transcribir contenido de videos de difer
    # Edita el archivo .env y agrega tu API key de OpenAI
    ```
 
-4. **Iniciar en modo desarrollo**:
+4. **Crear carpeta de datos**:
+   ```bash
+   mkdir data
+   ```
+
+5. **Iniciar en modo desarrollo**:
    ```bash
    npm run dev
    ```
+
+## 📊 Monitoreo de Uso
+
+La aplicación incluye un panel de administración accesible en `/admin` que permite:
+
+- Visualizar el número total de transcripciones
+- Ver minutos de audio procesados
+- Monitorear costos estimados de la API
+- Revisar historial de uso por fecha
+- Reiniciar contadores o eliminar registros específicos
 
 ## 🏗️ Estructura del proyecto
 
 ```
 viraler-ia/
 ├── api/                  # Lógica del backend
+├── data/                 # Datos de uso de la API
 ├── public/               # Archivos estáticos
 ├── src/                  # Código fuente frontend
 │   ├── components/       # Componentes reutilizables
