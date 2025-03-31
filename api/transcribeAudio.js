@@ -1,5 +1,5 @@
 // api/transcribeAudio.js
-import { Configuration, OpenAIApi } from 'openai';
+import OpenAI from 'openai';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -18,11 +18,10 @@ export async function transcribeAudio(audioBuffer, metadata = {}) {
       throw new Error('API Key de OpenAI no configurada');
     }
     
-    const configuration = new Configuration({
+    // Inicializar cliente de OpenAI v4
+    const openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
-    
-    const openai = new OpenAIApi(configuration);
     
     // Guardar el buffer en un archivo temporal
     const tempDir = os.tmpdir();
@@ -33,15 +32,17 @@ export async function transcribeAudio(audioBuffer, metadata = {}) {
     
     console.log('Enviando audio a OpenAI para transcripción...');
     
+    // Crear un objeto File a partir del archivo temporal
+    const file = fs.createReadStream(tempPath);
+    
     // Enviar el archivo a la API de OpenAI para transcribir
-    const response = await openai.createTranscription(
-      fs.createReadStream(tempPath),
-      'whisper-1',
-      undefined,
-      undefined,
-      0.2,
-      'es' // Puedes hacer este parámetro configurable
-    );
+    // La API v4 usa el método createTranscription directamente en el objeto openai
+    const response = await openai.audio.transcriptions.create({
+      file: file,
+      model: "whisper-1",
+      language: "es",
+      response_format: "json",
+    });
     
     // Eliminar el archivo temporal
     fs.unlinkSync(tempPath);
@@ -57,8 +58,8 @@ export async function transcribeAudio(audioBuffer, metadata = {}) {
     }
     
     return {
-      text: response.data.text,
-      language: response.data.language || 'es',
+      text: response.text,
+      language: response.language || 'es',
       usageInfo
     };
   } catch (error) {
