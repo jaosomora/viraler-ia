@@ -19,7 +19,7 @@ Una aplicación web moderna que permite transcribir contenido de videos de difer
 
 - **Frontend**: React 18, React Router, Tailwind CSS
 - **Backend**: Express.js, Node.js
-- **Extracción de audio**: yt-dlp
+- **Extracción de audio**: yt-dlp, FFmpeg
 - **Transcripción**: OpenAI Whisper API
 - **Empaquetado**: Vite
 
@@ -55,7 +55,7 @@ Una aplicación web moderna que permite transcribir contenido de videos de difer
    FFMPEG_PATH=/ruta/a/ffmpeg  # Opcional, si FFmpeg no está en el PATH
    ```
 
-5. Asegúrate de tener FFmpeg instalado:
+5. Asegúrate de tener FFmpeg instalado (crucial para el procesamiento de audio):
    ```
    # macOS con Homebrew
    brew install ffmpeg
@@ -92,6 +92,40 @@ Una aplicación web moderna que permite transcribir contenido de videos de difer
    ```
 
 9. Abre tu navegador en la dirección indicada (normalmente http://localhost:5173)
+
+## Configuración de FFmpeg
+
+FFmpeg es una dependencia **crítica** para el funcionamiento de la aplicación. Si encuentras errores relacionados con FFmpeg, sigue estos pasos:
+
+### Verificación de la instalación
+
+Para comprobar si FFmpeg está correctamente instalado, ejecuta en tu terminal:
+
+```bash
+ffmpeg -version
+```
+
+Si el comando funciona, FFmpeg está instalado y en tu PATH.
+
+### Configuración manual de la ruta
+
+Si FFmpeg está instalado pero Viraler IA no lo encuentra, puedes especificar la ruta exacta en el archivo `.env`:
+
+```
+FFMPEG_PATH=/ruta/completa/a/tu/ffmpeg
+```
+
+Ejemplos de rutas comunes:
+- macOS: `/usr/local/bin/ffmpeg` o `/opt/homebrew/bin/ffmpeg` (con Homebrew)
+- Linux: `/usr/bin/ffmpeg`
+- Windows: `C:\ruta\a\ffmpeg.exe`
+
+Para encontrar la ruta exacta en sistemas Unix, puedes usar el comando:
+```bash
+which ffmpeg
+```
+
+La aplicación verificará automáticamente si FFmpeg está disponible al iniciar y mostrará mensajes informativos sobre su estado.
 
 ## Uso de la Aplicación
 
@@ -200,13 +234,16 @@ Estos datos se almacenan en el archivo `data/usage.json` y proporcionan transpar
 ### Errores Comunes
 
 1. **Error: "FFmpeg not found"**
-   - Instala FFmpeg en tu sistema
-   - O especifica la ruta a FFmpeg en el archivo .env con FFMPEG_PATH=/ruta/a/ffmpeg
+   - Instala FFmpeg en tu sistema: `brew install ffmpeg` (macOS) o `sudo apt install ffmpeg` (Ubuntu)
+   - Verifica que se pueda ejecutar desde la terminal: `ffmpeg -version`
+   - Especifica la ruta exacta en el archivo .env con `FFMPEG_PATH=/ruta/a/ffmpeg`
+   - Reinicia el servidor después de realizar estos cambios
 
 2. **Error: "No se pudo extraer audio del video"**
    - Verifica que yt-dlp esté correctamente instalado: `yt-dlp --version`
    - Actualiza yt-dlp: `yt-dlp -U`
    - Asegúrate de que la URL del video sea válida y accesible
+   - Comprueba los logs del servidor para ver mensajes de error específicos
 
 3. **Error: "API Key de OpenAI no configurada"**
    - Verifica que el archivo .env exista y contenga OPENAI_API_KEY=tu-api-key
