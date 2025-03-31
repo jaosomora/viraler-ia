@@ -2,8 +2,8 @@
   "name": "viraler-ia",
   "version": "1.0.0",
   "private": true,
-  "description": "Aplicación para transcribir contenido de videos con IA",
   "type": "module",
+  "description": "Aplicación para transcribir contenido de videos con IA",
   "scripts": {
     "dev:frontend": "vite",
     "dev:backend": "nodemon server.js",
@@ -11,14 +11,14 @@
     "build": "vite build",
     "start": "node server.js",
     "preview": "vite preview",
-    "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0"
+    "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
+    "migrate": "node api/database/migrateJsonToSQLite.js"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.18.0",
-    "axios": "^1.8.4",
+    "better-sqlite3": "^9.5.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.1",
-    "esbuild": "^0.25.2",
     "express": "^4.18.2",
     "openai": "^4.90.0",
     "react": "^18.2.0",

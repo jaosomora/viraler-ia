@@ -2,6 +2,8 @@
 import { extractAudio } from './extractAudio.js';
 import { transcribeAudio } from './transcribeAudio.js';
 import { isValidUrl } from './utils/platformDetector.js';
+// Importar el nuevo tracker basado en SQLite
+import { trackUsage } from './utils/usageTrackerSQLite.js';
 
 export default async function transcribeVideo(req, res) {
   try {
@@ -20,9 +22,22 @@ export default async function transcribeVideo(req, res) {
     console.log('Extrayendo audio...');
     const { buffer: audioBuffer, metadata } = await extractAudio(url);
 
+    // Añadir URL a los metadatos
+    metadata.url = url;
+    
+    // Detectar plataforma para los metadatos
+    metadata.platform = detectPlatform(url);
+
     // Transcribir el audio
     console.log('Transcribiendo audio...');
     const { text, language, usageInfo } = await transcribeAudio(audioBuffer, metadata);
+    
+    // Actualizar metadatos con el texto transcrito para guardar en la base de datos
+    metadata.transcript = text;
+    metadata.language = language;
+
+    // Registrar uso con la nueva implementación en SQLite
+    const usage = trackUsage(audioBuffer, metadata);
 
     // Devolver la transcripción y metadatos
     return res.status(200).json({
@@ -34,7 +49,7 @@ export default async function transcribeVideo(req, res) {
       duration: metadata.duration,
       channel: metadata.channel,
       thumbnail: metadata.thumbnail,
-      usageInfo: usageInfo || null
+      usageInfo: usageInfo || usage || null
     });
 
   } catch (error) {
@@ -50,5 +65,24 @@ export default async function transcribeVideo(req, res) {
       error: 'Error al procesar la solicitud', 
       details: error.message 
     });
+  }
+}
+
+/**
+ * Detecta la plataforma basándose en la URL
+ * @param {string} url - URL del video
+ * @returns {string} - Plataforma detectada
+ */
+function detectPlatform(url) {
+  if (url.includes('instagram.com')) {
+    return 'instagram';
+  } else if (url.includes('tiktok.com')) {
+    return 'tiktok';
+  } else if (url.includes('youtube.com/shorts')) {
+    return 'youtube-shorts';
+  } else if (url.includes('youtube.com')) {
+    return 'youtube';
+  } else {
+    return 'unknown';
   }
 }

@@ -7,7 +7,15 @@ import { dirname } from 'path';
 import dotenv from 'dotenv';
 import transcribeVideo from './api/transcribeVideo.js';
 import { spawn } from 'child_process';
-import { generateUsageReport, resetUsageData, deleteHistoryByDate } from './api/utils/usageTracker.js';
+// Importar las nuevas funciones basadas en SQLite
+import { 
+  generateUsageReport, 
+  resetUsageData, 
+  deleteHistoryByDate,
+  getTranscriptions
+} from './api/utils/usageTrackerSQLite.js';
+// Importar la base de datos para asegurar que se inicializa
+import './api/database/schema.js';
 
 // Configurar __dirname para ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -131,6 +139,16 @@ app.delete('/api/usage-stats/history/:date', (req, res) => {
     }
   } catch (error) {
     res.status(500).json({ error: 'Error al eliminar registro histórico' });
+  }
+});
+
+// Nuevo endpoint para obtener transcripciones guardadas
+app.get('/api/transcriptions', (req, res) => {
+  try {
+    const transcriptions = getTranscriptions();
+    res.json(transcriptions);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener transcripciones' });
   }
 });
 

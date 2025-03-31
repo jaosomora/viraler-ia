@@ -3,7 +3,17 @@ import OpenAI from 'openai';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { trackUsage } from './utils/usageTracker.js';
+
+/**
+ * Calcula el costo basado en la duración del audio
+ * @param {number} durationInSeconds - Duración en segundos
+ * @returns {number} - Costo estimado
+ */
+export const calculateCost = (durationInSeconds) => {
+  // Whisper cobra $0.006 por minuto
+  const durationInMinutes = durationInSeconds / 60;
+  return durationInMinutes * 0.006;
+};
 
 /**
  * Transcribe el audio utilizando la API de OpenAI (Whisper)
@@ -49,13 +59,17 @@ export async function transcribeAudio(audioBuffer, metadata = {}) {
     
     console.log('Transcripción completada con éxito');
     
-    // Registrar el uso de la API
-    const usageInfo = trackUsage(audioBuffer, metadata);
+    // Calcular información de uso
+    const durationInSeconds = metadata.duration || (audioBuffer.byteLength / 16000);
+    const estimatedCost = calculateCost(durationInSeconds);
     
-    if (usageInfo) {
-      console.log(`Duración estimada: ${Math.round(usageInfo.durationInSeconds)} segundos`);
-      console.log(`Costo estimado: $${usageInfo.estimatedCost.toFixed(4)}`);
-    }
+    const usageInfo = {
+      durationInSeconds,
+      estimatedCost
+    };
+    
+    console.log(`Duración estimada: ${Math.round(usageInfo.durationInSeconds)} segundos`);
+    console.log(`Costo estimado: $${usageInfo.estimatedCost.toFixed(4)}`);
     
     return {
       text: response.text,
