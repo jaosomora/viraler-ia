@@ -5,27 +5,33 @@
   "type": "module",
   "description": "Aplicación para transcribir contenido de videos con IA",
   "scripts": {
-    "dev:frontend": "vite",
+    "dev:frontend": "vite --host 0.0.0.0",
     "dev:backend": "nodemon server.js",
     "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
     "build": "npx vite build",
     "start": "node server.js",
     "preview": "vite preview",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
-    "migrate": "node api/database/migrateJsonToSQLite.js"
+    "migrate": "node api/database/migrateJsonToSQLite.js",
+    "docker:build": "docker-compose build",
+    "docker:start": "docker-compose up",
+    "docker:start:detached": "docker-compose up -d",
+    "docker:stop": "docker-compose down",
+    "docker:bash": "docker-compose exec viraler-ia bash",
+    "docker:logs": "docker-compose logs -f"
   },
-"dependencies": {
-  "@tanstack/react-query": "^5.18.0",
-  "cors": "^2.8.5",
-  "dotenv": "^16.4.1",
-  "express": "^4.18.2",
-  "openai": "^4.90.0",
-  "react": "^18.2.0",
-  "react-dom": "^18.2.0",
-  "react-router-dom": "^6.22.0",
-  "sqlite3": "^5.1.7",
-  "vite": "^6.2.3",
-  "@vitejs/plugin-react": "^4.2.1"
+  "dependencies": {
+    "@tanstack/react-query": "^5.18.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.1",
+    "express": "^4.18.2",
+    "openai": "^4.90.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.22.0",
+    "sqlite3": "^5.1.7",
+    "vite": "^6.2.3",
+    "@vitejs/plugin-react": "^4.2.1"
   },
   "devDependencies": {
     "@types/node": "^20.11.16",

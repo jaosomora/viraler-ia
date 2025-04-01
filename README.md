@@ -14,6 +14,7 @@ Una aplicación web moderna que permite transcribir contenido de videos de difer
 - ✅ Búsqueda y filtrado de transcripciones guardadas
 - ✅ Panel de administración para monitorear uso y costos de API
 - ✅ Seguimiento detallado del uso de la API de OpenAI y costos estimados
+- ✅ Entorno Dockerizado para desarrollo y producción
 
 ## Tecnologías
 
@@ -22,30 +23,39 @@ Una aplicación web moderna que permite transcribir contenido de videos de difer
 - **Extracción de audio**: yt-dlp, FFmpeg
 - **Transcripción**: OpenAI Whisper API
 - **Empaquetado**: Vite
+- **Contenedorización**: Docker, Docker Compose
 
 ## Requisitos Previos
 
+### Desarrollo tradicional (sin Docker)
 - Node.js 18.0 o superior
 - Cuenta en OpenAI con API key
 - yt-dlp instalado en el sistema (para extracción de audio)
 - FFmpeg instalado (requerido para procesar audio)
 - Git (para clonar el repositorio)
 
+### Desarrollo con Docker
+- Docker y Docker Compose instalados
+- Cuenta en OpenAI con API key
+- Git (para clonar el repositorio)
+
 ## Instalación y Ejecución
 
+### Método 1: Instalación Tradicional (sin Docker)
+
 1. Clona el repositorio:
-   ```
+   ```bash
    git clone https://github.com/tu-usuario/viraler-ia.git
    cd viraler-ia
    ```
 
 2. Instala las dependencias:
-   ```
+   ```bash
    npm install
    ```
 
 3. Crea un archivo `.env` en la raíz del proyecto basado en el `.env.example`:
-   ```
+   ```bash
    cp .env.example .env
    ```
 
@@ -56,7 +66,7 @@ Una aplicación web moderna que permite transcribir contenido de videos de difer
    ```
 
 5. Asegúrate de tener FFmpeg instalado (crucial para el procesamiento de audio):
-   ```
+   ```bash
    # macOS con Homebrew
    brew install ffmpeg
    
@@ -69,7 +79,7 @@ Una aplicación web moderna que permite transcribir contenido de videos de difer
    ```
 
 6. Instala yt-dlp (necesario para extraer audio de los videos):
-   ```
+   ```bash
    # macOS con Homebrew
    brew install yt-dlp
    
@@ -82,22 +92,117 @@ Una aplicación web moderna que permite transcribir contenido de videos de difer
    ```
 
 7. Crea una carpeta `data` en la raíz del proyecto para almacenar los datos de uso:
-   ```
+   ```bash
    mkdir data
    ```
 
 8. Ejecuta el servidor de desarrollo:
-   ```
+   ```bash
    npm run dev
    ```
 
 9. Abre tu navegador en la dirección indicada (normalmente http://localhost:5173)
 
+### Método 2: Instalación con Docker (recomendada)
+
+Usar Docker simplifica enormemente la configuración, ya que no necesitas instalar FFmpeg o yt-dlp manualmente. Todo viene preconfigurado en el contenedor.
+
+1. Clona el repositorio:
+   ```bash
+   git clone https://github.com/tu-usuario/viraler-ia.git
+   cd viraler-ia
+   ```
+
+2. Crea un archivo `.env` en la raíz del proyecto:
+   ```bash
+   cp .env.example .env
+   ```
+
+3. Edita el archivo `.env` para agregar tu API key de OpenAI:
+   ```
+   OPENAI_API_KEY=tu-api-key-aquí
+   ```
+
+4. Crea la carpeta de datos y la carpeta config:
+   ```bash
+   mkdir -p data config
+   ```
+
+5. (Opcional) Para acceder a videos privados de Instagram, exporta las cookies desde tu navegador e incluye el archivo como `config/instagram_cookies.txt`.
+
+6. Construye y ejecuta los contenedores Docker:
+   ```bash
+   # Construir la imagen Docker
+   npm run docker:build
+   
+   # Iniciar los contenedores
+   npm run docker:start
+   ```
+
+7. Accede a la aplicación en tu navegador:
+   - Frontend: http://localhost:5173
+   - Backend: http://localhost:3000
+
+8. Para detener los contenedores:
+   ```bash
+   npm run docker:stop
+   ```
+
+## Desarrollo con Docker
+
+El entorno Dockerizado está diseñado para proporcionar una experiencia de desarrollo fluida con hot-reload y todas las dependencias preconfiguradas.
+
+### Comandos útiles
+
+- **Iniciar el entorno de desarrollo**:
+  ```bash
+  npm run docker:start
+  ```
+
+- **Ver logs del servidor**:
+  ```bash
+  npm run docker:logs
+  ```
+
+- **Acceder al shell del contenedor**:
+  ```bash
+  npm run docker:bash
+  ```
+
+- **Detener los contenedores**:
+  ```bash
+  npm run docker:stop
+  ```
+
+### Estructura de Docker
+
+- **`Dockerfile.dev`**: Configuración para el entorno de desarrollo
+- **`Dockerfile`**: Configuración para producción
+- **`docker-compose.yml`**: Orquestación de servicios para desarrollo
+
+### Volúmenes montados
+
+- El código fuente se monta en tiempo real, lo que permite ver los cambios inmediatamente
+- Los `node_modules` se mantienen dentro del contenedor para evitar problemas de compatibilidad
+- La carpeta `data` se monta para persistencia de datos
+- La carpeta `config` se monta para configuraciones adicionales como cookies
+
+## Configuración para Instagram
+
+Para acceder a contenido protegido de Instagram (especialmente perfiles privados o con restricciones geográficas), necesitarás proporcionar cookies de autenticación:
+
+1. Inicia sesión en Instagram desde tu navegador
+2. Usa una extensión como "Get cookies.txt" para Chrome o Firefox
+3. Exporta las cookies y guárdalas en `config/instagram_cookies.txt`
+4. Reinicia los contenedores si están en ejecución
+
+La aplicación detectará automáticamente y usará las cookies cuando sea necesario.
+
 ## Configuración de FFmpeg
 
-FFmpeg es una dependencia **crítica** para el funcionamiento de la aplicación. Si encuentras errores relacionados con FFmpeg, sigue estos pasos:
+FFmpeg es una dependencia **crítica** para el funcionamiento de la aplicación. Si estás usando Docker, FFmpeg ya está configurado correctamente.
 
-### Verificación de la instalación
+### Para instalación sin Docker:
 
 Para comprobar si FFmpeg está correctamente instalado, ejecuta en tu terminal:
 
@@ -125,7 +230,32 @@ Para encontrar la ruta exacta en sistemas Unix, puedes usar el comando:
 which ffmpeg
 ```
 
-La aplicación verificará automáticamente si FFmpeg está disponible al iniciar y mostrará mensajes informativos sobre su estado.
+## Despliegue en Producción
+
+### Despliegue en Render
+
+Esta aplicación está configurada para ser desplegada en [Render](https://render.com) con Docker para máxima consistencia entre entornos.
+
+#### Pasos para desplegar en Render
+
+1. Crea una cuenta en Render y conéctala con tu repositorio GitHub
+2. Crea un nuevo Web Service y selecciona tu repositorio
+3. Configura el servicio:
+   - **Environment**: Docker
+   - **Branch**: main (o la rama que prefieras)
+   - **Root Directory**: (dejar en blanco)
+   - **Variables de entorno**: Añade OPENAI_API_KEY con tu clave API
+4. Si necesitas cookies para Instagram, configura la variable de entorno `INSTAGRAM_COOKIES` con el contenido del archivo cookies.txt
+5. Agrega un disco persistente:
+   - **Mount Path**: /opt/data
+   - **Size**: 1 GB debería ser suficiente
+
+La aplicación detectará automáticamente que está en entorno de producción y usará las configuraciones apropiadas.
+
+#### Para problemas específicos con Render
+
+- Si yt-dlp no puede acceder a ciertos videos, considera usar cookies para esa plataforma
+- Si necesitas depurar problemas, revisa los logs en el dashboard de Render
 
 ## Uso de la Aplicación
 
@@ -169,41 +299,25 @@ viraler-ia/
 │   ├── extractAudio.js   # Función para extraer audio
 │   ├── transcribeAudio.js # Función para transcribir con Whisper
 │   └── transcribeVideo.js # Endpoint principal que conecta todo
-├── data/                 # Almacenamiento de datos de uso (creada manualmente)
-│   └── usage.json        # Registro de uso de la API (generado automáticamente)
+├── config/               # Configuraciones adicionales (cookies, etc.)
+├── data/                 # Almacenamiento de datos de uso
 ├── public/               # Activos estáticos
-│   ├── logo.svg          # Logo de la aplicación
-│   └── screenshot.png    # Captura de pantalla para el README
 ├── src/                  # Código fuente del frontend
 │   ├── components/       # Componentes React
-│   │   ├── Footer.jsx    # Pie de página
-│   │   ├── Header.jsx    # Cabecera con navegación
-│   │   ├── SavedTranscriptions.jsx # Lista de transcripciones guardadas
-│   │   ├── Spinner.jsx   # Componente de carga
-│   │   ├── TranscriptionForm.jsx # Formulario para ingresar URLs
-│   │   └── TranscriptionResults.jsx # Resultados de transcripción
 │   ├── context/          # Contextos de React
-│   │   └── TranscriptionContext.jsx # Gestión del estado global
 │   ├── hooks/            # Custom hooks
-│   │   ├── useLocalStorage.js # Hook para persistencia en localStorage
-│   │   └── useTranscription.js # Hook para gestión de transcripciones
 │   ├── pages/            # Páginas de la aplicación
-│   │   ├── AdminPanel.jsx # Panel de administración y estadísticas
-│   │   ├── Home.jsx      # Página principal
-│   │   ├── MyResults.jsx # Página de resultados guardados
-│   │   └── NotFound.jsx  # Página 404
 │   ├── services/         # Servicios para API
-│   │   ├── api.js        # Cliente API
-│   │   ├── usageStats.js # Servicio para estadísticas de uso
-│   │   └── videoExtractor.js # Servicio de extracción de videos
 │   ├── utils/            # Utilidades y helpers
-│   │   ├── formatters.js # Formateo de datos
-│   │   └── validation.js # Validación de entradas
 │   ├── App.jsx           # Componente principal con rutas
 │   ├── index.css         # Estilos globales con Tailwind
 │   └── main.jsx          # Punto de entrada de React
+├── .dockerignore         # Archivos a ignorar en Docker
 ├── .env                  # Variables de entorno (no incluido en el repo)
 ├── .env.example          # Ejemplo de variables de entorno
+├── docker-compose.yml    # Configuración de Docker Compose para desarrollo
+├── Dockerfile            # Configuración de Docker para producción
+├── Dockerfile.dev        # Configuración de Docker para desarrollo
 ├── package.json          # Dependencias y scripts
 ├── postcss.config.js     # Configuración de PostCSS
 ├── README.md             # Documentación
@@ -227,31 +341,45 @@ La aplicación incluye un sistema completo de seguimiento de uso de la API de Op
   - Eliminar registros específicos por fecha
   - Visualizar estadísticas detalladas
 
-Estos datos se almacenan en el archivo `data/usage.json` y proporcionan transparencia sobre el uso y costo de la API.
+Estos datos se almacenan en la base de datos SQLite en la carpeta `data` y proporcionan transparencia sobre el uso y costo de la API.
 
 ## Solución de Problemas
 
 ### Errores Comunes
 
-1. **Error: "FFmpeg not found"**
-   - Instala FFmpeg en tu sistema: `brew install ffmpeg` (macOS) o `sudo apt install ffmpeg` (Ubuntu)
-   - Verifica que se pueda ejecutar desde la terminal: `ffmpeg -version`
-   - Especifica la ruta exacta en el archivo .env con `FFMPEG_PATH=/ruta/a/ffmpeg`
-   - Reinicia el servidor después de realizar estos cambios
+1. **Errores en Docker**
+   - Si Docker no puede iniciar: Asegúrate de que Docker Desktop esté en ejecución
+   - Problemas de permisos: Ejecuta los comandos con sudo en Linux
+   - Puerto en uso: Cambia los puertos mapeados en `docker-compose.yml`
 
-2. **Error: "No se pudo extraer audio del video"**
-   - Verifica que yt-dlp esté correctamente instalado: `yt-dlp --version`
-   - Actualiza yt-dlp: `yt-dlp -U`
-   - Asegúrate de que la URL del video sea válida y accesible
-   - Comprueba los logs del servidor para ver mensajes de error específicos
+2. **Errores con Vite o Hot Reload**
+   - Reinicia los contenedores: `npm run docker:stop && npm run docker:start`
+   - Verifica los logs: `npm run docker:logs`
 
-3. **Error: "API Key de OpenAI no configurada"**
+3. **Error: "No se pudo extraer audio del video"**
+   - Para videos de Instagram: Asegúrate de tener `config/instagram_cookies.txt` actualizado
+   - Para TikTok: Algunos videos están geobloqueados y pueden requerir VPN
+   - Verifica si el video es accesible públicamente
+   - Comprueba los logs para ver mensajes de error específicos
+
+4. **Error: "API Key de OpenAI no configurada"**
    - Verifica que el archivo .env exista y contenga OPENAI_API_KEY=tu-api-key
-   - Reinicia el servidor de desarrollo
+   - En Docker, asegúrate de que el archivo .env se esté montando correctamente
+   - En Render, verifica que la variable de entorno esté configurada
 
-4. **Error: "No se pudo transcribir el audio"**
-   - Verifica que tu API key de OpenAI sea válida
-   - Asegúrate de tener saldo disponible en tu cuenta de OpenAI
+### Para Instagram específicamente
+
+Si tienes problemas para extraer videos de Instagram, ten en cuenta:
+
+1. Instagram limita el acceso a contenido según:
+   - Si la cuenta es privada
+   - Si hay restricciones geográficas
+   - Si has alcanzado límites de rate-limit
+
+2. Soluciones:
+   - Usa un archivo de cookies actualizado
+   - Asegúrate de que las cookies sean de una cuenta que pueda ver el contenido
+   - En algunos casos, necesitarás usar una VPN
 
 ### Límites y Consideraciones
 
@@ -259,6 +387,16 @@ Estos datos se almacenan en el archivo `data/usage.json` y proporcionan transpar
 - Algunos videos pueden estar protegidos y no ser accesibles
 - Las transcripciones se almacenan solo localmente (no en la nube)
 - Los costos estimados son aproximados y basados en las tarifas publicadas de OpenAI
+
+## Optimización de Docker
+
+El entorno Docker ha sido optimizado para:
+
+- **Tiempo de arranque rápido** mediante capas eficientes
+- **Cold starts** minimizados en entornos de producción
+- **Desarrollo en tiempo real** mediante volúmenes montados
+- **Consistencia** entre entornos de desarrollo y producción
+- **Tamaño reducido** de imágenes mediante técnicas de multi-stage building
 
 ## Contribución
 

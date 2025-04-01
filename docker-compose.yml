@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  viraler-ia:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"  # Puerto para Vite
+      - "3000:3000"  # Puerto para el servidor Express
+    volumes:
+      - .:/app  # Monta el directorio actual en /app
+      - /app/node_modules  # Evita sobrescribir node_modules
+      - ./data:/opt/data  # Monta tu carpeta de datos local
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - FFMPEG_PATH=/usr/bin/ffmpeg
+      - VITE_HOST=0.0.0.0  # Necesario para acceder desde el host
+    command: bash -c "cd /app && npm run dev"
