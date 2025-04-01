@@ -101,9 +101,9 @@ app.get('/api/health', (req, res) => {
 });
 
 // API para obtener datos de uso
-app.get('/api/usage-stats', (req, res) => {
+app.get('/api/usage-stats', async (req, res) => {
   try {
-    const usageReport = generateUsageReport();
+    const usageReport = await generateUsageReport();
     res.json(usageReport);
   } catch (error) {
     res.status(500).json({ error: 'Error al obtener estadísticas de uso' });

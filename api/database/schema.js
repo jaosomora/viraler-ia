@@ -9,11 +9,35 @@ import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Asegurarse de que existe el directorio data
-const dataDir = path.join(__dirname, '../../data');
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
-}
+// Determinar ruta de la base de datos según el entorno
+const getDataDir = () => {
+  const isProduction = process.env.NODE_ENV === 'production';
+  
+  if (isProduction) {
+    // Ruta para producción en Render
+    const prodDataDir = '/opt/data';
+    
+    // Crear directorio si no existe
+    if (!fs.existsSync(prodDataDir)) {
+      fs.mkdirSync(prodDataDir, { recursive: true });
+    }
+    
+    return prodDataDir;
+  } else {
+    // Ruta para desarrollo local
+    const devDataDir = path.join(__dirname, '../../data');
+    
+    // Crear directorio si no existe
+    if (!fs.existsSync(devDataDir)) {
+      fs.mkdirSync(devDataDir, { recursive: true });
+    }
+    
+    return devDataDir;
+  }
+};
+
+// Obtener directorio de datos
+const dataDir = getDataDir();
 
 // Ruta a la base de datos SQLite
 const dbPath = path.join(dataDir, 'viraler.db');

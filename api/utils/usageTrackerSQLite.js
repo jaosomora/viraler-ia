@@ -160,59 +160,74 @@ export const trackUsage = (audioData, metadata) => {
  */
 export const generateUsageReport = () => {
   try {
-    // Para mantener compatibilidad con la API existente, hacemos una implementación síncrona
-    const usageData = {
-      totalTranscriptions: 0,
-      totalAudioMinutes: 0,
-      estimatedCost: 0,
-      history: [],
-      averageCostPerTranscription: 0,
-      averageAudioMinutesPerTranscription: 0,
-      recentHistory: []
-    };
-    
-    // Usamos la versión de getUsageData que usa promesas pero la ejecutamos de forma síncrona
-    getUsageData().then(data => {
-      usageData.totalTranscriptions = data.totalTranscriptions;
-      usageData.totalAudioMinutes = data.totalAudioMinutes;
-      usageData.estimatedCost = data.estimatedCost;
-      usageData.history = data.history;
+    return new Promise((resolve, reject) => {
+      const usageData = {
+        totalTranscriptions: 0,
+        totalAudioMinutes: 0,
+        estimatedCost: 0,
+        history: [],
+        averageCostPerTranscription: 0,
+        averageAudioMinutesPerTranscription: 0,
+        recentHistory: []
+      };
       
-      // Calcular estadísticas adicionales
-      usageData.averageCostPerTranscription = 
-        usageData.totalTranscriptions > 0 
-          ? (usageData.estimatedCost / usageData.totalTranscriptions).toFixed(4) 
-          : 0;
-      
-      usageData.averageAudioMinutesPerTranscription = 
-        usageData.totalTranscriptions > 0 
-          ? (usageData.totalAudioMinutes / usageData.totalTranscriptions).toFixed(2) 
-          : 0;
-      
-      // Ordenar historial por fecha (más reciente primero)
-      const sortedHistory = [...usageData.history].sort((a, b) => 
-        new Date(b.date) - new Date(a.date)
+      // Obtener estadísticas totales
+      db.get(
+        `SELECT 
+          SUM(transcriptions) as totalTranscriptions, 
+          SUM(audio_minutes) as totalAudioMinutes, 
+          SUM(cost) as estimatedCost 
+        FROM usage_stats`,
+        (err, row) => {
+          if (err) {
+            console.error('Error al obtener estadísticas totales:', err);
+            return reject(err);
+          }
+          
+          if (row) {
+            usageData.totalTranscriptions = row.totalTranscriptions || 0;
+            usageData.totalAudioMinutes = row.totalAudioMinutes || 0;
+            usageData.estimatedCost = row.estimatedCost || 0;
+          }
+          
+          // Calcular promedios
+          usageData.averageCostPerTranscription = 
+            usageData.totalTranscriptions > 0 
+              ? (usageData.estimatedCost / usageData.totalTranscriptions).toFixed(4) 
+              : 0;
+          
+          usageData.averageAudioMinutesPerTranscription = 
+            usageData.totalTranscriptions > 0 
+              ? (usageData.totalAudioMinutes / usageData.totalTranscriptions).toFixed(2) 
+              : 0;
+          
+          // Obtener historial
+          db.all(
+            `SELECT date, transcriptions, audio_minutes as audioMinutes, cost 
+             FROM usage_stats 
+             ORDER BY date DESC 
+             LIMIT 10`,
+            (err, rows) => {
+              if (err) {
+                console.error('Error al obtener historial de uso:', err);
+                return reject(err);
+              }
+              
+              usageData.recentHistory = rows || [];
+              usageData.history = rows || [];
+              
+              resolve(usageData);
+            }
+          );
+        }
       );
-      
-      usageData.recentHistory = sortedHistory.slice(0, 10);
-    }).catch(err => {
-      console.error('Error al generar reporte de uso:', err);
     });
-    
-    return usageData;
   } catch (error) {
     console.error('Error al generar reporte de uso:', error);
-    return {
-      totalTranscriptions: 0,
-      totalAudioMinutes: 0,
-      estimatedCost: 0,
-      averageCostPerTranscription: 0,
-      averageAudioMinutesPerTranscription: 0,
-      history: [],
-      recentHistory: []
-    };
+    throw error;
   }
 };
+
 
 /**
  * Reinicia los datos de uso en la base de datos

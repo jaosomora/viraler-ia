@@ -14,7 +14,7 @@ const AdminPanel = () => {
   const fetchUsageData = async () => {
     try {
       setIsLoading(true);
-      const data = await getUsageStats();
+      const data = await getUsageStats(); // Asegúrate de que esta función maneje la promesa
       setUsageData(data);
       setError(null);
     } catch (err) {
