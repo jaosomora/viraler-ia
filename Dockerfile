@@ -4,11 +4,14 @@ WORKDIR /app
 
 # Instalar dependencias para FFmpeg y yt-dlp en una sola capa
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends ffmpeg python3-minimal curl ca-certificates && \
-    curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp && \
-    chmod a+rx /usr/local/bin/yt-dlp && \
+    apt-get install -y --no-install-recommends ffmpeg python3 python3-venv python3-dev python3-setuptools python3-wheel python3-pip curl ca-certificates && \
+    pip3 install --no-cache-dir --break-system-packages pip setuptools wheel && \
+    pip3 install --no-cache-dir --break-system-packages yt-dlp && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
+
+# Verificar instalación de yt-dlp
+RUN yt-dlp --version
 
 # Copiar solo archivos de dependencias primero
 COPY package.json package-lock.json ./
