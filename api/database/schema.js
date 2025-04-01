@@ -19,7 +19,14 @@ const getDataDir = () => {
     
     // Crear directorio si no existe
     if (!fs.existsSync(prodDataDir)) {
-      fs.mkdirSync(prodDataDir, { recursive: true });
+      try {
+        fs.mkdirSync(prodDataDir, { recursive: true });
+        console.log(`Directorio de datos creado en: ${prodDataDir}`);
+      } catch (error) {
+        console.error(`Error al crear directorio de datos: ${error.message}`);
+        // Intentar usar un directorio temporal como fallback
+        return '/tmp';
+      }
     }
     
     return prodDataDir;
