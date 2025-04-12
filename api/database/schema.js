@@ -99,6 +99,32 @@ db.serialize(() => {
     )
   `);
 
+  // Tabla de usuarios
+db.run(`
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    google_id TEXT UNIQUE,
+    email TEXT UNIQUE NOT NULL,
+    name TEXT,
+    picture TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
+// Tabla de proyectos (la añadiremos para la siguiente fase)
+db.run(`
+  CREATE TABLE IF NOT EXISTS projects (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+  )
+`);
+
   console.log('Esquema de base de datos inicializado correctamente.');
 });
 

@@ -16,6 +16,12 @@ import {
 } from './api/utils/usageTrackerSQLite.js';
 // Importar la base de datos para asegurar que se inicializa
 import './api/database/schema.js';
+// Importaciones para autenticación
+import passport from 'passport';
+import session from 'express-session';
+import cookieParser from 'cookie-parser';
+import { setupPassport } from './api/config/passport.js';
+import authRoutes from './api/routes/authRoutes.js';
 
 // Configurar __dirname para ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -30,6 +36,23 @@ const PORT = process.env.PORT || 3000;
 // Middlewares
 app.use(cors());
 app.use(express.json());
+
+// Middlewares para autenticación
+app.use(cookieParser());
+app.use(session({
+  secret: process.env.JWT_SECRET || 'tu_secreto_seguro',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 24 * 60 * 60 * 1000 // 24 horas
+  }
+}));
+
+// Configurar Passport
+app.use(passport.initialize());
+app.use(passport.session());
+setupPassport();
 
 // Verificar dependencias
 const checkDependencies = async () => {
@@ -99,6 +122,9 @@ const checkDependencies = async () => {
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'API funcionando correctamente' });
 });
+
+// Rutas de autenticación
+app.use('/api/auth', authRoutes);
 
 // API para obtener datos de uso
 app.get('/api/usage-stats', async (req, res) => {
