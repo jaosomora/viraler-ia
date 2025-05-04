@@ -57,47 +57,66 @@ const Header = () => {
             <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 flex items-center justify-center text-white font-bold">
               V
             </div>
-            <span className="text-xl font-bold">Viraler IA</span>
+            <span className="text-xl font-bold">ViralAI</span>
           </Link>
 
           {/* Navigation - Desktop */}
           <nav className="hidden md:flex items-center space-x-8">
-            <Link
-              to="/"
-              className={`font-medium transition ${
-                isActive('/') 
-                  ? 'text-purple-600 dark:text-purple-400' 
-                  : 'text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400'
-              }`}
-            >
-              Transcribir
-            </Link>
-            <Link
-              to="/mis-resultados"
-              className={`font-medium transition ${
-                isActive('/mis-resultados') 
-                  ? 'text-purple-600 dark:text-purple-400' 
-                  : 'text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400'
-              }`}
-            >
-              Mis Resultados
-            </Link>
-            <Link
-              to="/admin"
-              className={`font-medium transition ${
-                isActive('/admin') 
-                  ? 'text-purple-600 dark:text-purple-400' 
-                  : 'text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400'
-              }`}
-            >
-              Admin
-            </Link>
-            
-            <button
-              onClick={toggleDarkMode}
-              className="p-2 rounded-full text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-              aria-label="Toggle dark mode"
-            >
+  <Link
+    to="/"
+    className={`font-medium transition ${
+      isActive('/') 
+        ? 'text-purple-600 dark:text-purple-400' 
+        : 'text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400'
+    }`}
+  >
+    Transcribir
+  </Link>
+  <Link
+    to="/mis-resultados"
+    className={`font-medium transition ${
+      isActive('/mis-resultados') 
+        ? 'text-purple-600 dark:text-purple-400' 
+        : 'text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400'
+    }`}
+  >
+    Mis Resultados
+  </Link>
+  <Link
+    to="/clientes"
+    className={`font-medium transition ${
+      isActive('/clientes') 
+        ? 'text-purple-600 dark:text-purple-400' 
+        : 'text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400'
+    }`}
+  >
+    Clientes
+  </Link>
+  <Link
+    to="/admin"
+    className={`font-medium transition ${
+      isActive('/admin') 
+        ? 'text-purple-600 dark:text-purple-400' 
+        : 'text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400'
+    }`}
+  >
+    Admin
+  </Link>
+  <Link
+  to="/logs"
+  className={`font-medium transition ${
+    isActive('/logs') 
+      ? 'text-purple-600 dark:text-purple-400' 
+      : 'text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400'
+  }`}
+>
+  Logs
+</Link>
+  <button
+    onClick={toggleDarkMode}
+    className="p-2 rounded-full text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+    aria-label="Toggle dark mode"
+  >
               {isDarkMode ? (
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path
@@ -211,6 +230,17 @@ const Header = () => {
               }`}
             >
               Admin
+              </Link>
+              <Link
+      to="/clientes"
+      onClick={() => setIsMobileMenuOpen(false)}
+      className={`block py-2 px-4 rounded ${
+        isActive('/clientes') 
+          ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400' 
+          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+      }`}
+    >
+      Clientes  
             </Link>
           </nav>
         )}

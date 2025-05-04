@@ -19,6 +19,9 @@ COPY package.json package-lock.json ./
 # Instalar solo dependencias de producción
 RUN npm ci --only=production
 
+# Instalar dependencias adicionales para RAG
+RUN npm install natural lodash-es markdown-it sqlite3
+
 # Copiar archivos de configuración de build
 COPY vite.config.js tailwind.config.js postcss.config.js ./
 

@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { getUsageStats, resetUsageStats, deleteHistoryEntry } from '../services/usageStats';
+import { getApiUsageStats } from '../services/logService';
 import Spinner from '../components/Spinner';
 
 const AdminPanel = () => {
   const [usageData, setUsageData] = useState(null);
+  const [claudeStats, setClaudeStats] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isClaudeLoading, setIsClaudeLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -14,7 +18,7 @@ const AdminPanel = () => {
   const fetchUsageData = async () => {
     try {
       setIsLoading(true);
-      const data = await getUsageStats(); // Asegúrate de que esta función maneje la promesa
+      const data = await getUsageStats();
       setUsageData(data);
       setError(null);
     } catch (err) {
@@ -24,8 +28,24 @@ const AdminPanel = () => {
     }
   };
 
+  const fetchClaudeStats = async () => {
+    try {
+      setIsClaudeLoading(true);
+      const stats = await getApiUsageStats();
+      setClaudeStats(stats);
+    } catch (error) {
+      console.error('Error al cargar estadísticas de Claude:', error);
+    } finally {
+      setIsClaudeLoading(false);
+    }
+  };
+
   useEffect(() => {
+    // Cargar datos de uso de Whisper
     fetchUsageData();
+    
+    // Cargar datos de uso de Claude
+    fetchClaudeStats();
   }, []);
 
   // Mostrar confirmación para reiniciar los datos
@@ -77,7 +97,7 @@ const AdminPanel = () => {
     setDeleteTarget(null);
   };
 
-  if (isLoading) {
+  if (isLoading && !usageData) {
     return (
       <div className="flex flex-col items-center justify-center p-8 space-y-4">
         <Spinner size="xl" />
@@ -86,7 +106,7 @@ const AdminPanel = () => {
     );
   }
 
-  if (error) {
+  if (error && !usageData) {
     return (
       <div className="bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 p-4 rounded-lg">
         <div className="flex items-center">
@@ -95,14 +115,6 @@ const AdminPanel = () => {
           </svg>
           <span>Error: {error}</span>
         </div>
-      </div>
-    );
-  }
-
-  if (!usageData) {
-    return (
-      <div className="text-center p-8">
-        <p className="text-gray-600 dark:text-gray-300">No hay datos de uso disponibles.</p>
       </div>
     );
   }
@@ -134,7 +146,7 @@ const AdminPanel = () => {
           Panel de Administración
         </h1>
         <p className="mt-3 text-gray-600 dark:text-gray-300">
-          Monitorea el uso y los costos de la API de OpenAI
+          Monitorea el uso y los costos de las APIs
         </p>
       </div>
 
@@ -152,7 +164,10 @@ const AdminPanel = () => {
             Reiniciar Contadores
           </button>
           <button
-            onClick={() => fetchUsageData()}
+            onClick={() => {
+              fetchUsageData();
+              fetchClaudeStats();
+            }}
             className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg flex items-center"
           >
             <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -163,7 +178,65 @@ const AdminPanel = () => {
         </div>
       </div>
 
-      {/* Tarjetas de resumen */}
+      {/* Sección de Claude */}
+      {isClaudeLoading ? (
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
+          <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Uso de Claude API</h2>
+          <div className="flex justify-center items-center p-6">
+            <Spinner size="md" />
+          </div>
+        </div>
+      ) : claudeStats ? (
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
+          <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Uso de Claude API</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-gray-50 dark:bg-gray-750 dark:bg-gray-900/50 p-4 rounded-lg">
+              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Solicitudes</h3>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-white">
+                {claudeStats.global.totalRequests || 0}
+              </p>
+            </div>
+            
+            <div className="bg-gray-50 dark:bg-gray-750 dark:bg-gray-900/50 p-4 rounded-lg">
+              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Tokens procesados</h3>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-white">
+                {((claudeStats.global.totalTokensInput || 0) + (claudeStats.global.totalTokensOutput || 0)).toLocaleString()}
+              </p>
+            </div>
+            
+            <div className="bg-gray-50 dark:bg-gray-750 dark:bg-gray-900/50 p-4 rounded-lg">
+              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Costo estimado</h3>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-white">
+                ${(claudeStats.global.totalCost || 0).toFixed(4)}
+              </p>
+            </div>
+          </div>
+          
+          <div className="mt-4 flex justify-end">
+            <Link
+              to="/logs"
+              className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium"
+            >
+              Ver detalles completos →
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
+          <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Uso de Claude API</h2>
+          <p className="text-gray-500 dark:text-gray-400 text-center py-4">No hay datos disponibles de uso de Claude</p>
+          <div className="mt-4 flex justify-end">
+            <Link
+              to="/logs"
+              className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium"
+            >
+              Ver panel de logs →
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Tarjetas de resumen Whisper */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
           <div className="flex items-center justify-between">
@@ -208,7 +281,7 @@ const AdminPanel = () => {
       {/* Estadísticas adicionales */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Estadísticas detalladas</h2>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Estadísticas Whisper API</h2>
         </div>
         <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
