@@ -40,12 +40,14 @@ RUN npm run build
 COPY server.js ./
 COPY api/ ./api/
 
+# Crear directorio para cookies y datos
+RUN mkdir -p /app/config /opt/data && chmod 777 /opt/data /app/config
+
 # Configurar entorno
 ENV PORT=10000
 ENV NODE_ENV=production
-
-# Directorio para datos
-RUN mkdir -p /opt/data && chmod 777 /opt/data
+ENV YTDLP_PATH=/usr/local/bin/yt-dlp
+ENV FFMPEG_PATH=/usr/bin/ffmpeg
 
 # Comando de inicio
 CMD ["node", "server.js"]
