@@ -16,6 +16,10 @@ import {
 } from './api/utils/usageTrackerSQLite.js';
 // Importar la base de datos para asegurar que se inicializa
 import './api/database/schema.js';
+import clientRoutes from './api/routes/clientRoutes.js';
+import scriptRoutes from './api/routes/scriptRoutes.js';
+import logRoutes from './api/routes/logRoutes.js';
+// Las tablas de logs se crean en schema.js
 
 // Configurar __dirname para ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -96,9 +100,12 @@ const checkDependencies = async () => {
 };
 
 // Ruta de prueba para verificar que el servidor está funcionando
+app.use('/api/clients', clientRoutes);
+app.use('/api/scripts', scriptRoutes);
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'API funcionando correctamente' });
 });
+app.use('/api/logs', logRoutes);
 
 // API para obtener datos de uso
 app.get('/api/usage-stats', async (req, res) => {

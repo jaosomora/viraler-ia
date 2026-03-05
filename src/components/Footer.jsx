@@ -12,7 +12,7 @@ const Footer = () => {
             <div className="w-7 h-7 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">
               V
             </div>
-            <span className="ml-2 text-lg font-bold">Viraler IA</span>
+            <span className="ml-2 text-lg font-bold">ViralAI</span>
           </div>
           
           <div className="flex flex-wrap justify-center gap-x-8 gap-y-2 mb-4 md:mb-0">
@@ -42,7 +42,7 @@ const Footer = () => {
         </div>
         
         <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-800 text-center text-sm text-gray-500 dark:text-gray-400">
-          <p>&copy; {currentYear} Viraler IA. Todos los derechos reservados.</p>
+          <p>&copy; {currentYear} ViralAI. Todos los derechos reservados.</p>
         </div>
       </div>
     </footer>

@@ -1,3 +1,4 @@
+// src/App.jsx - Actualizar importaciones y rutas
 import React, { useEffect, useState } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import Header from './components/Header';
@@ -5,9 +6,14 @@ import Footer from './components/Footer';
 import Home from './pages/Home';
 import MyResults from './pages/MyResults';
 import AdminPanel from './pages/AdminPanel';
+import ClientsPage from './pages/ClientsPage';
+import ClientDetailPage from './pages/ClientDetailPage';
+import NewScriptPage from './pages/NewScriptPage';
+import ScriptDetailPage from './pages/ScriptDetailPage';
 import NotFound from './pages/NotFound';
 import { checkHealth } from './services/api';
 import './index.css';
+import LogsManagementPage from './pages/LogsManagementPage';
 
 function App() {
   const [serverStatus, setServerStatus] = useState('loading');
@@ -47,7 +53,12 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/mis-resultados" element={<MyResults />} />
           <Route path="/admin" element={<AdminPanel />} />
+          <Route path="/clientes" element={<ClientsPage />} />
+          <Route path="/clientes/:id" element={<ClientDetailPage />} />
+          <Route path="/clientes/:clientId/nuevo-guion" element={<NewScriptPage />} />
+          <Route path="/scripts/:id" element={<ScriptDetailPage />} />
           <Route path="*" element={<NotFound />} />
+          <Route path="/logs" element={<LogsManagementPage />} />
         </Routes>
       </main>
       

@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  viraler-ia:
+  viralai:
     build:
       context: .
       dockerfile: Dockerfile.dev
