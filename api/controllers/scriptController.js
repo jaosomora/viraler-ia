@@ -1,6 +1,6 @@
 // api/controllers/scriptController.js
 import db from '../database/schema.js';
-import { generateScript, conversationWithClaude } from '../services/anthropicService.js';
+import { generateScript, conversation } from "../services/llmService.js";
 import { searchRelevantChunks } from '../rag/documentProcessor.js';
 import { transcribeVideo } from '../services/transcriptionService.js';
 
