@@ -14,7 +14,8 @@ import {
   generateUsageReport,
   resetUsageData,
   deleteHistoryByDate,
-  getTranscriptions
+  getTranscriptions,
+  deleteTranscription
 } from './api/utils/usageTrackerSQLite.js';
 import './api/database/schema.js';
 
@@ -53,12 +54,26 @@ const upload = multer({
 app.post('/api/transcribeUpload', upload.single('video'), transcribeUpload);
 
 // Transcripciones guardadas
-app.get('/api/transcriptions', (req, res) => {
+app.get('/api/transcriptions', async (req, res) => {
   try {
-    const transcriptions = getTranscriptions();
+    const transcriptions = await getTranscriptions();
     res.json(transcriptions);
   } catch (error) {
     res.status(500).json({ error: 'Error al obtener transcripciones' });
+  }
+});
+
+// Eliminar transcripción
+app.delete('/api/transcriptions/:id', async (req, res) => {
+  try {
+    const result = await deleteTranscription(req.params.id);
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(404).json(result);
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Error al eliminar transcripción' });
   }
 });
 

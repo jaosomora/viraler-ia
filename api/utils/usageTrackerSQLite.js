@@ -315,32 +315,43 @@ export const deleteHistoryByDate = (date) => {
 
 /**
  * Obtiene las transcripciones guardadas en la base de datos
- * @returns {Array} - Lista de transcripciones
+ * @returns {Promise<Array>} - Lista de transcripciones
  */
 export const getTranscriptions = () => {
-  try {
-    // Implementación síncrona para mantener compatibilidad
-    let transcriptions = [];
-    
+  return new Promise((resolve, reject) => {
     db.all(
-      `SELECT 
-        id, url, platform, title, transcript, duration, channel, 
+      `SELECT
+        id, url, platform, title, transcript as text, duration, channel,
         thumbnail, language, created_at as createdAt
-       FROM transcriptions 
+       FROM transcriptions
        ORDER BY created_at DESC`,
       (err, rows) => {
         if (err) {
           console.error('Error al obtener transcripciones:', err);
-          return [];
+          return reject(err);
         }
-        
-        transcriptions = rows || [];
+        resolve(rows || []);
       }
     );
-    
-    return transcriptions;
-  } catch (error) {
-    console.error('Error al obtener transcripciones:', error);
-    return [];
-  }
+  });
+};
+
+/**
+ * Elimina una transcripción por ID
+ * @param {number} id - ID de la transcripción
+ * @returns {Promise<Object>}
+ */
+export const deleteTranscription = (id) => {
+  return new Promise((resolve, reject) => {
+    db.run(`DELETE FROM transcriptions WHERE id = ?`, [id], function (err) {
+      if (err) {
+        console.error('Error al eliminar transcripción:', err);
+        return reject(err);
+      }
+      if (this.changes === 0) {
+        return resolve({ success: false, message: 'Transcripción no encontrada' });
+      }
+      resolve({ success: true, message: 'Transcripción eliminada' });
+    });
+  });
 };

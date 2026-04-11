@@ -2,23 +2,13 @@ import React, { useState } from 'react';
 import { useTranscriptionContext } from '../context/TranscriptionContext';
 
 const TranscriptionResults = () => {
-  const { currentTranscription, saveTranscription } = useTranscriptionContext();
-  const [isSaved, setIsSaved] = useState(false);
+  const { currentTranscription } = useTranscriptionContext();
   const [copySuccess, setCopySuccess] = useState(false);
   const [showUsageInfo, setShowUsageInfo] = useState(false);
 
   if (!currentTranscription) return null;
 
   const { url, text, platform, title, usageInfo } = currentTranscription;
-
-  const handleSave = () => {
-    const saved = saveTranscription();
-    if (saved) {
-      setIsSaved(true);
-      // Reiniciar el estado después de 3 segundos
-      setTimeout(() => setIsSaved(false), 3000);
-    }
-  };
 
   const handleCopy = () => {
     navigator.clipboard.writeText(text);
@@ -135,31 +125,12 @@ const TranscriptionResults = () => {
                 </>
               )}
             </button>
-            <button
-              onClick={handleSave}
-              disabled={isSaved}
-              className={`flex items-center gap-1 py-1 px-3 text-sm ${
-                isSaved
-                  ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
-                  : 'bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/40 dark:text-purple-300 dark:hover:bg-purple-800/50'
-              } rounded-full transition`}
-            >
-              {isSaved ? (
-                <>
-                  <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                  <span>Guardado</span>
-                </>
-              ) : (
-                <>
-                  <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" />
-                  </svg>
-                  <span>Guardar</span>
-                </>
-              )}
-            </button>
+            <span className="flex items-center gap-1 py-1 px-3 text-sm bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 rounded-full">
+              <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+              <span>Guardado</span>
+            </span>
           </div>
         </div>
 

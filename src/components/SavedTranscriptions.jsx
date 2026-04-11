@@ -161,6 +161,8 @@ const SavedTranscriptions = () => {
               <option value="tiktok">TikTok</option>
               <option value="youtube">YouTube</option>
               <option value="youtube-shorts">YouTube Shorts</option>
+              <option value="facebook">Facebook</option>
+              <option value="upload">Archivo subido</option>
             </select>
           </div>
         </div>
