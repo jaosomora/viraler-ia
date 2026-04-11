@@ -68,6 +68,17 @@ Required in `.env`:
 - TailwindCSS for styling with dark mode support
 - SQLite for all persistence (no external DB needed)
 
-## Known Issues
-- `schema.js` has duplicate table creation statements (harmless due to IF NOT EXISTS)
-- Some packages duplicated between dependencies and devDependencies
+## Portable Claude Setup
+This project keeps all Claude Code config in git for portability across machines:
+- `CLAUDE.md` — Project context (this file)
+- `.claude/settings.json` — Permissions and hooks
+- `.claude/memory/` — Claude memories (synced via hook)
+- `.claude/sync-memories.sh` — Manual sync script
+
+**On a new machine after cloning:**
+```bash
+.claude/sync-memories.sh pull
+```
+This copies memories from the repo to your local Claude config.
+
+**The PostToolUse hook** in `.claude/settings.json` automatically syncs memories from local Claude to the repo on every file write/edit, so they stay updated for the next commit.
