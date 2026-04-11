@@ -5,6 +5,23 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2025-04-11
+
+### Eliminado
+- Sistema RAG completo (documentProcessor, document_vectors, embeddings)
+- Módulo de Clientes (CRUD, rutas, controladores, páginas, servicios)
+- Módulo de Scripts/Guiones (CRUD, generación, conversaciones)
+- Módulo de Logs de API (rutas, controladores, páginas, componentes)
+- Auth system no utilizado (passport, Google OAuth, middleware)
+- Dependencias: natural, lodash-es, markdown-it
+- 9 tablas de base de datos reducidas a 3 (transcriptions, usage_stats, settings)
+- Tablas duplicadas en schema.js corregidas
+
+### Modificado
+- AdminPanel simplificado (solo estadísticas de transcripción)
+- Navegación reducida a: Transcribir, Mis Resultados, Admin
+- Modelo de transcripción actualizado a gpt-4o-mini-transcribe en UI
+
 ## [1.3.0] - 2025-04-11
 
 ### Añadido

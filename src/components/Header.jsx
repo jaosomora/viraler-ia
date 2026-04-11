@@ -83,35 +83,15 @@ const Header = () => {
     Mis Resultados
   </Link>
   <Link
-    to="/clientes"
-    className={`font-medium transition ${
-      isActive('/clientes') 
-        ? 'text-purple-600 dark:text-purple-400' 
-        : 'text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400'
-    }`}
-  >
-    Clientes
-  </Link>
-  <Link
     to="/admin"
     className={`font-medium transition ${
-      isActive('/admin') 
-        ? 'text-purple-600 dark:text-purple-400' 
+      isActive('/admin')
+        ? 'text-purple-600 dark:text-purple-400'
         : 'text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400'
     }`}
   >
     Admin
   </Link>
-  <Link
-  to="/logs"
-  className={`font-medium transition ${
-    isActive('/logs') 
-      ? 'text-purple-600 dark:text-purple-400' 
-      : 'text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400'
-  }`}
->
-  Logs
-</Link>
   <button
     onClick={toggleDarkMode}
     className="p-2 rounded-full text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
@@ -230,17 +210,6 @@ const Header = () => {
               }`}
             >
               Admin
-              </Link>
-              <Link
-      to="/clientes"
-      onClick={() => setIsMobileMenuOpen(false)}
-      className={`block py-2 px-4 rounded ${
-        isActive('/clientes') 
-          ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400' 
-          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-      }`}
-    >
-      Clientes  
             </Link>
           </nav>
         )}
