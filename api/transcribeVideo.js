@@ -37,7 +37,8 @@ export default async function transcribeVideo(req, res) {
     metadata.language = language;
 
     // Registrar uso con la nueva implementación en SQLite
-    const usage = trackUsage(audioBuffer, metadata);
+    const userId = req.user ? req.user.id : null;
+    const usage = trackUsage(audioBuffer, metadata, userId);
 
     // Devolver la transcripción y metadatos
     return res.status(200).json({

@@ -45,6 +45,18 @@ const db = new sqlite3.Database(dbPath, (err) => {
 });
 
 db.serialize(() => {
+  // Tabla de usuarios
+  db.run(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      name TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'member',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   // Tabla de transcripciones
   db.run(`
     CREATE TABLE IF NOT EXISTS transcriptions (
@@ -57,9 +69,18 @@ db.serialize(() => {
       channel TEXT,
       thumbnail TEXT,
       language TEXT DEFAULT 'es',
+      user_id INTEGER REFERENCES users(id),
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  // Migration: agregar user_id si la tabla ya existe sin ella
+  db.run(`ALTER TABLE transcriptions ADD COLUMN user_id INTEGER REFERENCES users(id)`, (err) => {
+    // Ignora si la columna ya existe
+    if (err && !err.message.includes('duplicate column')) {
+      // Column already exists or other expected error
+    }
+  });
 
   // Tabla de registro de uso
   db.run(`

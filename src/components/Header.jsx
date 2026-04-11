@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -9,6 +10,7 @@ const Header = () => {
   );
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const { user, isOwner, logout } = useAuth();
 
   // Detectar scroll para cambiar estilo del header
   useEffect(() => {
@@ -82,16 +84,25 @@ const Header = () => {
   >
     Mis Resultados
   </Link>
-  <Link
-    to="/admin"
-    className={`font-medium transition ${
-      isActive('/admin')
-        ? 'text-purple-600 dark:text-purple-400'
-        : 'text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400'
-    }`}
+  {isOwner && (
+    <Link
+      to="/admin"
+      className={`font-medium transition ${
+        isActive('/admin')
+          ? 'text-purple-600 dark:text-purple-400'
+          : 'text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400'
+      }`}
+    >
+      Admin
+    </Link>
+  )}
+  <span className="text-sm text-gray-500 dark:text-gray-400">{user?.name}</span>
+  <button
+    onClick={logout}
+    className="text-sm text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 font-medium transition"
   >
-    Admin
-  </Link>
+    Salir
+  </button>
   <button
     onClick={toggleDarkMode}
     className="p-2 rounded-full text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
@@ -200,17 +211,28 @@ const Header = () => {
             >
               Mis Resultados
             </Link>
-            <Link
-              to="/admin"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className={`block py-2 px-4 rounded ${
-                isActive('/admin') 
-                  ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400' 
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-              }`}
-            >
-              Admin
-            </Link>
+            {isOwner && (
+              <Link
+                to="/admin"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`block py-2 px-4 rounded ${
+                  isActive('/admin')
+                    ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                }`}
+              >
+                Admin
+              </Link>
+            )}
+            <div className="border-t border-gray-200 dark:border-gray-700 mt-2 pt-2 px-4">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">{user?.name}</p>
+              <button
+                onClick={() => { logout(); setIsMobileMenuOpen(false); }}
+                className="text-sm text-red-500 hover:text-red-700 font-medium"
+              >
+                Cerrar sesion
+              </button>
+            </div>
           </nav>
         )}
       </div>

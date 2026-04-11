@@ -70,7 +70,7 @@ export const getUsageData = () => {
  * @param {Object} metadata - Metadatos del audio/video
  * @returns {Object} - Información de uso
  */
-export const trackUsage = (audioData, metadata) => {
+export const trackUsage = (audioData, metadata, userId = null) => {
   try {
     // Duración en segundos (o estimada si no está disponible)
     const durationInSeconds = metadata.duration || (audioData.byteLength / 16000);
@@ -122,8 +122,8 @@ export const trackUsage = (audioData, metadata) => {
         if (metadata.transcript) {
           db.run(
             `INSERT INTO transcriptions (
-              url, platform, title, transcript, duration, channel, thumbnail, language
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+              url, platform, title, transcript, duration, channel, thumbnail, language, user_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               metadata.url || '',
               metadata.platform || 'unknown',
@@ -132,7 +132,8 @@ export const trackUsage = (audioData, metadata) => {
               metadata.duration || 0,
               metadata.channel || 'Desconocido',
               metadata.thumbnail || null,
-              metadata.language || 'es'
+              metadata.language || 'es',
+              userId
             ],
             (err) => {
               if (err) {
@@ -317,14 +318,17 @@ export const deleteHistoryByDate = (date) => {
  * Obtiene las transcripciones guardadas en la base de datos
  * @returns {Promise<Array>} - Lista de transcripciones
  */
-export const getTranscriptions = () => {
+export const getTranscriptions = (userId = null) => {
   return new Promise((resolve, reject) => {
-    db.all(
-      `SELECT
-        id, url, platform, title, transcript as text, duration, channel,
-        thumbnail, language, created_at as createdAt
-       FROM transcriptions
-       ORDER BY created_at DESC`,
+    const query = userId
+      ? `SELECT id, url, platform, title, transcript as text, duration, channel,
+              thumbnail, language, created_at as createdAt
+         FROM transcriptions WHERE user_id = ? ORDER BY created_at DESC`
+      : `SELECT id, url, platform, title, transcript as text, duration, channel,
+              thumbnail, language, created_at as createdAt
+         FROM transcriptions ORDER BY created_at DESC`;
+    const params = userId ? [userId] : [];
+    db.all(query, params,
       (err, rows) => {
         if (err) {
           console.error('Error al obtener transcripciones:', err);
@@ -341,9 +345,13 @@ export const getTranscriptions = () => {
  * @param {number} id - ID de la transcripción
  * @returns {Promise<Object>}
  */
-export const deleteTranscription = (id) => {
+export const deleteTranscription = (id, userId = null) => {
   return new Promise((resolve, reject) => {
-    db.run(`DELETE FROM transcriptions WHERE id = ?`, [id], function (err) {
+    const query = userId
+      ? `DELETE FROM transcriptions WHERE id = ? AND user_id = ?`
+      : `DELETE FROM transcriptions WHERE id = ?`;
+    const params = userId ? [id, userId] : [id];
+    db.run(query, params, function (err) {
       if (err) {
         console.error('Error al eliminar transcripción:', err);
         return reject(err);

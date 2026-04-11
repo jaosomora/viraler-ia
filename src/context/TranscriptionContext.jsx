@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { authFetch } from './AuthContext';
 
 const API_BASE = import.meta.env.MODE === 'development' ? 'http://localhost:3000/api' : '/api';
 
@@ -12,10 +13,9 @@ export const TranscriptionProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Cargar transcripciones desde el servidor al inicio
   const fetchTranscriptions = async () => {
     try {
-      const response = await fetch(`${API_BASE}/transcriptions`);
+      const response = await authFetch(`${API_BASE}/transcriptions`);
       if (response.ok) {
         const data = await response.json();
         setSavedTranscriptions(data);
@@ -26,16 +26,18 @@ export const TranscriptionProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    fetchTranscriptions();
+    // Solo cargar si hay token
+    if (localStorage.getItem('token')) {
+      fetchTranscriptions();
+    }
   }, []);
 
-  // Procesar una nueva URL para transcripción
   const processTranscription = async (url) => {
     try {
       setIsLoading(true);
       setError(null);
 
-      const response = await fetch(`${API_BASE}/transcribeVideo`, {
+      const response = await authFetch(`${API_BASE}/transcribeVideo`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url })
@@ -58,7 +60,6 @@ export const TranscriptionProvider = ({ children }) => {
       };
 
       setCurrentTranscription(newTranscription);
-      // Recargar lista del servidor (la transcripción ya se guardó en SQLite)
       await fetchTranscriptions();
       return newTranscription;
     } catch (err) {
@@ -69,7 +70,6 @@ export const TranscriptionProvider = ({ children }) => {
     }
   };
 
-  // Procesar un archivo de video subido
   const processFileTranscription = async (file) => {
     try {
       setIsLoading(true);
@@ -78,7 +78,7 @@ export const TranscriptionProvider = ({ children }) => {
       const formData = new FormData();
       formData.append('video', file);
 
-      const response = await fetch(`${API_BASE}/transcribeUpload`, {
+      const response = await authFetch(`${API_BASE}/transcribeUpload`, {
         method: 'POST',
         body: formData,
       });
@@ -110,10 +110,9 @@ export const TranscriptionProvider = ({ children }) => {
     }
   };
 
-  // Eliminar una transcripción del servidor
   const deleteTranscription = async (id) => {
     try {
-      const response = await fetch(`${API_BASE}/transcriptions/${id}`, {
+      const response = await authFetch(`${API_BASE}/transcriptions/${id}`, {
         method: 'DELETE',
       });
       if (response.ok) {
@@ -124,7 +123,6 @@ export const TranscriptionProvider = ({ children }) => {
     }
   };
 
-  // Detectar la plataforma basada en la URL
   const detectPlatform = (url) => {
     if (url.includes('instagram.com')) return 'instagram';
     if (url.includes('tiktok.com')) return 'tiktok';
@@ -143,7 +141,8 @@ export const TranscriptionProvider = ({ children }) => {
     processTranscription,
     processFileTranscription,
     deleteTranscription,
-    setCurrentTranscription
+    setCurrentTranscription,
+    fetchTranscriptions
   };
 
   return (

@@ -5,6 +5,26 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2025-04-11
+
+### Añadido
+- Sistema de autenticación con email/password (bcryptjs + JWT)
+- Roles de usuario: owner (primer registro) y member
+- Cada usuario solo ve sus propias transcripciones
+- Panel Admin restringido solo al owner
+- Página de Login/Registro con mensaje motivador
+- Botón "Salir" y nombre del usuario en el header
+- Middleware authMiddleware y ownerOnly en el backend
+- Tabla `users` en la base de datos
+- Columna `user_id` en `transcriptions` para separar datos por usuario
+- Variable de entorno `JWT_SECRET`
+
+### Modificado
+- Todas las rutas API protegidas con JWT (excepto login/register y health)
+- TranscriptionContext usa authFetch con token automático
+- Header muestra "Admin" solo para owner
+- App.jsx redirige a LoginPage si no autenticado
+
 ## [2.0.0] - 2025-04-11
 
 ### Eliminado

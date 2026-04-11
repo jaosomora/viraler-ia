@@ -124,7 +124,8 @@ export default async function transcribeUpload(req, res) {
     metadata.language = language;
 
     // Registrar uso
-    const usage = trackUsage(audioBuffer, metadata);
+    const userId = req.user ? req.user.id : null;
+    const usage = trackUsage(audioBuffer, metadata, userId);
 
     return res.status(200).json({
       success: true,
