@@ -87,9 +87,51 @@ export const TranscriptionProvider = ({ children }) => {
   const detectPlatform = (url) => {
     if (url.includes('instagram.com')) return 'instagram';
     if (url.includes('tiktok.com')) return 'tiktok';
+    if (url.includes('facebook.com') || url.includes('fb.watch')) return 'facebook';
     if (url.includes('youtube.com/shorts')) return 'youtube-shorts';
     if (url.includes('youtube.com')) return 'youtube';
+    if (url.startsWith('upload://')) return 'upload';
     return 'unknown';
+  };
+
+  // Procesar un archivo de video subido
+  const processFileTranscription = async (file) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const formData = new FormData();
+      formData.append('video', file);
+
+      const response = await fetch('/api/transcribeUpload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Error al transcribir el archivo');
+      }
+
+      const data = await response.json();
+
+      const newTranscription = {
+        id: Date.now().toString(),
+        url: `upload://${file.name}`,
+        platform: 'upload',
+        text: data.transcript,
+        createdAt: new Date().toISOString(),
+        title: data.title || file.name,
+      };
+
+      setCurrentTranscription(newTranscription);
+      return newTranscription;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const value = {
@@ -98,6 +140,7 @@ export const TranscriptionProvider = ({ children }) => {
     isLoading,
     error,
     processTranscription,
+    processFileTranscription,
     saveTranscription,
     deleteTranscription,
     setCurrentTranscription

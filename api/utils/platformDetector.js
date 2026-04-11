@@ -15,6 +15,8 @@ export function detectPlatform(url) {
       return 'instagram';
     } else if (hostname.includes('tiktok.com')) {
       return 'tiktok';
+    } else if (hostname.includes('facebook.com') || hostname.includes('fb.watch')) {
+      return 'facebook';
     } else if (hostname.includes('youtube.com')) {
       const pathname = urlObj.pathname;
       if (pathname.includes('/shorts/')) {
@@ -22,10 +24,10 @@ export function detectPlatform(url) {
       }
       return 'youtube';
     } else {
-      throw new Error('URL no compatible. Soportamos YouTube, Instagram Reels y TikTok.');
+      throw new Error('URL no compatible. Soportamos YouTube, Instagram Reels, TikTok y Facebook.');
     }
   } catch (error) {
-    throw new Error('URL inválida o no compatible. Soportamos YouTube, Instagram Reels y TikTok.');
+    throw new Error('URL inválida o no compatible. Soportamos YouTube, Instagram Reels, TikTok y Facebook.');
   }
 }
 
@@ -41,7 +43,8 @@ export function isValidUrl(url) {
       { name: 'Instagram', regex: /https:\/\/(www\.)?instagram\.com\/(reel|p)\/[a-zA-Z0-9_-]+\/?/ },
       { name: 'TikTok', regex: /https:\/\/(www\.)?tiktok\.com\/@[\w.-]+\/video\/\d+/ },
       { name: 'YouTube', regex: /https:\/\/(www\.)?youtube\.com\/watch\?v=[\w-]+/ },
-      { name: 'YouTube Shorts', regex: /https:\/\/(www\.)?youtube\.com\/shorts\/[\w-]+/ }
+      { name: 'YouTube Shorts', regex: /https:\/\/(www\.)?youtube\.com\/shorts\/[\w-]+/ },
+      { name: 'Facebook', regex: /https:\/\/(www\.)?(facebook\.com|fb\.watch)\/(share\/v|watch|reel|.*\/videos)\/[\w/?=&-]+/ }
     ];
 
     return supportedPlatforms.some(platform => platform.regex.test(url));

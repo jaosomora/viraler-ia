@@ -5,7 +5,10 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import dotenv from 'dotenv';
+import multer from 'multer';
+import os from 'os';
 import transcribeVideo from './api/transcribeVideo.js';
+import transcribeUpload from './api/transcribeUpload.js';
 import { spawn } from 'child_process';
 // Importar las nuevas funciones basadas en SQLite
 import { 
@@ -159,8 +162,23 @@ app.get('/api/transcriptions', (req, res) => {
   }
 });
 
-// API Endpoint para transcribir videos
+// API Endpoint para transcribir videos por URL
 app.post('/api/transcribeVideo', transcribeVideo);
+
+// API Endpoint para transcribir videos subidos
+const upload = multer({
+  dest: os.tmpdir(),
+  limits: { fileSize: 500 * 1024 * 1024 }, // 500 MB max
+  fileFilter: (req, file, cb) => {
+    const allowed = /\.(mp4|mov|avi|mkv|webm|m4v|flv|wmv|mp3|wav|m4a|ogg)$/i;
+    if (allowed.test(file.originalname)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Formato de archivo no soportado'));
+    }
+  },
+});
+app.post('/api/transcribeUpload', upload.single('video'), transcribeUpload);
 
 // Servir archivos estáticos en producción
 if (process.env.NODE_ENV === 'production') {

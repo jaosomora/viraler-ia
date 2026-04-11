@@ -5,6 +5,34 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2025-04-11
+
+### Añadido
+- Soporte para transcripción de videos de Facebook (URLs de facebook.com y fb.watch)
+- Subida directa de archivos de video/audio para transcripción (hasta 500 MB)
+- Nuevo endpoint `POST /api/transcribeUpload` con multer para manejo de archivos
+- Nuevo archivo `api/transcribeUpload.js` con extracción de audio via FFmpeg
+- Interfaz con tabs "Pegar URL" / "Subir Archivo" con zona de drag & drop
+- Dependencia `multer` para manejo de uploads multipart
+- Archivo `CLAUDE.md` con contexto completo del proyecto
+- Configuración `.claude/settings.json` para Claude Code
+
+### Modificado
+- Modelo de transcripción cambiado de `whisper-1` a `gpt-4o-mini-transcribe` (50% más barato)
+- Cálculo de costos actualizado de $0.006/min a $0.003/min
+- `platformDetector.js` ahora soporta Facebook como plataforma válida
+- `extractAudio.js` incluye headers anti-bloqueo para Facebook
+- `TranscriptionForm.jsx` rediseñado con soporte dual URL/archivo
+- `TranscriptionContext.jsx` incluye `processFileTranscription()` y detección de Facebook
+- `.gitignore` actualizado para incluir archivos de configuración de Claude Code
+
+## [1.2.0] - 2025-04-11
+
+### Añadido
+- Fallback automático a OpenAI cuando la API key de Anthropic no está disponible
+- Servicio LLM unificado (`llmService.js`) que selecciona proveedor automáticamente
+- Soporte para `openaiService.js` como alternativa a Anthropic para generación de guiones
+
 ## [1.1.0] - 2025-03-31
 
 ### Añadido

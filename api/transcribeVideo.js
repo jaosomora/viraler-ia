@@ -12,7 +12,7 @@ export default async function transcribeVideo(req, res) {
     // Validar la URL
     if (!url || !isValidUrl(url)) {
       return res.status(400).json({ 
-        error: 'URL inválida o no compatible. Soportamos YouTube, Instagram Reels y TikTok.'
+        error: 'URL inválida o no compatible. Soportamos YouTube, Instagram Reels, TikTok y Facebook.'
       });
     }
 
@@ -82,6 +82,8 @@ function detectPlatform(url) {
     return 'youtube-shorts';
   } else if (url.includes('youtube.com')) {
     return 'youtube';
+  } else if (url.includes('facebook.com') || url.includes('fb.watch')) {
+    return 'facebook';
   } else {
     return 'unknown';
   }

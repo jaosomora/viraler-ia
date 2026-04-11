@@ -47,3 +47,11 @@ estructura.txt
 .cache/
 .vite/data/usage.json
 data/
+
+# Claude Code - track config, exclude temp/worktree files
+!.claude/
+!.claude/settings.json
+.claude/worktrees/
+.claude/plans/
+.claude/statsig/
+.claude/mcp-needs-auth-cache.json

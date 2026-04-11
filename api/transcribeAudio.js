@@ -10,9 +10,9 @@ import os from 'os';
  * @returns {number} - Costo estimado
  */
 export const calculateCost = (durationInSeconds) => {
-  // Whisper cobra $0.006 por minuto
+  // gpt-4o-mini-transcribe cobra ~$0.003 por minuto
   const durationInMinutes = durationInSeconds / 60;
-  return durationInMinutes * 0.006;
+  return durationInMinutes * 0.003;
 };
 
 /**
@@ -49,7 +49,7 @@ export async function transcribeAudio(audioBuffer, metadata = {}) {
     // La API v4 usa el método createTranscription directamente en el objeto openai
     const response = await openai.audio.transcriptions.create({
       file: file,
-      model: "whisper-1",
+      model: "gpt-4o-mini-transcribe",
       language: "es",
       response_format: "json",
     });
