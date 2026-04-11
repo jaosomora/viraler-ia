@@ -1,4 +1,4 @@
-FROM node:18-slim
+FROM node:22-slim
 
 WORKDIR /app
 
@@ -13,28 +13,23 @@ RUN apt-get update && \
 # Verificar instalación de yt-dlp
 RUN yt-dlp --version
 
-# Copiar solo archivos de dependencias primero
+# Copiar archivos de dependencias
 COPY package.json package-lock.json ./
 
-# Instalar solo dependencias de producción
-RUN npm ci --only=production
-
-# Instalar dependencias adicionales para RAG
-RUN npm install natural lodash-es markdown-it sqlite3
-
-# Copiar archivos de configuración de build
-COPY vite.config.js tailwind.config.js postcss.config.js ./
+# Instalar todas las dependencias (incluye devDeps para build)
+RUN npm ci
 
 # Copiar código fuente
+COPY vite.config.js tailwind.config.js postcss.config.js ./
 COPY src/ ./src/
 COPY public/ ./public/
 COPY index.html ./
 
-# Instalar dependencias de desarrollo (solo para build)
-RUN npm install --no-save vite @vitejs/plugin-react postcss autoprefixer tailwindcss
-
 # Construir la aplicación
 RUN npm run build
+
+# Eliminar devDependencies después del build
+RUN npm prune --omit=dev
 
 # Copiar archivos de servidor
 COPY server.js ./
