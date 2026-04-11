@@ -8,7 +8,7 @@ REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
 REPO_MEMORY="$REPO_ROOT/.claude/memory"
 
 # Build the Claude project path from repo root
-SAFE_PATH=$(echo "$REPO_ROOT" | sed 's|/|-|g' | sed 's|^-||')
+SAFE_PATH=$(echo "$REPO_ROOT" | sed 's|/|-|g')
 LOCAL_MEMORY="$HOME/.claude/projects/$SAFE_PATH/memory"
 
 if [ "$1" = "push" ]; then

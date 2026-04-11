@@ -1,21 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { getUsageStats, resetUsageStats, deleteHistoryEntry } from '../services/usageStats';
+import { getUsageStats, resetUsageStats, deleteHistoryEntry, getAdminTranscriptions } from '../services/usageStats';
 import Spinner from '../components/Spinner';
 
 const AdminPanel = () => {
   const [usageData, setUsageData] = useState(null);
+  const [transcriptions, setTranscriptions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [actionSuccess, setActionSuccess] = useState(null);
+  const [expandedTranscription, setExpandedTranscription] = useState(null);
 
   const fetchUsageData = async () => {
     try {
       setIsLoading(true);
-      const data = await getUsageStats();
+      const [data, txns] = await Promise.all([
+        getUsageStats(),
+        getAdminTranscriptions()
+      ]);
       setUsageData(data);
+      setTranscriptions(txns);
       setError(null);
     } catch (err) {
       setError(err.message || 'Error al cargar datos de uso');
@@ -277,6 +283,44 @@ const AdminPanel = () => {
               )}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* Transcripciones recientes */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Transcripciones recientes</h2>
+        </div>
+        <div className="divide-y divide-gray-200 dark:divide-gray-700">
+          {transcriptions.length === 0 && (
+            <p className="p-6 text-sm text-center text-gray-500 dark:text-gray-400">No hay transcripciones</p>
+          )}
+          {transcriptions.slice(0, 10).map((t) => (
+            <div key={t.id} className="p-4">
+              <div className="flex items-start justify-between">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-sm font-medium text-gray-900 dark:text-white truncate">{t.title}</h3>
+                  <div className="flex flex-wrap gap-2 mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    <span className="px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">{t.platform}</span>
+                    {t.channel && <span>{t.channel}</span>}
+                    <span>{new Date(t.createdAt).toLocaleString()}</span>
+                    {t.duration > 0 && <span>{(t.duration / 60).toFixed(1)} min</span>}
+                  </div>
+                </div>
+                <button
+                  onClick={() => setExpandedTranscription(expandedTranscription === t.id ? null : t.id)}
+                  className="ml-2 text-xs text-purple-600 dark:text-purple-400 hover:underline whitespace-nowrap"
+                >
+                  {expandedTranscription === t.id ? 'Ocultar' : 'Ver texto'}
+                </button>
+              </div>
+              {expandedTranscription === t.id && (
+                <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg text-sm text-gray-700 dark:text-gray-300 max-h-60 overflow-y-auto whitespace-pre-wrap">
+                  {t.text}
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       </div>
 

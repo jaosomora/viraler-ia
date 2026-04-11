@@ -116,6 +116,15 @@ app.delete('/api/transcriptions/:id', authMiddleware, async (req, res) => {
 
 // --- Rutas de Admin (solo owner) ---
 
+app.get('/api/admin/transcriptions', authMiddleware, ownerOnly, async (req, res) => {
+  try {
+    const transcriptions = await getTranscriptions();
+    res.json(transcriptions);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener transcripciones' });
+  }
+});
+
 app.get('/api/usage-stats', authMiddleware, ownerOnly, async (req, res) => {
   try {
     const usageReport = await generateUsageReport();
