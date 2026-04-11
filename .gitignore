@@ -47,6 +47,7 @@ estructura.txt
 .cache/
 .vite/data/usage.json
 data/
+config/instagram_cookies.txt
 
 # Claude Code - track config, exclude temp/worktree files
 !.claude/
