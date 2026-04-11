@@ -32,7 +32,7 @@ const getDataDir = () => {
 };
 
 const dataDir = getDataDir();
-const dbPath = path.join(dataDir, 'viraler.db');
+const dbPath = path.join(dataDir, 'as-transcribe.db');
 
 console.log(`Inicializando base de datos SQLite en: ${dbPath}`);
 

@@ -1,8 +1,8 @@
-# Viraler IA
+# Algo Sentido Tools: Transcribe
 
 Una aplicación web moderna que permite transcribir contenido de videos de diferentes plataformas (Instagram Reels, TikTok, YouTube) utilizando inteligencia artificial.
 
-![Captura de pantalla de Viraler IA](./public/screenshot.png)
+![Captura de pantalla de Algo Sentido Tools: Transcribe](./public/screenshot.png)
 
 ## Características
 
@@ -45,8 +45,8 @@ Una aplicación web moderna que permite transcribir contenido de videos de difer
 
 1. Clona el repositorio:
    ```bash
-   git clone https://github.com/tu-usuario/viraler-ia.git
-   cd viraler-ia
+   git clone https://github.com/tu-usuario/as-transcribe.git
+   cd as-transcribe
    ```
 
 2. Instala las dependencias:
@@ -109,8 +109,8 @@ Usar Docker simplifica enormemente la configuración, ya que no necesitas instal
 
 1. Clona el repositorio:
    ```bash
-   git clone https://github.com/tu-usuario/viraler-ia.git
-   cd viraler-ia
+   git clone https://github.com/tu-usuario/as-transcribe.git
+   cd as-transcribe
    ```
 
 2. Crea un archivo `.env` en la raíz del proyecto:
@@ -214,7 +214,7 @@ Si el comando funciona, FFmpeg está instalado y en tu PATH.
 
 ### Configuración manual de la ruta
 
-Si FFmpeg está instalado pero Viraler IA no lo encuentra, puedes especificar la ruta exacta en el archivo `.env`:
+Si FFmpeg está instalado pero Algo Sentido Tools: Transcribe no lo encuentra, puedes especificar la ruta exacta en el archivo `.env`:
 
 ```
 FFMPEG_PATH=/ruta/completa/a/tu/ffmpeg
@@ -291,7 +291,7 @@ NOTA: Las transcripciones se almacenan localmente en tu navegador. Si limpias lo
 ## Estructura del proyecto
 
 ```
-viraler-ia/
+as-transcribe/
 ├── api/                  # Lógica del backend
 │   ├── utils/            # Utilidades para el backend
 │   │   ├── platformDetector.js  # Detector de plataformas de video

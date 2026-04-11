@@ -10,9 +10,9 @@ const Footer = () => {
         <div className="flex flex-col md:flex-row justify-between items-center">
           <div className="flex items-center mb-4 md:mb-0">
             <div className="w-7 h-7 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">
-              V
+              AS
             </div>
-            <span className="ml-2 text-lg font-bold">ViralAI</span>
+            <span className="ml-2 text-lg font-bold">AS Transcribe</span>
           </div>
           
           <div className="flex flex-wrap justify-center gap-x-8 gap-y-2 mb-4 md:mb-0">
@@ -29,7 +29,7 @@ const Footer = () => {
           
           <div className="flex space-x-4">
             <a 
-              href="https://github.com/username/viraler-ia" 
+              href="https://github.com/username/as-transcribe" 
               target="_blank" 
               rel="noopener noreferrer"
               className="text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white transition"
@@ -42,7 +42,7 @@ const Footer = () => {
         </div>
         
         <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-800 text-center text-sm text-gray-500 dark:text-gray-400">
-          <p>&copy; {currentYear} ViralAI. Todos los derechos reservados.</p>
+          <p>&copy; {currentYear} Algo Sentido. Todos los derechos reservados.</p>
         </div>
       </div>
     </footer>

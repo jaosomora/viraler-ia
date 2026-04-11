@@ -32,7 +32,7 @@ echo
 
 # Hacer el commit inicial
 print_step "Realizando commit inicial..."
-git commit -m "chore: Commit inicial del proyecto Viraler IA"
+git commit -m "chore: Commit inicial del proyecto AS Transcribe"
 echo
 
 # Crear la rama develop
@@ -49,7 +49,7 @@ echo
 print_step "Para subir a GitHub, ejecuta los siguientes comandos:"
 echo -e "${GREEN}1. Crea un nuevo repositorio en GitHub (sin README, .gitignore o LICENSE)${NC}"
 echo -e "${GREEN}2. Conecta tu repositorio local:${NC}"
-echo "   git remote add origin https://github.com/tu-usuario/viraler-ia.git"
+echo "   git remote add origin https://github.com/tu-usuario/as-transcribe.git"
 echo -e "${GREEN}3. Sube la rama main:${NC}"
 echo "   git push -u origin main"
 echo -e "${GREEN}4. Sube la rama develop:${NC}"

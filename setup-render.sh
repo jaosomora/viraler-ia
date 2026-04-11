@@ -1,7 +1,7 @@
 #!/bin/bash
 # Script para configurar el entorno en Render
 
-echo "Configurando el entorno para Viraler IA en Render..."
+echo "Configurando el entorno para AS Transcribe en Render..."
 
 # Crear directorio para datos persistentes
 mkdir -p /opt/data

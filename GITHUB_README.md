@@ -1,7 +1,7 @@
-# Viraler IA
+# Algo Sentido Tools: Transcribe
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/tu-usuario/viraler-ia)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/tu-usuario/viraler-ia/blob/main/LICENSE)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/tu-usuario/as-transcribe)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/tu-usuario/as-transcribe/blob/main/LICENSE)
 
 Una aplicación web moderna que permite transcribir contenido de videos de diferentes plataformas (Instagram Reels, TikTok, YouTube) utilizando inteligencia artificial.
 
@@ -35,8 +35,8 @@ Una aplicación web moderna que permite transcribir contenido de videos de difer
 
 1. **Clonar el repositorio**:
    ```bash
-   git clone https://github.com/tu-usuario/viraler-ia.git
-   cd viraler-ia
+   git clone https://github.com/tu-usuario/as-transcribe.git
+   cd as-transcribe
    ```
 
 2. **Instalar dependencias**:
@@ -73,7 +73,7 @@ La aplicación incluye un panel de administración accesible en `/admin` que per
 ## 🏗️ Estructura del proyecto
 
 ```
-viraler-ia/
+as-transcribe/
 ├── api/                  # Lógica del backend
 ├── data/                 # Datos de uso de la API
 ├── public/               # Archivos estáticos

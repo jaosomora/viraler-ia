@@ -39,10 +39,10 @@ const LoginPage = () => {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 flex items-center justify-center text-white text-3xl font-bold mb-4">
-            V
+            AS
           </div>
           <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
-            ViralAI
+            AS Transcribe
           </h1>
           <p className="mt-2 text-gray-500 dark:text-gray-400">
             Registrate y todas tus transcripciones se guardaran en tu cuenta. Accede desde cualquier dispositivo.

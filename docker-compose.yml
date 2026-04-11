@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  viralai:
+  as-transcribe:
     build:
       context: .
       dockerfile: Dockerfile.dev

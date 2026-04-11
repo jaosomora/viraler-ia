@@ -1,7 +1,7 @@
-- [Julian - Owner](user_julian.md) — Owner de ViralAI, trabaja desde múltiples dispositivos
+- [Julian - Owner](user_julian.md) — Owner de AS Transcribe (Algo Sentido), trabaja desde múltiples dispositivos
 - [Push main+develop](feedback_push_always.md) — Siempre push a ambas ramas después de commit
 - [Claude config en git](feedback_claude_config_in_git.md) — Todo versionado para portabilidad entre máquinas
 - [Estilo directo](feedback_direct_style.md) — Ejecutar primero, explicar después, sin rodeos
 - [Simplicidad](feedback_simplicity.md) — Si no se usa, se elimina. No agregar features especulativas
-- [Estado ViralAI v2.1](project_viralai_state.md) — React+Express+SQLite, auth JWT, deploy en Render
+- [Estado AS Transcribe v2.1](project_viralai_state.md) — React+Express+SQLite, auth JWT, deploy en Render
 - [Render deploy](reference_render_deploy.md) — Docker, /opt/data, env vars necesarias

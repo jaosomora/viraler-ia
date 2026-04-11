@@ -1,12 +1,12 @@
-# ViralAI - Claude Code Project Context
+# Algo Sentido Tools: Transcribe - Claude Code Project Context
 
 ## What is this project?
-ViralAI is a full-stack web app that extracts video transcriptions and generates viral social media scripts using AI. It supports YouTube, Instagram Reels, TikTok, and Facebook.
+AS Transcribe (Algo Sentido Tools: Transcribe) is a full-stack web app that extracts video transcriptions using AI. It supports YouTube, Instagram Reels, TikTok, and Facebook. Part of the Algo Sentido internal toolset.
 
 ## Tech Stack
 - **Frontend**: React 18 + Vite + Tailwind CSS
 - **Backend**: Express.js (Node.js, ESM modules)
-- **Database**: SQLite3 (file-based, `data/viraler.db`)
+- **Database**: SQLite3 (file-based, `data/as-transcribe.db`)
 - **AI/LLM**: Anthropic Claude API + OpenAI API (fallback via `LLM_PROVIDER` env)
 - **Transcription**: OpenAI `gpt-4o-mini-transcribe`
 - **Audio extraction**: yt-dlp + FFmpeg

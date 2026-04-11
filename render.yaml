@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: viraler-ia
+    name: as-transcribe
     env: docker
     plan: free
     envVars:

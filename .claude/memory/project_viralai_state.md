@@ -1,10 +1,10 @@
 ---
-name: Estado actual de ViralAI v2.1.0
-description: Resumen del estado del proyecto ViralAI a abril 2025
+name: Estado actual de AS Transcribe v2.1.0
+description: Resumen del estado del proyecto AS Transcribe (Algo Sentido Tools) a abril 2025
 type: project
 ---
 
-ViralAI v2.1.0 — App de transcripción de video con autenticación.
+AS Transcribe v2.1.0 (Algo Sentido Tools: Transcribe) — App de transcripción de video con autenticación.
 
 **Stack:** React 18 + Vite + Tailwind (frontend), Express 5 (backend), SQLite3 (DB), OpenAI gpt-4o-mini-transcribe (transcripción), yt-dlp + FFmpeg (extracción de audio).
 
@@ -12,7 +12,7 @@ ViralAI v2.1.0 — App de transcripción de video con autenticación.
 
 **Auth:** JWT + bcryptjs. Primer registro = owner, resto = member. Cada usuario ve solo sus transcripciones.
 
-**Deploy:** Render con Docker (node:22-slim + build-essential para sqlite3). DB en /opt/data/viraler.db.
+**Deploy:** Render con Docker (node:22-slim + build-essential para sqlite3). DB en /opt/data/as-transcribe.db.
 
 **Why:** Julian usa esta app para transcribir contenido de creadores y generar ideas de contenido viral.
 **How to apply:** Cualquier cambio debe mantener esta arquitectura simple. No agregar ORMs, no migrar a Postgres, no agregar frameworks de auth complejos.

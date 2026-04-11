@@ -1,9 +1,9 @@
 {
-  "name": "viralai",
+  "name": "as-transcribe",
   "version": "2.1.0",
   "private": true,
   "type": "module",
-  "description": "Aplicación para potenciar expertos con IA y hacerlos virales en redes sociales",
+  "description": "Algo Sentido Tools: Transcribe - Extracción de transcripciones de video con IA",
   "scripts": {
     "dev:frontend": "vite --host 0.0.0.0",
     "dev:backend": "nodemon server.js",
@@ -17,7 +17,7 @@
     "docker:start": "docker-compose up",
     "docker:start:detached": "docker-compose up -d",
     "docker:stop": "docker-compose down",
-    "docker:bash": "docker-compose exec viraler-ia bash",
+    "docker:bash": "docker-compose exec as-transcribe bash",
     "docker:logs": "docker-compose logs -f"
   },
   "dependencies": {

@@ -1,6 +1,6 @@
-# Guía Docker para Viraler IA
+# Guía Docker para AS Transcribe
 
-Esta guía detalla cómo configurar y usar Docker con Viraler IA para desarrollo local y despliegue en producción.
+Esta guía detalla cómo configurar y usar Docker con AS Transcribe para desarrollo local y despliegue en producción.
 
 ## Índice
 
@@ -184,7 +184,7 @@ Para integrar con CI/CD:
 docker ps
 
 # Ver logs de un contenedor específico
-docker logs viraler-ia-container
+docker logs as-transcribe-container
 
 # Eliminar todas las imágenes y contenedores no utilizados
 docker system prune -a
@@ -198,4 +198,4 @@ docker stats
 
 ---
 
-Esta documentación debe ayudarte a aprovechar al máximo la configuración Docker para Viraler IA. Si encuentras problemas o tienes mejoras, por favor contribuye al proyecto.
+Esta documentación debe ayudarte a aprovechar al máximo la configuración Docker para AS Transcribe. Si encuentras problemas o tienes mejoras, por favor contribuye al proyecto.

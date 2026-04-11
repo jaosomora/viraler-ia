@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import db from './database/schema.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'viralai-dev-secret-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET || 'as-transcribe-dev-secret-change-in-production';
 
 export function hashPassword(password) {
   return bcrypt.hashSync(password, 10);

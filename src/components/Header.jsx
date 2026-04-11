@@ -57,9 +57,9 @@ const Header = () => {
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 flex items-center justify-center text-white font-bold">
-              V
+              AS
             </div>
-            <span className="text-xl font-bold">ViralAI</span>
+            <span className="text-xl font-bold">AS Transcribe</span>
           </Link>
 
           {/* Navigation - Desktop */}
