@@ -2,9 +2,9 @@ FROM node:22-slim
 
 WORKDIR /app
 
-# Instalar dependencias para FFmpeg y yt-dlp en una sola capa
+# Instalar dependencias del sistema (FFmpeg, yt-dlp, build tools para sqlite3)
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends ffmpeg python3 python3-venv python3-dev python3-setuptools python3-wheel python3-pip curl ca-certificates && \
+    apt-get install -y --no-install-recommends ffmpeg python3 python3-venv python3-dev python3-setuptools python3-wheel python3-pip curl ca-certificates build-essential && \
     pip3 install --no-cache-dir --break-system-packages pip setuptools wheel && \
     pip3 install --no-cache-dir --break-system-packages yt-dlp && \
     apt-get clean && \
@@ -16,8 +16,8 @@ RUN yt-dlp --version
 # Copiar archivos de dependencias
 COPY package.json package-lock.json ./
 
-# Instalar todas las dependencias (incluye devDeps para build)
-RUN npm ci
+# Instalar todas las dependencias y recompilar sqlite3 desde source
+RUN npm ci --build-from-source
 
 # Copiar código fuente
 COPY vite.config.js tailwind.config.js postcss.config.js ./
