@@ -46,7 +46,7 @@ const SavedTranscriptions = () => {
 
   const handleSelect = (transcription) => {
     setCurrentTranscription(transcription);
-    navigate('/');
+    navigate('/transcribir');
   };
 
   const handleDeleteClick = (id) => {

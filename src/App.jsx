@@ -3,7 +3,9 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import Header from './components/Header';
 import Footer from './components/Footer';
+import ToolHub from './pages/ToolHub';
 import Home from './pages/Home';
+import ConvertPage from './pages/ConvertPage';
 import MyResults from './pages/MyResults';
 import AdminPanel from './pages/AdminPanel';
 import NotFound from './pages/NotFound';
@@ -51,7 +53,9 @@ function App() {
         )}
 
         <Routes>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<ToolHub />} />
+          <Route path="/transcribir" element={<Home />} />
+          <Route path="/convertir" element={<ConvertPage />} />
           <Route path="/mis-resultados" element={<MyResults />} />
           <Route path="/admin" element={isOwner ? <AdminPanel /> : <Navigate to="/" />} />
           <Route path="*" element={<NotFound />} />

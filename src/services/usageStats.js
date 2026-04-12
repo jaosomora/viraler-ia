@@ -48,6 +48,18 @@ export const getAdminTranscriptions = async () => {
   return await response.json();
 };
 
+export const getAdminConversions = async () => {
+  const response = await fetch(`${API_BASE_URL}/admin/conversions`, {
+    headers: getAuthHeaders()
+  });
+
+  if (!response.ok) {
+    throw new Error('Error al obtener conversiones');
+  }
+
+  return await response.json();
+};
+
 export const deleteHistoryEntry = async (date) => {
   const response = await fetch(`${API_BASE_URL}/usage-stats/history/${date}`, {
     method: 'DELETE',

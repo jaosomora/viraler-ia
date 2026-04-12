@@ -5,6 +5,30 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-04-11
+
+### Añadido
+- **Nueva herramienta Convert** — Conversión de documentos (PDF, DOCX, PPTX, XLSX, EPUB) a Markdown usando Microsoft MarkItDown
+- **ToolHub** — Nueva página de inicio (`/`) como dashboard de herramientas internas
+- Endpoint `api/convertDocument.js` que ejecuta MarkItDown vía child_process
+- Componentes: `ConvertForm`, `ConversionResults`, `SavedConversions`
+- Página `ConvertPage` en `/convertir` con su propio `ConversionContext`
+- Tabla `conversions` en SQLite + tracking en `usageTrackerSQLite.js`
+- Tab de Conversiones en `MyResults` y sección en `AdminPanel`
+- Variable de entorno `MARKITDOWN_PATH` (opcional)
+- Dependencia externa: `markitdown` (Python CLI, `pipx install 'markitdown[all]'`)
+
+### Modificado
+- Rebranding completo: ViralAI → **AS Transcribe** (Algo Sentido Tools)
+- `Header`/`Footer` con enlaces a Transcribe, Convert y ToolHub
+- `App.jsx`: nueva ruta `/convertir`, `/` ahora muestra ToolHub
+- `Dockerfile`: instala `markitdown` además de yt-dlp y ffmpeg
+- JWT extendido de 7 a 30 días
+- Vista de admin mejorada con listado de transcripciones
+
+### Corregido
+- Hook `PostToolUse` en `.claude/settings.json` apuntaba a ruta obsoleta de otra máquina
+
 ## [2.1.0] - 2025-04-11
 
 ### Añadido

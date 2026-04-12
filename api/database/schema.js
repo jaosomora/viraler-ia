@@ -94,6 +94,24 @@ db.serialize(() => {
     )
   `);
 
+  // Tabla de conversiones (documentos a Markdown)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS conversions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      filename TEXT NOT NULL,
+      original_format TEXT NOT NULL,
+      markdown_content TEXT NOT NULL,
+      file_size INTEGER DEFAULT 0,
+      user_id INTEGER REFERENCES users(id),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Migration: agregar columna conversions a usage_stats si no existe
+  db.run(`ALTER TABLE usage_stats ADD COLUMN conversions INTEGER DEFAULT 0`, (err) => {
+    // Ignora si la columna ya existe
+  });
+
   // Tabla de configuración
   db.run(`
     CREATE TABLE IF NOT EXISTS settings (

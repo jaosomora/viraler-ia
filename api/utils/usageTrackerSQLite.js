@@ -174,49 +174,51 @@ export const generateUsageReport = () => {
       
       // Obtener estadísticas totales
       db.get(
-        `SELECT 
-          SUM(transcriptions) as totalTranscriptions, 
-          SUM(audio_minutes) as totalAudioMinutes, 
-          SUM(cost) as estimatedCost 
+        `SELECT
+          SUM(transcriptions) as totalTranscriptions,
+          SUM(audio_minutes) as totalAudioMinutes,
+          SUM(cost) as estimatedCost,
+          SUM(conversions) as totalConversions
         FROM usage_stats`,
         (err, row) => {
           if (err) {
             console.error('Error al obtener estadísticas totales:', err);
             return reject(err);
           }
-          
+
           if (row) {
             usageData.totalTranscriptions = row.totalTranscriptions || 0;
             usageData.totalAudioMinutes = row.totalAudioMinutes || 0;
             usageData.estimatedCost = row.estimatedCost || 0;
+            usageData.totalConversions = row.totalConversions || 0;
           }
-          
+
           // Calcular promedios
-          usageData.averageCostPerTranscription = 
-            usageData.totalTranscriptions > 0 
-              ? (usageData.estimatedCost / usageData.totalTranscriptions).toFixed(4) 
+          usageData.averageCostPerTranscription =
+            usageData.totalTranscriptions > 0
+              ? (usageData.estimatedCost / usageData.totalTranscriptions).toFixed(4)
               : 0;
-          
-          usageData.averageAudioMinutesPerTranscription = 
-            usageData.totalTranscriptions > 0 
-              ? (usageData.totalAudioMinutes / usageData.totalTranscriptions).toFixed(2) 
+
+          usageData.averageAudioMinutesPerTranscription =
+            usageData.totalTranscriptions > 0
+              ? (usageData.totalAudioMinutes / usageData.totalTranscriptions).toFixed(2)
               : 0;
-          
+
           // Obtener historial
           db.all(
-            `SELECT date, transcriptions, audio_minutes as audioMinutes, cost 
-             FROM usage_stats 
-             ORDER BY date DESC 
+            `SELECT date, transcriptions, audio_minutes as audioMinutes, cost, conversions
+             FROM usage_stats
+             ORDER BY date DESC
              LIMIT 10`,
             (err, rows) => {
               if (err) {
                 console.error('Error al obtener historial de uso:', err);
                 return reject(err);
               }
-              
+
               usageData.recentHistory = rows || [];
               usageData.history = rows || [];
-              
+
               resolve(usageData);
             }
           );
@@ -360,6 +362,120 @@ export const deleteTranscription = (id, userId = null) => {
         return resolve({ success: false, message: 'Transcripción no encontrada' });
       }
       resolve({ success: true, message: 'Transcripción eliminada' });
+    });
+  });
+};
+
+// ==========================================
+// Funciones de Conversión de Documentos
+// ==========================================
+
+/**
+ * Registra una conversión de documento en la base de datos
+ * @param {Object} metadata - { filename, originalFormat, markdown, fileSize }
+ * @param {number|null} userId - ID del usuario
+ * @returns {Promise<number>} - ID de la conversión creada
+ */
+export const trackConversion = (metadata, userId = null) => {
+  return new Promise((resolve, reject) => {
+    const today = new Date().toISOString().split('T')[0];
+
+    // Insertar conversión en la tabla
+    db.run(
+      `INSERT INTO conversions (filename, original_format, markdown_content, file_size, user_id)
+       VALUES (?, ?, ?, ?, ?)`,
+      [
+        metadata.filename,
+        metadata.originalFormat,
+        metadata.markdown,
+        metadata.fileSize || 0,
+        userId
+      ],
+      function (err) {
+        if (err) {
+          console.error('Error al guardar conversión:', err);
+          return reject(err);
+        }
+
+        const conversionId = this.lastID;
+
+        // Actualizar usage_stats para hoy
+        db.get(
+          `SELECT id FROM usage_stats WHERE date = ?`,
+          [today],
+          (err, row) => {
+            if (err) {
+              console.error('Error al verificar registro de uso:', err);
+              return resolve(conversionId);
+            }
+
+            if (row) {
+              db.run(
+                `UPDATE usage_stats SET conversions = conversions + 1 WHERE id = ?`,
+                [row.id]
+              );
+            } else {
+              db.run(
+                `INSERT INTO usage_stats (date, transcriptions, audio_minutes, cost, conversions)
+                 VALUES (?, 0, 0, 0, 1)`,
+                [today]
+              );
+            }
+
+            resolve(conversionId);
+          }
+        );
+      }
+    );
+  });
+};
+
+/**
+ * Obtiene las conversiones guardadas en la base de datos
+ * @param {number|null} userId - Filtrar por usuario (null = todas)
+ * @returns {Promise<Array>}
+ */
+export const getConversions = (userId = null) => {
+  return new Promise((resolve, reject) => {
+    const query = userId
+      ? `SELECT id, filename, original_format as originalFormat, markdown_content as markdown,
+                file_size as fileSize, created_at as createdAt
+         FROM conversions WHERE user_id = ? ORDER BY created_at DESC`
+      : `SELECT id, filename, original_format as originalFormat, markdown_content as markdown,
+                file_size as fileSize, created_at as createdAt
+         FROM conversions ORDER BY created_at DESC`;
+    const params = userId ? [userId] : [];
+    db.all(query, params, (err, rows) => {
+      if (err) {
+        console.error('Error al obtener conversiones:', err);
+        return reject(err);
+      }
+      resolve(rows || []);
+    });
+  });
+};
+
+/**
+ * Elimina una conversión por ID
+ * @param {number} id - ID de la conversión
+ * @param {number|null} userId - ID del usuario (para verificar ownership)
+ * @returns {Promise<Object>}
+ */
+export const deleteConversion = (id, userId = null) => {
+  return new Promise((resolve, reject) => {
+    const query = userId
+      ? `DELETE FROM conversions WHERE id = ? AND user_id = ?`
+      : `DELETE FROM conversions WHERE id = ?`;
+    const params = userId ? [id, userId] : [id];
+    db.run(query, params, function (err) {
+      if (err) {
+        console.error('Error al eliminar conversión:', err);
+        return reject(err);
+      }
+      if (this.changes === 0) {
+        return resolve({ success: false, message: 'Conversión no encontrada' });
+      }
+      resolve({ success: true, message: 'Conversión eliminada' });
     });
   });
 };

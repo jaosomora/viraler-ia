@@ -1,7 +1,11 @@
-# Algo Sentido Tools: Transcribe - Claude Code Project Context
+# Algo Sentido Tools - Claude Code Project Context
 
 ## What is this project?
-AS Transcribe (Algo Sentido Tools: Transcribe) is a full-stack web app that extracts video transcriptions using AI. It supports YouTube, Instagram Reels, TikTok, and Facebook. Part of the Algo Sentido internal toolset.
+AS Tools (Algo Sentido Tools) is a full-stack web app with multiple internal tools:
+1. **Transcribe** — Extracts video transcriptions from YouTube, Instagram Reels, TikTok, and Facebook
+2. **Convert** — Converts documents (PDF, DOCX, PPTX, XLSX, EPUB) to Markdown using Microsoft MarkItDown
+
+Part of the Algo Sentido internal toolset. Designed to scale with more tools over time.
 
 ## Tech Stack
 - **Frontend**: React 18 + Vite + Tailwind CSS
@@ -9,6 +13,7 @@ AS Transcribe (Algo Sentido Tools: Transcribe) is a full-stack web app that extr
 - **Database**: SQLite3 (file-based, `data/as-transcribe.db`)
 - **AI/LLM**: Anthropic Claude API + OpenAI API (fallback via `LLM_PROVIDER` env)
 - **Transcription**: OpenAI `gpt-4o-mini-transcribe`
+- **Document conversion**: Microsoft MarkItDown (Python CLI via child_process)
 - **Audio extraction**: yt-dlp + FFmpeg
 - **Deployment**: Render (with Docker support)
 
@@ -20,6 +25,7 @@ AS Transcribe (Algo Sentido Tools: Transcribe) is a full-stack web app that extr
 │   ├── transcribeUpload.js      # File upload transcription endpoint
 │   ├── transcribeAudio.js       # Whisper/gpt-4o-mini-transcribe API call
 │   ├── extractAudio.js          # yt-dlp audio extraction
+│   ├── convertDocument.js       # Document-to-Markdown conversion (MarkItDown)
 │   ├── services/
 │   │   ├── llmService.js        # LLM provider router (Anthropic/OpenAI)
 │   │   ├── anthropicService.js  # Claude API integration
@@ -29,15 +35,15 @@ AS Transcribe (Algo Sentido Tools: Transcribe) is a full-stack web app that extr
 │   ├── controllers/             # Script, client, document, log controllers
 │   ├── routes/                  # Express routes (clients, scripts, logs)
 │   ├── database/
-│   │   └── schema.js            # SQLite schema (9 tables)
+│   │   └── schema.js            # SQLite schema (users, transcriptions, conversions, usage_stats, settings)
 │   ├── rag/                     # RAG document processor (TF-IDF with natural)
 │   └── utils/                   # Platform detector, usage tracker
 ├── src/
-│   ├── App.jsx                  # React Router (8 routes)
-│   ├── pages/                   # Home, MyResults, Admin, Clients, Scripts, Logs, NotFound
-│   ├── components/              # TranscriptionForm, Header, Footer, etc.
-│   ├── context/                 # TranscriptionContext (URL + file upload)
-│   ├── services/                # API client, script/client/log services
+│   ├── App.jsx                  # React Router (/, /transcribir, /convertir, /mis-resultados, /admin)
+│   ├── pages/                   # ToolHub, Home, ConvertPage, MyResults, AdminPanel, LoginPage, NotFound
+│   ├── components/              # TranscriptionForm, ConvertForm, Header, Footer, etc.
+│   ├── context/                 # AuthContext, TranscriptionContext, ConversionContext
+│   ├── services/                # API client, usageStats service
 │   └── hooks/                   # useLocalStorage, useTranscription
 └── data/                        # SQLite database (gitignored)
 ```
@@ -56,9 +62,16 @@ npm run migrate        # Migrate JSON data to SQLite
 Required in `.env`:
 - `OPENAI_API_KEY` — For transcription (gpt-4o-mini-transcribe) and script generation fallback
 - `ANTHROPIC_API_KEY` — For script generation (primary)
+- `JWT_SECRET` — Secret for JWT token signing
 - `LLM_PROVIDER` — Force `anthropic` or `openai` (auto-detects by default)
 - `PORT` — Server port (default 3000)
 - `FFMPEG_PATH` — Custom ffmpeg path (optional)
+- `MARKITDOWN_PATH` — Custom markitdown path (optional)
+
+## External Dependencies
+- `yt-dlp` — Video download (called via child_process)
+- `ffmpeg` — Audio extraction (called via child_process)
+- `markitdown` — Document conversion (Python CLI, installed via `pipx install 'markitdown[all]'`)
 
 ## Conventions
 - Language: Spanish for UI text and comments, English for code identifiers
@@ -67,6 +80,16 @@ Required in `.env`:
 - Frontend uses React functional components + hooks
 - TailwindCSS for styling with dark mode support
 - SQLite for all persistence (no external DB needed)
+- Each tool has its own Context, Form, Results, and Saved components
+- ToolHub (`/`) serves as the home dashboard; each tool gets its own route
+
+## Architecture Pattern for Adding New Tools
+1. Backend: new handler in `api/`, new functions in `usageTrackerSQLite.js`, new routes in `server.js`
+2. DB: new table in `schema.js`
+3. Frontend: new Context, Form, Results, SavedX components
+4. New page in `src/pages/`, new route in `App.jsx`
+5. Add card to `ToolHub.jsx`, link in `Header.jsx` and `Footer.jsx`
+6. Add tab in `MyResults.jsx`, section in `AdminPanel.jsx`
 
 ## Portable Claude Setup
 This project keeps all Claude Code config in git for portability across machines:
@@ -78,6 +101,7 @@ This project keeps all Claude Code config in git for portability across machines
 **On a new machine after cloning:**
 ```bash
 .claude/sync-memories.sh pull
+pipx install 'markitdown[all]'  # Requires Python 3.10+
 ```
 This copies memories from the repo to your local Claude config.
 

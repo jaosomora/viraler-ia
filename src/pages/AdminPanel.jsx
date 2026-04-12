@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { getUsageStats, resetUsageStats, deleteHistoryEntry, getAdminTranscriptions } from '../services/usageStats';
+import { getUsageStats, resetUsageStats, deleteHistoryEntry, getAdminTranscriptions, getAdminConversions } from '../services/usageStats';
 import Spinner from '../components/Spinner';
 
 const AdminPanel = () => {
   const [usageData, setUsageData] = useState(null);
   const [transcriptions, setTranscriptions] = useState([]);
+  const [conversions, setConversions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -12,16 +13,19 @@ const AdminPanel = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [actionSuccess, setActionSuccess] = useState(null);
   const [expandedTranscription, setExpandedTranscription] = useState(null);
+  const [expandedConversion, setExpandedConversion] = useState(null);
 
   const fetchUsageData = async () => {
     try {
       setIsLoading(true);
-      const [data, txns] = await Promise.all([
+      const [data, txns, convs] = await Promise.all([
         getUsageStats(),
-        getAdminTranscriptions()
+        getAdminTranscriptions(),
+        getAdminConversions()
       ]);
       setUsageData(data);
       setTranscriptions(txns);
+      setConversions(convs);
       setError(null);
     } catch (err) {
       setError(err.message || 'Error al cargar datos de uso');
@@ -162,7 +166,7 @@ const AdminPanel = () => {
       </div>
 
       {/* Tarjetas de resumen */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">Transcripciones</h3>
@@ -200,6 +204,19 @@ const AdminPanel = () => {
           </div>
           <p className="mt-4 text-3xl font-bold text-gray-900 dark:text-white">{formatPrice(usageData.estimatedCost)}</p>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">costo estimado (USD)</p>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">Conversiones</h3>
+            <div className="p-2 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+          </div>
+          <p className="mt-4 text-3xl font-bold text-gray-900 dark:text-white">{usageData.totalConversions || 0}</p>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">documentos convertidos</p>
         </div>
       </div>
 
@@ -251,7 +268,8 @@ const AdminPanel = () => {
                 <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Transcripciones</th>
                 <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Minutos</th>
                 <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Costo</th>
-                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Acción</th>
+                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Conversiones</th>
+                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Accion</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -261,6 +279,7 @@ const AdminPanel = () => {
                   <td className="py-3 px-6 text-sm text-gray-500 dark:text-gray-300">{entry.transcriptions}</td>
                   <td className="py-3 px-6 text-sm text-gray-500 dark:text-gray-300">{formatNumber(entry.audioMinutes)}</td>
                   <td className="py-3 px-6 text-sm text-gray-500 dark:text-gray-300">{formatPrice(entry.cost)}</td>
+                  <td className="py-3 px-6 text-sm text-gray-500 dark:text-gray-300">{entry.conversions || 0}</td>
                   <td className="py-3 px-6 text-sm">
                     <button
                       onClick={() => handleDeleteClick(entry.date)}
@@ -276,7 +295,7 @@ const AdminPanel = () => {
               ))}
               {(!usageData.recentHistory || usageData.recentHistory.length === 0) && (
                 <tr>
-                  <td colSpan="5" className="py-4 px-6 text-sm text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan="6" className="py-4 px-6 text-sm text-center text-gray-500 dark:text-gray-400">
                     No hay datos históricos disponibles
                   </td>
                 </tr>
@@ -317,6 +336,43 @@ const AdminPanel = () => {
               {expandedTranscription === t.id && (
                 <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg text-sm text-gray-700 dark:text-gray-300 max-h-60 overflow-y-auto whitespace-pre-wrap">
                   {t.text}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Conversiones recientes */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Conversiones recientes</h2>
+        </div>
+        <div className="divide-y divide-gray-200 dark:divide-gray-700">
+          {conversions.length === 0 && (
+            <p className="p-6 text-sm text-center text-gray-500 dark:text-gray-400">No hay conversiones</p>
+          )}
+          {conversions.slice(0, 10).map((c) => (
+            <div key={c.id} className="p-4">
+              <div className="flex items-start justify-between">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-sm font-medium text-gray-900 dark:text-white truncate">{c.filename}</h3>
+                  <div className="flex flex-wrap gap-2 mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">{c.originalFormat?.toUpperCase()}</span>
+                    {c.fileSize > 0 && <span>{(c.fileSize / 1024).toFixed(0)} KB</span>}
+                    <span>{new Date(c.createdAt).toLocaleString()}</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setExpandedConversion(expandedConversion === c.id ? null : c.id)}
+                  className="ml-2 text-xs text-purple-600 dark:text-purple-400 hover:underline whitespace-nowrap"
+                >
+                  {expandedConversion === c.id ? 'Ocultar' : 'Ver markdown'}
+                </button>
+              </div>
+              {expandedConversion === c.id && (
+                <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg text-sm text-gray-700 dark:text-gray-300 max-h-60 overflow-y-auto whitespace-pre-wrap font-mono">
+                  {c.markdown}
                 </div>
               )}
             </div>

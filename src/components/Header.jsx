@@ -59,26 +59,36 @@ const Header = () => {
             <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 flex items-center justify-center text-white font-bold">
               AS
             </div>
-            <span className="text-xl font-bold">AS Transcribe</span>
+            <span className="text-xl font-bold">AS Tools</span>
           </Link>
 
           {/* Navigation - Desktop */}
           <nav className="hidden md:flex items-center space-x-8">
   <Link
-    to="/"
+    to="/transcribir"
     className={`font-medium transition ${
-      isActive('/') 
-        ? 'text-purple-600 dark:text-purple-400' 
+      isActive('/transcribir')
+        ? 'text-purple-600 dark:text-purple-400'
         : 'text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400'
     }`}
   >
     Transcribir
   </Link>
   <Link
+    to="/convertir"
+    className={`font-medium transition ${
+      isActive('/convertir')
+        ? 'text-purple-600 dark:text-purple-400'
+        : 'text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400'
+    }`}
+  >
+    Convertir
+  </Link>
+  <Link
     to="/mis-resultados"
     className={`font-medium transition ${
-      isActive('/mis-resultados') 
-        ? 'text-purple-600 dark:text-purple-400' 
+      isActive('/mis-resultados')
+        ? 'text-purple-600 dark:text-purple-400'
         : 'text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400'
     }`}
   >
@@ -190,22 +200,33 @@ const Header = () => {
         {isMobileMenuOpen && (
           <nav className="md:hidden pt-4 pb-2 space-y-2">
             <Link
-              to="/"
+              to="/transcribir"
               onClick={() => setIsMobileMenuOpen(false)}
               className={`block py-2 px-4 rounded ${
-                isActive('/') 
-                  ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400' 
+                isActive('/transcribir')
+                  ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400'
                   : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
               }`}
             >
               Transcribir
             </Link>
             <Link
+              to="/convertir"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className={`block py-2 px-4 rounded ${
+                isActive('/convertir')
+                  ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+              }`}
+            >
+              Convertir
+            </Link>
+            <Link
               to="/mis-resultados"
               onClick={() => setIsMobileMenuOpen(false)}
               className={`block py-2 px-4 rounded ${
-                isActive('/mis-resultados') 
-                  ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400' 
+                isActive('/mis-resultados')
+                  ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400'
                   : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
               }`}
             >

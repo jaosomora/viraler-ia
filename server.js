@@ -10,13 +10,16 @@ import os from 'os';
 import { spawn } from 'child_process';
 import transcribeVideo from './api/transcribeVideo.js';
 import transcribeUpload from './api/transcribeUpload.js';
+import convertDocument from './api/convertDocument.js';
 import { authMiddleware, ownerOnly, registerUser, loginUser } from './api/auth.js';
 import {
   generateUsageReport,
   resetUsageData,
   deleteHistoryByDate,
   getTranscriptions,
-  deleteTranscription
+  deleteTranscription,
+  getConversions,
+  deleteConversion
 } from './api/utils/usageTrackerSQLite.js';
 import './api/database/schema.js';
 
@@ -90,6 +93,21 @@ const upload = multer({
 });
 app.post('/api/transcribeUpload', authMiddleware, upload.single('video'), transcribeUpload);
 
+// Conversión de documentos a Markdown
+const documentUpload = multer({
+  dest: os.tmpdir(),
+  limits: { fileSize: 200 * 1024 * 1024 }, // 200MB
+  fileFilter: (req, file, cb) => {
+    const allowed = /\.(pdf|docx|pptx|xlsx|epub)$/i;
+    if (allowed.test(file.originalname)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Formato no soportado. Formatos válidos: PDF, DOCX, PPTX, XLSX, EPUB'));
+    }
+  },
+});
+app.post('/api/convert', authMiddleware, documentUpload.single('document'), convertDocument);
+
 // Transcripciones del usuario
 app.get('/api/transcriptions', authMiddleware, async (req, res) => {
   try {
@@ -97,6 +115,30 @@ app.get('/api/transcriptions', authMiddleware, async (req, res) => {
     res.json(transcriptions);
   } catch (error) {
     res.status(500).json({ error: 'Error al obtener transcripciones' });
+  }
+});
+
+// Conversiones del usuario
+app.get('/api/conversions', authMiddleware, async (req, res) => {
+  try {
+    const conversions = await getConversions(req.user.id);
+    res.json(conversions);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener conversiones' });
+  }
+});
+
+// Eliminar conversión (solo la propia)
+app.delete('/api/conversions/:id', authMiddleware, async (req, res) => {
+  try {
+    const result = await deleteConversion(req.params.id, req.user.id);
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(404).json(result);
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Error al eliminar conversión' });
   }
 });
 
@@ -122,6 +164,15 @@ app.get('/api/admin/transcriptions', authMiddleware, ownerOnly, async (req, res)
     res.json(transcriptions);
   } catch (error) {
     res.status(500).json({ error: 'Error al obtener transcripciones' });
+  }
+});
+
+app.get('/api/admin/conversions', authMiddleware, ownerOnly, async (req, res) => {
+  try {
+    const conversions = await getConversions();
+    res.json(conversions);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener conversiones' });
   }
 });
 
@@ -195,4 +246,13 @@ app.listen(PORT, async () => {
     });
     console.log('FFmpeg detectado');
   } catch { console.warn('\x1b[33m%s\x1b[0m', 'ADVERTENCIA: FFmpeg no encontrado.'); }
+
+  try {
+    await new Promise((resolve, reject) => {
+      const p = spawn(process.env.MARKITDOWN_PATH || 'markitdown', ['--help']);
+      p.on('close', (code) => code === 0 ? resolve() : reject());
+      p.on('error', reject);
+    });
+    console.log('markitdown detectado');
+  } catch { console.warn('\x1b[33m%s\x1b[0m', 'ADVERTENCIA: markitdown no encontrado. Instalar con: pipx install \'markitdown[all]\''); }
 });

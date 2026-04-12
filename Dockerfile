@@ -6,12 +6,12 @@ WORKDIR /app
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ffmpeg python3 python3-venv python3-dev python3-setuptools python3-wheel python3-pip curl ca-certificates build-essential && \
     pip3 install --no-cache-dir --break-system-packages pip setuptools wheel && \
-    pip3 install --no-cache-dir --break-system-packages yt-dlp && \
+    pip3 install --no-cache-dir --break-system-packages yt-dlp 'markitdown[all]' && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Verificar instalación de yt-dlp
-RUN yt-dlp --version
+# Verificar instalaciones
+RUN yt-dlp --version && markitdown --help > /dev/null 2>&1
 
 # Copiar archivos de dependencias
 COPY package.json package-lock.json ./
@@ -43,6 +43,7 @@ ENV PORT=10000
 ENV NODE_ENV=production
 ENV YTDLP_PATH=/usr/local/bin/yt-dlp
 ENV FFMPEG_PATH=/usr/bin/ffmpeg
+ENV MARKITDOWN_PATH=/usr/local/bin/markitdown
 
 # Comando de inicio
 CMD ["node", "server.js"]
