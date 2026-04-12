@@ -42,5 +42,14 @@ URL="http://localhost:5173"
 ) &
 
 # 6. Arrancar dev (frontend + backend). Ctrl+C corta ambos.
-echo "Levantando dev server — Ctrl+C para detener"
+cat <<BANNER
+
+============================================================
+  AS Tools corriendo en local
+  App:      http://localhost:5173
+  API:      http://localhost:3000
+  Detener:  Ctrl+C
+============================================================
+
+BANNER
 npm run dev
