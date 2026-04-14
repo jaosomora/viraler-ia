@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getUsageStats, resetUsageStats, deleteHistoryEntry, getAdminTranscriptions, getAdminConversions } from '../services/usageStats';
+import { getUsageStats, resetUsageStats, deleteHistoryEntry, getAdminTranscriptions, getAdminConversions, getAdminUsers, resetUserPassword } from '../services/usageStats';
 import Spinner from '../components/Spinner';
 
 const AdminPanel = () => {
@@ -14,18 +14,23 @@ const AdminPanel = () => {
   const [actionSuccess, setActionSuccess] = useState(null);
   const [expandedTranscription, setExpandedTranscription] = useState(null);
   const [expandedConversion, setExpandedConversion] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [resetResult, setResetResult] = useState(null);
+  const [resetUserTarget, setResetUserTarget] = useState(null);
 
   const fetchUsageData = async () => {
     try {
       setIsLoading(true);
-      const [data, txns, convs] = await Promise.all([
+      const [data, txns, convs, us] = await Promise.all([
         getUsageStats(),
         getAdminTranscriptions(),
-        getAdminConversions()
+        getAdminConversions(),
+        getAdminUsers()
       ]);
       setUsageData(data);
       setTranscriptions(txns);
       setConversions(convs);
+      setUsers(us);
       setError(null);
     } catch (err) {
       setError(err.message || 'Error al cargar datos de uso');
@@ -85,6 +90,22 @@ const AdminPanel = () => {
     setShowDeleteConfirm(false);
     setShowResetConfirm(false);
     setDeleteTarget(null);
+  };
+
+  const handleResetPassword = async (user) => {
+    try {
+      setResetUserTarget(user);
+      const result = await resetUserPassword(user.id);
+      setResetResult(result.tempPassword);
+    } catch (err) {
+      setError(err.message || 'Error al resetear contraseña');
+      setResetUserTarget(null);
+    }
+  };
+
+  const closeResetModal = () => {
+    setResetResult(null);
+    setResetUserTarget(null);
   };
 
   if (isLoading && !usageData) {
@@ -379,6 +400,75 @@ const AdminPanel = () => {
           ))}
         </div>
       </div>
+
+      {/* Usuarios */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Usuarios</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Resetea la contraseña de un usuario si la olvidó.</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50 dark:bg-gray-900/50">
+              <tr>
+                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nombre</th>
+                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Email</th>
+                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Rol</th>
+                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Acción</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              {users.map((u) => (
+                <tr key={u.id} className="hover:bg-gray-50 dark:hover:bg-gray-900/30">
+                  <td className="py-3 px-6 text-sm font-medium text-gray-900 dark:text-white">{u.name}</td>
+                  <td className="py-3 px-6 text-sm text-gray-500 dark:text-gray-300">{u.email}</td>
+                  <td className="py-3 px-6 text-sm text-gray-500 dark:text-gray-300">{u.role}</td>
+                  <td className="py-3 px-6 text-sm">
+                    <button
+                      onClick={() => handleResetPassword(u)}
+                      className="text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300"
+                    >
+                      Resetear contraseña
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {users.length === 0 && (
+                <tr><td colSpan="4" className="py-4 px-6 text-sm text-center text-gray-500 dark:text-gray-400">No hay usuarios</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Modal de contraseña temporal */}
+      {resetResult && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md mx-auto p-6 shadow-xl">
+            <h3 className="text-lg font-medium mb-3 text-gray-900 dark:text-white">Contraseña temporal generada</h3>
+            <p className="text-gray-600 dark:text-gray-300 mb-3 text-sm">
+              Comparte esta contraseña con <strong>{resetUserTarget?.email}</strong>. No se volverá a mostrar.
+            </p>
+            <div className="bg-gray-100 dark:bg-gray-900 p-3 rounded-md font-mono text-center text-lg mb-4 select-all">
+              {resetResult}
+            </div>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => navigator.clipboard.writeText(resetResult)}
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                Copiar
+              </button>
+              <button
+                onClick={closeResetModal}
+                className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de confirmación para reiniciar datos */}
       {showResetConfirm && (

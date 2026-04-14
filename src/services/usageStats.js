@@ -60,6 +60,27 @@ export const getAdminConversions = async () => {
   return await response.json();
 };
 
+export const getAdminUsers = async () => {
+  const response = await fetch(`${API_BASE_URL}/admin/users`, {
+    headers: getAuthHeaders()
+  });
+  if (!response.ok) throw new Error('Error al obtener usuarios');
+  return await response.json();
+};
+
+export const resetUserPassword = async (userId, password) => {
+  const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/reset-password`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(password ? { password } : {})
+  });
+  if (!response.ok) {
+    const data = await response.json();
+    throw new Error(data.error || 'Error al resetear contraseña');
+  }
+  return await response.json();
+};
+
 export const deleteHistoryEntry = async (date) => {
   const response = await fetch(`${API_BASE_URL}/usage-stats/history/${date}`, {
     method: 'DELETE',

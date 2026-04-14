@@ -71,6 +71,37 @@ export function registerUser(name, email, password) {
   });
 }
 
+export function listUsers() {
+  return new Promise((resolve, reject) => {
+    db.all(
+      'SELECT id, name, email, role, created_at FROM users ORDER BY created_at ASC',
+      (err, rows) => {
+        if (err) return reject(err);
+        resolve(rows);
+      }
+    );
+  });
+}
+
+export function generateTempPassword() {
+  return Math.random().toString(36).slice(-10) + Math.random().toString(36).slice(-2).toUpperCase();
+}
+
+export function adminResetPassword(userId, newPassword) {
+  return new Promise((resolve, reject) => {
+    const password_hash = hashPassword(newPassword);
+    db.run(
+      'UPDATE users SET password_hash = ? WHERE id = ?',
+      [password_hash, userId],
+      function (err) {
+        if (err) return reject(err);
+        if (this.changes === 0) return reject(new Error('Usuario no encontrado'));
+        resolve({ success: true });
+      }
+    );
+  });
+}
+
 export function loginUser(email, password) {
   return new Promise((resolve, reject) => {
     db.get('SELECT * FROM users WHERE email = ?', [email], (err, user) => {

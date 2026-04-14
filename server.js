@@ -11,7 +11,7 @@ import { spawn } from 'child_process';
 import transcribeVideo from './api/transcribeVideo.js';
 import transcribeUpload from './api/transcribeUpload.js';
 import convertDocument from './api/convertDocument.js';
-import { authMiddleware, ownerOnly, registerUser, loginUser } from './api/auth.js';
+import { authMiddleware, ownerOnly, registerUser, loginUser, listUsers, adminResetPassword, generateTempPassword } from './api/auth.js';
 import {
   generateUsageReport,
   resetUsageData,
@@ -157,6 +157,27 @@ app.delete('/api/transcriptions/:id', authMiddleware, async (req, res) => {
 });
 
 // --- Rutas de Admin (solo owner) ---
+
+app.get('/api/admin/users', authMiddleware, ownerOnly, async (req, res) => {
+  try {
+    const users = await listUsers();
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener usuarios' });
+  }
+});
+
+app.post('/api/admin/users/:id/reset-password', authMiddleware, ownerOnly, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id, 10);
+    const { password } = req.body || {};
+    const newPassword = (password && password.length >= 6) ? password : generateTempPassword();
+    await adminResetPassword(userId, newPassword);
+    res.json({ success: true, tempPassword: newPassword });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
 
 app.get('/api/admin/transcriptions', authMiddleware, ownerOnly, async (req, res) => {
   try {
