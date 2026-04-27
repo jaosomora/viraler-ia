@@ -16,7 +16,7 @@ const tools = [
   },
   {
     name: 'Convertir Documento',
-    description: 'Convierte documentos PDF, DOCX, PPTX, XLSX y EPUB a formato Markdown listo para usar.',
+    description: 'Convierte documentos PDF, DOCX, PPTX, XLSX y EPUB a Markdown o HTML listo para usar.',
     path: '/convertir',
     icon: (
       <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">

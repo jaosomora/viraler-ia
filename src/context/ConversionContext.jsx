@@ -12,6 +12,7 @@ export const ConversionProvider = ({ children }) => {
   const [currentConversion, setCurrentConversion] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [outputFormat, setOutputFormat] = useState('md');
 
   const fetchConversions = async () => {
     try {
@@ -93,6 +94,8 @@ export const ConversionProvider = ({ children }) => {
     deleteConversion,
     setCurrentConversion,
     fetchConversions,
+    outputFormat,
+    setOutputFormat,
   };
 
   return (

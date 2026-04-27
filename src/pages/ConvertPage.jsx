@@ -13,7 +13,7 @@ const ConvertPage = () => {
           Algo Sentido Tools: Convertir
         </h1>
         <p className="mt-3 text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-          Convierte documentos PDF, DOCX, PPTX, XLSX y EPUB a Markdown
+          Convierte documentos PDF, DOCX, PPTX, XLSX y EPUB a Markdown o HTML
         </p>
       </div>
 

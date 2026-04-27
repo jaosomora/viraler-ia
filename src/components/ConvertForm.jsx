@@ -22,7 +22,7 @@ const ConvertForm = () => {
   const fileInputRef = useRef(null);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [estimatedProgress, setEstimatedProgress] = useState(0);
-  const { processConversion, setCurrentConversion, isLoading, error } = useConversionContext();
+  const { processConversion, setCurrentConversion, isLoading, error, outputFormat, setOutputFormat } = useConversionContext();
 
   const activeFile = selectedFiles[currentIndex] || null;
 
@@ -149,7 +149,7 @@ const ConvertForm = () => {
     <div className="w-full max-w-3xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-8">
       <h2 className="text-2xl font-bold mb-2 text-center">Convertir Documento</h2>
       <p className="text-gray-600 dark:text-gray-300 text-center mb-6">
-        Sube uno o varios documentos y obten su contenido en formato Markdown
+        Sube uno o varios documentos y obten su contenido en Markdown o HTML
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -236,6 +236,36 @@ const ConvertForm = () => {
           {fileError && <p className="mt-1 text-sm text-red-500">{fileError}</p>}
         </div>
 
+        <div>
+          <label className="block text-sm font-medium mb-2">Formato de salida</label>
+          <div className="inline-flex w-full rounded-lg bg-gray-100 dark:bg-gray-700 p-1">
+            <button
+              type="button"
+              onClick={() => setOutputFormat('md')}
+              disabled={isLoading}
+              className={`flex-1 px-4 py-2 text-sm rounded-md transition ${
+                outputFormat === 'md'
+                  ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow font-medium'
+                  : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              Markdown (.md)
+            </button>
+            <button
+              type="button"
+              onClick={() => setOutputFormat('html')}
+              disabled={isLoading}
+              className={`flex-1 px-4 py-2 text-sm rounded-md transition ${
+                outputFormat === 'html'
+                  ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow font-medium'
+                  : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              HTML (.html)
+            </button>
+          </div>
+        </div>
+
         <button
           type="submit"
           disabled={isLoading || !selectedFiles.length}
@@ -264,7 +294,7 @@ const ConvertForm = () => {
               <span>
                 {selectedFiles.length > 1
                   ? `Convertir ${selectedFiles.length} documentos`
-                  : 'Convertir a Markdown'}
+                  : 'Convertir documento'}
               </span>
             </>
           )}

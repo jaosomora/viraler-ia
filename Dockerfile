@@ -6,12 +6,12 @@ WORKDIR /app
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ffmpeg python3 python3-venv python3-dev python3-setuptools python3-wheel python3-pip curl ca-certificates build-essential && \
     pip3 install --no-cache-dir --break-system-packages pip setuptools wheel && \
-    pip3 install --no-cache-dir --break-system-packages yt-dlp 'markitdown[all]' && \
+    pip3 install --no-cache-dir --break-system-packages yt-dlp 'markitdown[all]' pymupdf4llm && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 # Verificar instalaciones
-RUN yt-dlp --version && markitdown --help > /dev/null 2>&1
+RUN yt-dlp --version && markitdown --help > /dev/null 2>&1 && python3 -c "import pymupdf4llm"
 
 # Copiar archivos de dependencias
 COPY package.json package-lock.json ./
@@ -34,6 +34,7 @@ RUN npm prune --omit=dev
 # Copiar archivos de servidor
 COPY server.js ./
 COPY api/ ./api/
+COPY scripts/ ./scripts/
 
 # Crear directorio para cookies y datos
 RUN mkdir -p /app/config /opt/data && chmod 777 /opt/data /app/config

@@ -3,17 +3,24 @@ import { trackConversion } from './utils/usageTrackerSQLite.js';
 import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
-/**
- * Convierte un documento a Markdown usando markitdown CLI
- * @param {string} filePath - Ruta al archivo del documento
- * @returns {Promise<string>} - Contenido Markdown resultante
- */
-function convertToMarkdown(filePath) {
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const PDF_SCRIPT = path.resolve(__dirname, '..', 'scripts', 'pdf_to_md.py');
+const PIPX_PYTHON = path.join(
+  process.env.HOME || '',
+  '.local/pipx/venvs/markitdown/bin/python'
+);
+
+function resolvePythonPath() {
+  if (process.env.PDF_PYTHON_PATH) return process.env.PDF_PYTHON_PATH;
+  if (PIPX_PYTHON && fs.existsSync(PIPX_PYTHON)) return PIPX_PYTHON;
+  return 'python3';
+}
+
+function runProcess(cmd, args, label) {
   return new Promise((resolve, reject) => {
-    const markitdownPath = process.env.MARKITDOWN_PATH || 'markitdown';
-    const proc = spawn(markitdownPath, [filePath]);
-
+    const proc = spawn(cmd, args);
     let stdout = '';
     let stderr = '';
 
@@ -22,18 +29,42 @@ function convertToMarkdown(filePath) {
 
     proc.on('close', (code) => {
       if (code !== 0) {
-        return reject(new Error(`markitdown falló (código ${code}): ${stderr}`));
+        return reject(new Error(`${label} falló (código ${code}): ${stderr}`));
       }
       if (!stdout.trim()) {
-        return reject(new Error('markitdown no generó contenido. El documento puede estar vacío o no ser compatible.'));
+        return reject(new Error(`${label} no generó contenido. El documento puede estar vacío o no ser compatible.`));
       }
       resolve(stdout);
     });
 
     proc.on('error', (err) => {
-      reject(new Error(`No se pudo ejecutar markitdown: ${err.message}. Verifica que esté instalado (pipx install 'markitdown[all]')`));
+      reject(new Error(`No se pudo ejecutar ${label}: ${err.message}`));
     });
   });
+}
+
+/**
+ * Convierte un PDF a Markdown estructurado usando pymupdf4llm
+ * (detecta headings por tamaño de fuente, conserva listas y tablas).
+ */
+function convertPdfToMarkdown(filePath) {
+  const pythonPath = resolvePythonPath();
+  return runProcess(pythonPath, [PDF_SCRIPT, filePath], 'pymupdf4llm');
+}
+
+/**
+ * Convierte un documento a Markdown usando markitdown CLI
+ */
+function convertWithMarkitdown(filePath) {
+  const markitdownPath = process.env.MARKITDOWN_PATH || 'markitdown';
+  return runProcess(markitdownPath, [filePath], 'markitdown');
+}
+
+function convertToMarkdown(filePath, ext) {
+  if (ext === 'pdf') {
+    return convertPdfToMarkdown(filePath);
+  }
+  return convertWithMarkitdown(filePath);
 }
 
 /**
@@ -55,7 +86,7 @@ export default async function convertDocument(req, res) {
 
     // Convertir a Markdown
     const startTime = Date.now();
-    const markdown = await convertToMarkdown(filePath);
+    const markdown = await convertToMarkdown(filePath, ext);
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     const charCount = markdown.length.toLocaleString();
     console.log(`Conversion completada en ${elapsed}s — ${charCount} caracteres generados (${originalName})`);
