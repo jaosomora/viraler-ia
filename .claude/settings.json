@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash -c 'MEMORY_SRC=\"$HOME/.claude/projects/-Users-mackbook-air-m4-Documents-as-transcribe/memory\"; MEMORY_DST=\"$(git rev-parse --show-toplevel 2>/dev/null)/.claude/memory\"; if [ -d \"$MEMORY_SRC\" ] && [ -d \"$MEMORY_DST\" ]; then cp \"$MEMORY_SRC\"/*.md \"$MEMORY_DST/\" 2>/dev/null; fi; exit 0'"
+            "command": "bash -c 'REPO=\"$(git rev-parse --show-toplevel 2>/dev/null)\"; [ -z \"$REPO\" ] && exit 0; SAFE=$(echo \"$REPO\" | sed \"s|/|-|g\"); MEMORY_SRC=\"$HOME/.claude/projects/$SAFE/memory\"; MEMORY_DST=\"$REPO/.claude/memory\"; if [ -d \"$MEMORY_SRC\" ] && [ -d \"$MEMORY_DST\" ]; then cp \"$MEMORY_SRC\"/*.md \"$MEMORY_DST/\" 2>/dev/null; fi; exit 0'"
           }
         ]
       }
