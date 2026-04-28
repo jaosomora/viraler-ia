@@ -10,6 +10,9 @@ import MyResults from './pages/MyResults';
 import AdminPanel from './pages/AdminPanel';
 import NotFound from './pages/NotFound';
 import LoginPage from './pages/LoginPage';
+import SecretsPage from './pages/SecretsPage';
+import ViewSecretPage from './pages/ViewSecretPage';
+import MagicLinkPage from './pages/MagicLinkPage';
 import Spinner from './components/Spinner';
 import { checkHealth } from './services/api';
 import './index.css';
@@ -29,6 +32,18 @@ function App() {
       <div className="min-h-screen flex items-center justify-center">
         <Spinner size="xl" />
       </div>
+    );
+  }
+
+  // Ruta pública: consumo de magic link (procesa token y loguea)
+  const isMagicRoute = typeof window !== 'undefined'
+    && window.location.pathname.startsWith('/magic/');
+
+  if (isMagicRoute) {
+    return (
+      <Routes>
+        <Route path="/magic/:token" element={<MagicLinkPage />} />
+      </Routes>
     );
   }
 
@@ -57,6 +72,8 @@ function App() {
           <Route path="/transcribir" element={<Home />} />
           <Route path="/convertir" element={<ConvertPage />} />
           <Route path="/mis-resultados" element={<MyResults />} />
+          <Route path="/secretos" element={<SecretsPage />} />
+          <Route path="/secreto/:token" element={<ViewSecretPage />} />
           <Route path="/admin" element={isOwner ? <AdminPanel /> : <Navigate to="/" />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

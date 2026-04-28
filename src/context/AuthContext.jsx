@@ -79,6 +79,31 @@ export const AuthProvider = ({ children }) => {
     return data.user;
   };
 
+  const requestMagicLink = async (email) => {
+    const res = await fetch(`${API_BASE}/auth/magic-link/request`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error');
+    return data;
+  };
+
+  const loginWithMagicLink = async (magicToken) => {
+    const res = await fetch(`${API_BASE}/auth/magic-link/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: magicToken }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    localStorage.setItem('token', data.token);
+    setToken(data.token);
+    setUser(data.user);
+    return data.user;
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     setToken(null);
@@ -86,7 +111,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, isAuthenticated, isOwner, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, isAuthenticated, isOwner, loading, login, register, logout, requestMagicLink, loginWithMagicLink }}>
       {children}
     </AuthContext.Provider>
   );

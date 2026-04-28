@@ -1,7 +1,11 @@
 // api/auth.js
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import db from './database/schema.js';
+import { sendMagicLinkEmail } from './services/emailService.js';
+
+const MAGIC_LINK_TTL_MINUTES = 15;
 
 const JWT_SECRET = process.env.JWT_SECRET || 'as-transcribe-dev-secret-change-in-production';
 
@@ -97,6 +101,76 @@ export function adminResetPassword(userId, newPassword) {
         if (err) return reject(err);
         if (this.changes === 0) return reject(new Error('Usuario no encontrado'));
         resolve({ success: true });
+      }
+    );
+  });
+}
+
+function hashToken(token) {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+// Genera un magic link y lo envía por email. Siempre resuelve con éxito (aunque
+// el email no exista) para no permitir enumeración de usuarios.
+export function requestMagicLink(email, baseUrl) {
+  return new Promise((resolve) => {
+    db.get('SELECT id, email FROM users WHERE email = ?', [email], async (err, user) => {
+      if (err || !user) return resolve({ sent: true });
+
+      const rawToken = crypto.randomBytes(32).toString('base64url');
+      const tokenHash = hashToken(rawToken);
+      const expiresAt = new Date(Date.now() + MAGIC_LINK_TTL_MINUTES * 60 * 1000).toISOString();
+
+      db.run(
+        'INSERT INTO magic_link_tokens (user_id, token_hash, expires_at) VALUES (?, ?, ?)',
+        [user.id, tokenHash, expiresAt],
+        async function (insertErr) {
+          if (insertErr) return resolve({ sent: true });
+          const link = `${baseUrl.replace(/\/$/, '')}/magic/${rawToken}`;
+          try {
+            await sendMagicLinkEmail({
+              to: user.email,
+              link,
+              expiresMinutes: MAGIC_LINK_TTL_MINUTES
+            });
+          } catch (e) {
+            console.error('Error enviando magic link:', e.message);
+          }
+          resolve({ sent: true });
+        }
+      );
+    });
+  });
+}
+
+// Verifica un magic link. Si es válido, lo marca como usado y devuelve { user, token }.
+export function verifyMagicLink(rawToken) {
+  return new Promise((resolve, reject) => {
+    if (!rawToken || typeof rawToken !== 'string') {
+      return reject(new Error('Token inválido'));
+    }
+    const tokenHash = hashToken(rawToken);
+    db.get(
+      `SELECT t.*, u.id AS u_id, u.email AS u_email, u.name AS u_name, u.role AS u_role
+       FROM magic_link_tokens t
+       JOIN users u ON u.id = t.user_id
+       WHERE t.token_hash = ?`,
+      [tokenHash],
+      (err, row) => {
+        if (err) return reject(err);
+        if (!row) return reject(new Error('Link inválido'));
+        if (row.used_at) return reject(new Error('Este link ya fue utilizado'));
+        if (new Date(row.expires_at) < new Date()) return reject(new Error('Link expirado'));
+
+        db.run(
+          'UPDATE magic_link_tokens SET used_at = datetime(\'now\') WHERE id = ?',
+          [row.id],
+          (updErr) => {
+            if (updErr) return reject(updErr);
+            const userData = { id: row.u_id, name: row.u_name, email: row.u_email, role: row.u_role };
+            resolve({ user: userData, token: generateToken(userData) });
+          }
+        );
       }
     );
   });
