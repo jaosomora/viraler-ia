@@ -64,8 +64,8 @@ ANTHROPIC_API_KEY=sk-ant-...          # opcional, fallback de LLM
 JWT_SECRET=cadena-larga-aleatoria
 SECRETS_ENCRYPTION_KEY=               # se autogenera con start.sh si falta
 RESEND_API_KEY=re_...                 # ver paso 4
-MAGIC_LINK_FROM_EMAIL=noreply@tu-dominio.com
-APP_BASE_URL=https://tu-dominio.com   # URL pública desde la que se accede a la app
+MAGIC_LINK_FROM_EMAIL=hola@tu-dominio.com   # NO uses "noreply@" — Resend lo penaliza
+APP_BASE_URL=https://tu-dominio.com         # URL pública desde la que se accede a la app
 ```
 
 ### 4. Resend (Magic Link login)
@@ -87,7 +87,7 @@ Para que los usuarios puedan iniciar sesión por email cuando olvidan su contras
    - **NO** actives "Enable Receiving" (interferiría con tu correo del dominio si lo tienes en Google Workspace, Zoho, etc.).
    - Algunos proveedores piden el nombre relativo (`send`, `resend._domainkey`); otros piden el absoluto (`send.tu-dominio.com`). Si Resend no verifica con el corto, prueba con el largo.
    - Click **"I've added the records"** y espera la propagación (5–60 min, a veces hasta 24h).
-4. **Setear el remitente**: en `.env`, `MAGIC_LINK_FROM_EMAIL=noreply@tu-dominio.com` (cualquier dirección del dominio verificado).
+4. **Setear el remitente**: en `.env`, `MAGIC_LINK_FROM_EMAIL=hola@tu-dominio.com` (cualquier dirección del dominio verificado). **Evita `noreply@`** — Resend lo penaliza en su análisis de deliverability y los usuarios pierden la opción de responder si tienen problemas.
 5. Si todavía no tienes dominio verificado, puedes usar `MAGIC_LINK_FROM_EMAIL=onboarding@resend.dev` para pruebas — pero solo te llegarán emails al correo dueño de la cuenta Resend.
 6. **Sin `RESEND_API_KEY`**: el sistema imprime el magic link en la consola del backend en lugar de enviar email. Útil en dev local.
 
