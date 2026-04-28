@@ -9,57 +9,40 @@ const authHeaders = () => {
   };
 };
 
-// Públicas
-export const getPublicDelivery = async (token) => {
-  const res = await fetch(`${API_BASE_URL}/secrets/public/${token}`);
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Error');
-  return data;
-};
-
-export const submitPublicDelivery = async (token, payload) => {
-  const res = await fetch(`${API_BASE_URL}/secrets/public/${token}/submit`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Error al enviar');
-  return data;
-};
-
-// Admin
-export const createDelivery = async ({ clientName, description }) => {
-  const res = await fetch(`${API_BASE_URL}/secrets/deliveries`, {
+export const createSecret = async ({ title, content }) => {
+  const res = await fetch(`${API_BASE_URL}/secrets`, {
     method: 'POST',
     headers: authHeaders(),
-    body: JSON.stringify({ clientName, description })
+    body: JSON.stringify({ title, content })
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Error al crear sobre');
+  if (!res.ok) throw new Error(data.error || 'Error al crear secreto');
   return data;
 };
 
-export const listDeliveries = async () => {
-  const res = await fetch(`${API_BASE_URL}/secrets/deliveries`, { headers: authHeaders() });
-  if (!res.ok) throw new Error('Error al listar sobres');
+export const listSecrets = async () => {
+  const res = await fetch(`${API_BASE_URL}/secrets`, { headers: authHeaders() });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Error al listar');
+  }
   return await res.json();
 };
 
-export const revealDelivery = async (id) => {
-  const res = await fetch(`${API_BASE_URL}/secrets/deliveries/${id}/reveal`, { headers: authHeaders() });
+export const revealSecret = async (token) => {
+  const res = await fetch(`${API_BASE_URL}/secrets/${token}`, { headers: authHeaders() });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Error al revelar');
+  if (!res.ok) throw new Error(data.error || 'Error al leer');
   return data;
 };
 
-export const deleteDelivery = async (id) => {
-  const res = await fetch(`${API_BASE_URL}/secrets/deliveries/${id}`, {
+export const deleteSecret = async (id) => {
+  const res = await fetch(`${API_BASE_URL}/secrets/${id}`, {
     method: 'DELETE',
     headers: authHeaders()
   });
   if (!res.ok) {
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     throw new Error(data.error || 'Error al eliminar');
   }
   return await res.json();

@@ -1,20 +1,126 @@
-# Algo Sentido Tools: Transcribe
+# Algo Sentido Tools (AS Tools)
 
-Una aplicación web moderna que permite transcribir contenido de videos de diferentes plataformas (Instagram Reels, TikTok, YouTube) utilizando inteligencia artificial.
+Suite de herramientas internas de Algo Sentido. Aplicación web full-stack con login, panel admin y varias herramientas integradas:
 
-![Captura de pantalla de Algo Sentido Tools: Transcribe](./public/screenshot.png)
+- **Transcribir** — Extrae transcripciones de videos de YouTube, Instagram Reels, TikTok y Facebook (OpenAI `gpt-4o-mini-transcribe`).
+- **Convertir** — Convierte documentos PDF, DOCX, PPTX, XLSX y EPUB a Markdown o HTML (Microsoft MarkItDown + pymupdf4llm).
+- **Secretos** — Comparte credenciales o información sensible mediante un link cifrado (AES-256-GCM). Solo el owner puede ver el contenido. Caduca a 30 días.
+- **Magic Link login** — Login sin contraseña por email (Resend). Útil cuando un usuario olvida su contraseña.
+
+![Captura de pantalla](./public/screenshot.png)
+
+## Inicio rápido (local)
+
+```bash
+./start.sh
+```
+
+El script verifica dependencias (`node`, `ffmpeg`, `yt-dlp`, `markitdown`), avisa si falta `.env`, genera automáticamente la `SECRETS_ENCRYPTION_KEY` si no existe, y arranca frontend (5173) + backend (3000) abriendo el navegador.
+
+Si prefieres comandos sueltos:
+
+```bash
+npm install
+npm run dev    # frontend + backend en paralelo
+```
+
+## Setup desde cero en un servidor nuevo
+
+Pasos completos para levantar AS Tools desde un repositorio limpio en una máquina nueva.
+
+### 1. Clonar e instalar
+
+```bash
+git clone <repo-url> as-tools
+cd as-tools
+npm install
+```
+
+### 2. Dependencias del sistema
+
+```bash
+# macOS (Homebrew)
+brew install ffmpeg yt-dlp
+pipx install 'markitdown[all]'
+
+# Linux (Debian/Ubuntu)
+sudo apt update && sudo apt install -y ffmpeg
+sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
+sudo chmod a+rx /usr/local/bin/yt-dlp
+pipx install 'markitdown[all]'
+```
+
+### 3. `.env`
+
+```bash
+cp .env.example .env
+```
+
+Edítalo y completa al menos:
+
+```
+OPENAI_API_KEY=sk-...                 # transcripciones
+ANTHROPIC_API_KEY=sk-ant-...          # opcional, fallback de LLM
+JWT_SECRET=cadena-larga-aleatoria
+SECRETS_ENCRYPTION_KEY=               # se autogenera con start.sh si falta
+RESEND_API_KEY=re_...                 # ver paso 4
+MAGIC_LINK_FROM_EMAIL=noreply@tu-dominio.com
+APP_BASE_URL=https://tu-dominio.com   # URL pública desde la que se accede a la app
+```
+
+### 4. Resend (Magic Link login)
+
+Para que los usuarios puedan iniciar sesión por email cuando olvidan su contraseña.
+
+1. **Crear cuenta** en [resend.com](https://resend.com).
+2. **API key**: Settings → API Keys → "Create API Key" → cópiala a `RESEND_API_KEY` en `.env`.
+3. **Verificar dominio** (obligatorio para enviar emails a usuarios reales; sin verificar solo puedes enviarte a ti mismo):
+   - Resend → Domains → "Add Domain" → escribe tu dominio (ej: `algosentido.com`).
+   - Resend te muestra **3 registros DNS** que debes crear en tu proveedor (Cloudflare, GoDaddy, Namecheap, etc.):
+
+     | Tipo | Nombre | Valor | Prioridad |
+     |------|--------|-------|-----------|
+     | TXT  | `resend._domainkey` | (la cadena `p=MIGfMA...wIDAQAB` que muestra Resend) | — |
+     | MX   | `send` | `feedback-smtp.<region>.amazonses.com` | 10 |
+     | TXT  | `send` | `v=spf1 include:amazonses.com ~all` | — |
+
+   - **NO** actives "Enable Receiving" (interferiría con tu correo del dominio si lo tienes en Google Workspace, Zoho, etc.).
+   - Algunos proveedores piden el nombre relativo (`send`, `resend._domainkey`); otros piden el absoluto (`send.tu-dominio.com`). Si Resend no verifica con el corto, prueba con el largo.
+   - Click **"I've added the records"** y espera la propagación (5–60 min, a veces hasta 24h).
+4. **Setear el remitente**: en `.env`, `MAGIC_LINK_FROM_EMAIL=noreply@tu-dominio.com` (cualquier dirección del dominio verificado).
+5. Si todavía no tienes dominio verificado, puedes usar `MAGIC_LINK_FROM_EMAIL=onboarding@resend.dev` para pruebas — pero solo te llegarán emails al correo dueño de la cuenta Resend.
+6. **Sin `RESEND_API_KEY`**: el sistema imprime el magic link en la consola del backend en lugar de enviar email. Útil en dev local.
+
+### 5. Primer arranque
+
+```bash
+./start.sh
+```
+
+- Frontend: http://localhost:5173
+- Backend: http://localhost:3000
+
+El primer usuario que se registre queda automáticamente como `owner` (admin). Crea tu cuenta y guárdala bien.
+
+### 6. Despliegue en Render (producción)
+
+Ya hay `Dockerfile` listo. En Render:
+- Web Service → Docker → conecta el repo.
+- Variables de entorno: copia las de tu `.env` (todas las del paso 3).
+- En `APP_BASE_URL` pon la URL pública de Render (`https://tu-app.onrender.com`).
+- Disco persistente: Mount Path `/opt/data`, 1 GB.
 
 ## Características
 
-- ✅ Extracción de audio de videos de Instagram Reels, TikTok, YouTube videos y YouTube Shorts
-- ✅ Transcripción automática mediante OpenAI Whisper
-- ✅ Guardado de transcripciones para acceso posterior
-- ✅ Interfaz moderna y responsive
+- ✅ Login con email/contraseña y JWT
+- ✅ Roles `owner` y `member` (el primer usuario registrado queda como owner)
+- ✅ Panel admin con métricas, gestión de usuarios y reset de contraseñas
+- ✅ Transcripción de videos de YouTube, Instagram Reels, TikTok, Facebook
+- ✅ Conversión de documentos (PDF/DOCX/PPTX/XLSX/EPUB) a Markdown/HTML
+- ✅ Secretos cifrados con AES-256-GCM, caducidad automática a 30 días
+- ✅ SQLite local (sin BD externa) — archivo en `data/as-transcribe.db`
 - ✅ Modo oscuro/claro
-- ✅ Búsqueda y filtrado de transcripciones guardadas
-- ✅ Panel de administración para monitorear uso y costos de API
-- ✅ Seguimiento detallado del uso de la API de OpenAI y costos estimados
-- ✅ Entorno Dockerizado para desarrollo y producción
+- ✅ Despliegue en Render (Docker)
 
 ## Tecnologías
 
@@ -59,11 +165,16 @@ Una aplicación web moderna que permite transcribir contenido de videos de difer
    cp .env.example .env
    ```
 
-4. Edita el archivo `.env` para agregar tu API key de OpenAI y configurar la ruta a FFmpeg si es necesario:
+4. Edita el archivo `.env`:
    ```
-   OPENAI_API_KEY=tu-api-key-aquí
-   FFMPEG_PATH=/ruta/a/ffmpeg  # Opcional, si FFmpeg no está en el PATH
+   OPENAI_API_KEY=tu-api-key-de-openai
+   ANTHROPIC_API_KEY=tu-api-key-de-anthropic     # opcional, fallback de LLM
+   JWT_SECRET=cualquier-cadena-larga-y-secreta
+   SECRETS_ENCRYPTION_KEY=64-chars-hex            # genera con: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+   FFMPEG_PATH=/ruta/a/ffmpeg                    # opcional
    ```
+
+   `start.sh` genera `SECRETS_ENCRYPTION_KEY` automáticamente si falta.
 
 5. Asegúrate de tener FFmpeg instalado (crucial para el procesamiento de audio):
    ```bash

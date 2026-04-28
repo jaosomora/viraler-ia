@@ -12,14 +12,12 @@ import transcribeVideo from './api/transcribeVideo.js';
 import transcribeUpload from './api/transcribeUpload.js';
 import convertDocument from './api/convertDocument.js';
 import {
-  createDelivery,
-  listDeliveries,
-  revealDelivery,
-  deleteDelivery,
-  getPublicDelivery,
-  submitDelivery
+  createSecret,
+  listSecrets,
+  revealSecret,
+  deleteSecret
 } from './api/secrets.js';
-import { authMiddleware, ownerOnly, registerUser, loginUser, listUsers, adminResetPassword, generateTempPassword } from './api/auth.js';
+import { authMiddleware, ownerOnly, registerUser, loginUser, listUsers, adminResetPassword, generateTempPassword, requestMagicLink, verifyMagicLink } from './api/auth.js';
 import {
   generateUsageReport,
   resetUsageData,
@@ -74,6 +72,43 @@ app.post('/api/auth/login', async (req, res) => {
 
 app.get('/api/auth/me', authMiddleware, (req, res) => {
   res.json({ user: req.user });
+});
+
+// Magic link: solicitar
+const magicAttempts = new Map();
+app.post('/api/auth/magic-link/request', async (req, res) => {
+  try {
+    const { email } = req.body || {};
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({ error: 'Email requerido' });
+    }
+    // Rate limit por IP
+    const ip = req.ip || 'unknown';
+    const now = Date.now();
+    const e = magicAttempts.get(ip) || { count: 0, resetAt: now + 60_000 };
+    if (now > e.resetAt) { e.count = 0; e.resetAt = now + 60_000; }
+    e.count += 1;
+    magicAttempts.set(ip, e);
+    if (e.count > 5) return res.status(429).json({ error: 'Demasiados intentos, espera un minuto' });
+
+    const baseUrl = process.env.APP_BASE_URL || `${req.protocol}://${req.get('host')}`;
+    await requestMagicLink(email.trim().toLowerCase(), baseUrl);
+    // Respuesta genérica intencional (no revelar si el email existe)
+    res.json({ sent: true });
+  } catch {
+    res.json({ sent: true });
+  }
+});
+
+// Magic link: verificar
+app.post('/api/auth/magic-link/verify', async (req, res) => {
+  try {
+    const { token } = req.body || {};
+    const result = await verifyMagicLink(token);
+    res.json(result);
+  } catch (error) {
+    res.status(401).json({ error: error.message });
+  }
 });
 
 // Health check
@@ -242,37 +277,12 @@ app.delete('/api/usage-stats/history/:date', authMiddleware, ownerOnly, (req, re
   }
 });
 
-// --- Sobres de credenciales (Secretos) ---
-
-// Rate limit muy simple en memoria para el submit público
-const submitAttempts = new Map();
-const submitRateLimit = (req, res, next) => {
-  const ip = req.ip || req.connection?.remoteAddress || 'unknown';
-  const now = Date.now();
-  const windowMs = 60 * 1000;
-  const maxAttempts = 10;
-  const entry = submitAttempts.get(ip) || { count: 0, resetAt: now + windowMs };
-  if (now > entry.resetAt) {
-    entry.count = 0;
-    entry.resetAt = now + windowMs;
-  }
-  entry.count += 1;
-  submitAttempts.set(ip, entry);
-  if (entry.count > maxAttempts) {
-    return res.status(429).json({ error: 'Demasiados intentos, espera un momento' });
-  }
-  next();
-};
-
-// Públicas (sin auth) - el cliente entra por link
-app.get('/api/secrets/public/:token', getPublicDelivery);
-app.post('/api/secrets/public/:token/submit', submitRateLimit, submitDelivery);
-
-// Admin
-app.post('/api/secrets/deliveries', authMiddleware, ownerOnly, createDelivery);
-app.get('/api/secrets/deliveries', authMiddleware, ownerOnly, listDeliveries);
-app.get('/api/secrets/deliveries/:id/reveal', authMiddleware, ownerOnly, revealDelivery);
-app.delete('/api/secrets/deliveries/:id', authMiddleware, ownerOnly, deleteDelivery);
+// --- Secretos ---
+// Crear: cualquier usuario autenticado. Listar/leer/borrar: solo owner.
+app.post('/api/secrets', authMiddleware, createSecret);
+app.get('/api/secrets', authMiddleware, ownerOnly, listSecrets);
+app.get('/api/secrets/:token', authMiddleware, ownerOnly, revealSecret);
+app.delete('/api/secrets/:id', authMiddleware, ownerOnly, deleteSecret);
 
 // Servir archivos estáticos en producción
 if (process.env.NODE_ENV === 'production') {

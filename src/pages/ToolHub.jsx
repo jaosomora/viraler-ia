@@ -26,6 +26,18 @@ const tools = [
     color: 'from-emerald-500 to-teal-500',
     bgHover: 'hover:border-emerald-300 dark:hover:border-emerald-700',
   },
+  {
+    name: 'Secretos',
+    description: 'Comparte credenciales o información sensible mediante un link cifrado. Caduca en 30 días.',
+    path: '/secretos',
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+      </svg>
+    ),
+    color: 'from-rose-500 to-pink-500',
+    bgHover: 'hover:border-rose-300 dark:hover:border-rose-700',
+  },
 ];
 
 const ToolHub = () => {
@@ -40,7 +52,7 @@ const ToolHub = () => {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto w-full">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto w-full">
         {tools.map((tool) => (
           <Link
             key={tool.path}

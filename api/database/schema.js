@@ -121,34 +121,34 @@ db.serialize(() => {
     )
   `);
 
-  // Sobres de entrega de credenciales (un link por cliente)
+  // Secretos: cualquier usuario logueado crea uno con texto libre cifrado.
+  // Solo el owner los puede leer. Caducan a 30 días.
   db.run(`
-    CREATE TABLE IF NOT EXISTS secret_deliveries (
+    CREATE TABLE IF NOT EXISTS secrets (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       token TEXT NOT NULL UNIQUE,
-      client_name TEXT NOT NULL,
-      description TEXT,
-      global_notes_encrypted TEXT,
-      created_by INTEGER REFERENCES users(id),
+      title TEXT,
+      content_encrypted TEXT NOT NULL,
+      user_id INTEGER REFERENCES users(id),
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       expires_at TIMESTAMP NOT NULL,
-      submitted_at TIMESTAMP,
       read_at TIMESTAMP,
       deleted_at TIMESTAMP
     )
   `);
+  // Cleanup tablas previas (si existían del MVP anterior)
+  db.run(`DROP TABLE IF EXISTS secret_items`);
+  db.run(`DROP TABLE IF EXISTS secret_deliveries`);
 
-  // Cada credencial dentro del sobre
+  // Magic link tokens — login sin contraseña por email (15 min, un solo uso).
+  // Se guarda el hash SHA-256 del token, nunca el token en claro.
   db.run(`
-    CREATE TABLE IF NOT EXISTS secret_items (
+    CREATE TABLE IF NOT EXISTS magic_link_tokens (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      delivery_id INTEGER NOT NULL REFERENCES secret_deliveries(id) ON DELETE CASCADE,
-      service_name TEXT,
-      url_encrypted TEXT,
-      username_encrypted TEXT,
-      password_encrypted TEXT,
-      notes_encrypted TEXT,
-      position INTEGER DEFAULT 0,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      token_hash TEXT NOT NULL UNIQUE,
+      expires_at TIMESTAMP NOT NULL,
+      used_at TIMESTAMP,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
