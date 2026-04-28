@@ -52,5 +52,8 @@
     "postcss": "^8.4.33",
     "tailwindcss": "^3.4.1",
     "vite": "^6.2.3"
+  },
+  "overrides": {
+    "uuid": "^14.0.0"
   }
 }
