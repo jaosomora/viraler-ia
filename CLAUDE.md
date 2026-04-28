@@ -3,7 +3,10 @@
 ## What is this project?
 AS Tools (Algo Sentido Tools) is a full-stack web app with multiple internal tools:
 1. **Transcribe** — Extracts video transcriptions from YouTube, Instagram Reels, TikTok, and Facebook
-2. **Convert** — Converts documents (PDF, DOCX, PPTX, XLSX, EPUB) to Markdown using Microsoft MarkItDown
+2. **Convert** — Converts documents (PDF, DOCX, PPTX, XLSX, EPUB) to Markdown / HTML / structured PDF (MarkItDown + pymupdf4llm)
+3. **Secretos** — Encrypted secret sharing (AES-256-GCM): any logged-in user creates a secret, gets a one-time link; only the owner can decrypt. 30-day auto-expiry.
+
+Auth: email+password (bcrypt+JWT) plus magic link login by email (Resend, 15min single-use). First registered user becomes `owner`.
 
 Part of the Algo Sentido internal toolset. Designed to scale with more tools over time.
 
@@ -26,21 +29,25 @@ Part of the Algo Sentido internal toolset. Designed to scale with more tools ove
 │   ├── transcribeAudio.js       # Whisper/gpt-4o-mini-transcribe API call
 │   ├── extractAudio.js          # yt-dlp audio extraction
 │   ├── convertDocument.js       # Document-to-Markdown conversion (MarkItDown)
+│   ├── secrets.js               # Secretos: create/list/reveal/delete handlers
+│   ├── auth.js                  # JWT + bcrypt + magic link helpers
 │   ├── services/
 │   │   ├── llmService.js        # LLM provider router (Anthropic/OpenAI)
 │   │   ├── anthropicService.js  # Claude API integration
 │   │   ├── openaiService.js     # OpenAI chat integration
+│   │   ├── cryptoService.js     # AES-256-GCM encrypt/decrypt for Secretos
+│   │   ├── emailService.js      # Resend wrapper for magic link emails
 │   │   ├── logService.js        # API logging
 │   │   └── transcriptionService.js
 │   ├── controllers/             # Script, client, document, log controllers
 │   ├── routes/                  # Express routes (clients, scripts, logs)
 │   ├── database/
-│   │   └── schema.js            # SQLite schema (users, transcriptions, conversions, usage_stats, settings)
+│   │   └── schema.js            # SQLite schema (users, transcriptions, conversions, usage_stats, settings, secrets, magic_link_tokens)
 │   ├── rag/                     # RAG document processor (TF-IDF with natural)
 │   └── utils/                   # Platform detector, usage tracker
 ├── src/
-│   ├── App.jsx                  # React Router (/, /transcribir, /convertir, /mis-resultados, /admin)
-│   ├── pages/                   # ToolHub, Home, ConvertPage, MyResults, AdminPanel, LoginPage, NotFound
+│   ├── App.jsx                  # React Router (/, /transcribir, /convertir, /secretos, /secreto/:token, /magic/:token, /mis-resultados, /admin)
+│   ├── pages/                   # ToolHub, Home, ConvertPage, SecretsPage, ViewSecretPage, MagicLinkPage, MyResults, AdminPanel, LoginPage, NotFound
 │   ├── components/              # TranscriptionForm, ConvertForm, Header, Footer, etc.
 │   ├── context/                 # AuthContext, TranscriptionContext, ConversionContext
 │   ├── services/                # API client, usageStats service
@@ -63,6 +70,10 @@ Required in `.env`:
 - `OPENAI_API_KEY` — For transcription (gpt-4o-mini-transcribe) and script generation fallback
 - `ANTHROPIC_API_KEY` — For script generation (primary)
 - `JWT_SECRET` — Secret for JWT token signing
+- `SECRETS_ENCRYPTION_KEY` — 64-char hex (32 bytes) for AES-256-GCM. `start.sh` autogenerates if missing.
+- `RESEND_API_KEY` — Resend key for magic link emails. Without it, links go to server console (dev fallback).
+- `MAGIC_LINK_FROM_EMAIL` — Sender address (must be on a verified domain in Resend; `onboarding@resend.dev` for dev).
+- `APP_BASE_URL` — Public URL where the app lives. Used to build magic link URLs. In dev set to `http://localhost:5173`.
 - `LLM_PROVIDER` — Force `anthropic` or `openai` (auto-detects by default)
 - `PORT` — Server port (default 3000)
 - `FFMPEG_PATH` — Custom ffmpeg path (optional)
@@ -94,9 +105,9 @@ Required in `.env`:
 ## Portable Claude Setup
 This project keeps all Claude Code config in git for portability across machines:
 - `CLAUDE.md` — Project context (this file)
-- `.claude/settings.json` — Permissions and hooks
-- `.claude/memory/` — Claude memories (synced via hook)
-- `.claude/sync-memories.sh` — Manual sync script
+- `.claude/settings.json` — Permissions and hooks (the PostToolUse hook is portable: derives the local Claude memory path from `git rev-parse --show-toplevel`, no hardcoded user dir)
+- `.claude/memory/` — Claude memories (synced via hook on every Write/Edit)
+- `.claude/sync-memories.sh` — Manual sync script (`pull` from repo to local, `push` from local to repo)
 
 **On a new machine after cloning:**
 ```bash
