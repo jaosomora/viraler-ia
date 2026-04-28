@@ -24,6 +24,22 @@ if [ ! -f ".env" ]; then
   echo "Copia .env.example a .env y completa las API keys si las necesitas."
 fi
 
+# 3b. Verificar/generar clave de cifrado para Secretos
+if [ -f ".env" ] && ! grep -q "^SECRETS_ENCRYPTION_KEY=." ".env"; then
+  echo "Generando SECRETS_ENCRYPTION_KEY (necesaria para la herramienta Secretos)..."
+  KEY=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
+  if grep -q "^SECRETS_ENCRYPTION_KEY=" ".env"; then
+    # Reemplaza línea vacía existente
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+      sed -i '' "s|^SECRETS_ENCRYPTION_KEY=.*|SECRETS_ENCRYPTION_KEY=$KEY|" .env
+    else
+      sed -i "s|^SECRETS_ENCRYPTION_KEY=.*|SECRETS_ENCRYPTION_KEY=$KEY|" .env
+    fi
+  else
+    echo "SECRETS_ENCRYPTION_KEY=$KEY" >> .env
+  fi
+fi
+
 # 4. Avisos opcionales
 command -v markitdown >/dev/null || echo "AVISO: markitdown no encontrado (Convert no funcionará). Instala con: pipx install 'markitdown[all]'"
 command -v yt-dlp     >/dev/null || echo "AVISO: yt-dlp no encontrado (Transcribe por URL no funcionará)."

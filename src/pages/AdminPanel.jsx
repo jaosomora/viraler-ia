@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getUsageStats, resetUsageStats, deleteHistoryEntry, getAdminTranscriptions, getAdminConversions, getAdminUsers, resetUserPassword } from '../services/usageStats';
 import Spinner from '../components/Spinner';
+import SecretsAdmin from '../components/SecretsAdmin';
 
 const AdminPanel = () => {
   const [usageData, setUsageData] = useState(null);
@@ -440,6 +441,9 @@ const AdminPanel = () => {
           </table>
         </div>
       </div>
+
+      {/* Sobres de credenciales */}
+      <SecretsAdmin />
 
       {/* Modal de contraseña temporal */}
       {resetResult && (

@@ -8,7 +8,14 @@ const LoginPage = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { login, register } = useAuth();
+  const [magicSent, setMagicSent] = useState(false);
+  const { login, register, requestMagicLink } = useAuth();
+
+  const switchMode = (next) => {
+    setMode(next);
+    setError('');
+    setMagicSent(false);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -18,6 +25,9 @@ const LoginPage = () => {
     try {
       if (mode === 'login') {
         await login(email, password);
+      } else if (mode === 'magic') {
+        await requestMagicLink(email);
+        setMagicSent(true);
       } else {
         if (!name.trim()) {
           setError('El nombre es requerido');
@@ -55,7 +65,7 @@ const LoginPage = () => {
           <div className="flex mb-6 border-b border-gray-200 dark:border-gray-700">
             <button
               type="button"
-              onClick={() => { setMode('login'); setError(''); }}
+              onClick={() => switchMode('login')}
               className={`flex-1 py-2 text-sm font-medium text-center border-b-2 transition ${
                 mode === 'login'
                   ? 'border-purple-600 text-purple-600'
@@ -66,7 +76,18 @@ const LoginPage = () => {
             </button>
             <button
               type="button"
-              onClick={() => { setMode('register'); setError(''); }}
+              onClick={() => switchMode('magic')}
+              className={`flex-1 py-2 text-sm font-medium text-center border-b-2 transition ${
+                mode === 'magic'
+                  ? 'border-purple-600 text-purple-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+            >
+              Magic Link
+            </button>
+            <button
+              type="button"
+              onClick={() => switchMode('register')}
               className={`flex-1 py-2 text-sm font-medium text-center border-b-2 transition ${
                 mode === 'register'
                   ? 'border-purple-600 text-purple-600'
@@ -77,6 +98,22 @@ const LoginPage = () => {
             </button>
           </div>
 
+          {magicSent ? (
+            <div className="space-y-3 text-center">
+              <div className="text-4xl">📧</div>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Revisa tu correo</h2>
+              <p className="text-sm text-gray-600 dark:text-gray-300">
+                Si tu email está registrado, te enviamos un link para entrar. Caduca en 15 minutos.
+              </p>
+              <button
+                type="button"
+                onClick={() => switchMode('login')}
+                className="text-sm text-purple-600 dark:text-purple-400 hover:underline"
+              >
+                Volver
+              </button>
+            </div>
+          ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === 'register' && (
               <div>
@@ -111,22 +148,30 @@ const LoginPage = () => {
               />
             </div>
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Contrasena
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Minimo 6 caracteres"
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                disabled={isSubmitting}
-                required
-                minLength={6}
-              />
-            </div>
+            {mode !== 'magic' && (
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Contrasena
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Minimo 6 caracteres"
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  disabled={isSubmitting}
+                  required
+                  minLength={6}
+                />
+              </div>
+            )}
+
+            {mode === 'magic' && (
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Te enviaremos un link para entrar sin contraseña. Útil si la olvidaste.
+              </p>
+            )}
 
             {error && (
               <div className="p-3 bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg">
@@ -143,9 +188,12 @@ const LoginPage = () => {
                 ? 'Procesando...'
                 : mode === 'login'
                   ? 'Iniciar Sesion'
-                  : 'Crear Cuenta'}
+                  : mode === 'magic'
+                    ? 'Enviar link'
+                    : 'Crear Cuenta'}
             </button>
           </form>
+          )}
         </div>
       </div>
     </div>

@@ -121,6 +121,38 @@ db.serialize(() => {
     )
   `);
 
+  // Secretos: cualquier usuario logueado crea uno con texto libre cifrado.
+  // Solo el owner los puede leer. Caducan a 30 días.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS secrets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      token TEXT NOT NULL UNIQUE,
+      title TEXT,
+      content_encrypted TEXT NOT NULL,
+      user_id INTEGER REFERENCES users(id),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      expires_at TIMESTAMP NOT NULL,
+      read_at TIMESTAMP,
+      deleted_at TIMESTAMP
+    )
+  `);
+  // Cleanup tablas previas (si existían del MVP anterior)
+  db.run(`DROP TABLE IF EXISTS secret_items`);
+  db.run(`DROP TABLE IF EXISTS secret_deliveries`);
+
+  // Magic link tokens — login sin contraseña por email (15 min, un solo uso).
+  // Se guarda el hash SHA-256 del token, nunca el token en claro.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS magic_link_tokens (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      token_hash TEXT NOT NULL UNIQUE,
+      expires_at TIMESTAMP NOT NULL,
+      used_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   console.log('Esquema de base de datos inicializado correctamente.');
 });
 
