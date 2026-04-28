@@ -121,6 +121,38 @@ db.serialize(() => {
     )
   `);
 
+  // Sobres de entrega de credenciales (un link por cliente)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS secret_deliveries (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      token TEXT NOT NULL UNIQUE,
+      client_name TEXT NOT NULL,
+      description TEXT,
+      global_notes_encrypted TEXT,
+      created_by INTEGER REFERENCES users(id),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      expires_at TIMESTAMP NOT NULL,
+      submitted_at TIMESTAMP,
+      read_at TIMESTAMP,
+      deleted_at TIMESTAMP
+    )
+  `);
+
+  // Cada credencial dentro del sobre
+  db.run(`
+    CREATE TABLE IF NOT EXISTS secret_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      delivery_id INTEGER NOT NULL REFERENCES secret_deliveries(id) ON DELETE CASCADE,
+      service_name TEXT,
+      url_encrypted TEXT,
+      username_encrypted TEXT,
+      password_encrypted TEXT,
+      notes_encrypted TEXT,
+      position INTEGER DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   console.log('Esquema de base de datos inicializado correctamente.');
 });
 

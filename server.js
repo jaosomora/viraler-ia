@@ -11,6 +11,14 @@ import { spawn } from 'child_process';
 import transcribeVideo from './api/transcribeVideo.js';
 import transcribeUpload from './api/transcribeUpload.js';
 import convertDocument from './api/convertDocument.js';
+import {
+  createDelivery,
+  listDeliveries,
+  revealDelivery,
+  deleteDelivery,
+  getPublicDelivery,
+  submitDelivery
+} from './api/secrets.js';
 import { authMiddleware, ownerOnly, registerUser, loginUser, listUsers, adminResetPassword, generateTempPassword } from './api/auth.js';
 import {
   generateUsageReport,
@@ -233,6 +241,38 @@ app.delete('/api/usage-stats/history/:date', authMiddleware, ownerOnly, (req, re
     res.status(500).json({ error: 'Error al eliminar registro histórico' });
   }
 });
+
+// --- Sobres de credenciales (Secretos) ---
+
+// Rate limit muy simple en memoria para el submit público
+const submitAttempts = new Map();
+const submitRateLimit = (req, res, next) => {
+  const ip = req.ip || req.connection?.remoteAddress || 'unknown';
+  const now = Date.now();
+  const windowMs = 60 * 1000;
+  const maxAttempts = 10;
+  const entry = submitAttempts.get(ip) || { count: 0, resetAt: now + windowMs };
+  if (now > entry.resetAt) {
+    entry.count = 0;
+    entry.resetAt = now + windowMs;
+  }
+  entry.count += 1;
+  submitAttempts.set(ip, entry);
+  if (entry.count > maxAttempts) {
+    return res.status(429).json({ error: 'Demasiados intentos, espera un momento' });
+  }
+  next();
+};
+
+// Públicas (sin auth) - el cliente entra por link
+app.get('/api/secrets/public/:token', getPublicDelivery);
+app.post('/api/secrets/public/:token/submit', submitRateLimit, submitDelivery);
+
+// Admin
+app.post('/api/secrets/deliveries', authMiddleware, ownerOnly, createDelivery);
+app.get('/api/secrets/deliveries', authMiddleware, ownerOnly, listDeliveries);
+app.get('/api/secrets/deliveries/:id/reveal', authMiddleware, ownerOnly, revealDelivery);
+app.delete('/api/secrets/deliveries/:id', authMiddleware, ownerOnly, deleteDelivery);
 
 // Servir archivos estáticos en producción
 if (process.env.NODE_ENV === 'production') {

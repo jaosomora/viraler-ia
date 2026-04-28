@@ -10,6 +10,7 @@ import MyResults from './pages/MyResults';
 import AdminPanel from './pages/AdminPanel';
 import NotFound from './pages/NotFound';
 import LoginPage from './pages/LoginPage';
+import DeliverSecretsPage from './pages/DeliverSecretsPage';
 import Spinner from './components/Spinner';
 import { checkHealth } from './services/api';
 import './index.css';
@@ -23,6 +24,18 @@ function App() {
       .then(() => setServerStatus('online'))
       .catch(() => setServerStatus('offline'));
   }, []);
+
+  // Ruta pública: entrega de credenciales por link (no requiere auth)
+  const isPublicDeliveryRoute = typeof window !== 'undefined'
+    && window.location.pathname.startsWith('/entrega/');
+
+  if (isPublicDeliveryRoute) {
+    return (
+      <Routes>
+        <Route path="/entrega/:token" element={<DeliverSecretsPage />} />
+      </Routes>
+    );
+  }
 
   if (loading) {
     return (
