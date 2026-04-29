@@ -40,10 +40,46 @@ if [ -f ".env" ] && ! grep -q "^SECRETS_ENCRYPTION_KEY=." ".env"; then
   fi
 fi
 
-# 4. Avisos opcionales
-command -v markitdown >/dev/null || echo "AVISO: markitdown no encontrado (Convert no funcionará). Instala con: pipx install 'markitdown[all]'"
-command -v yt-dlp     >/dev/null || echo "AVISO: yt-dlp no encontrado (Transcribe por URL no funcionará)."
-command -v ffmpeg     >/dev/null || echo "AVISO: ffmpeg no encontrado (extracción de audio no funcionará)."
+# 4. Instalar dependencias del sistema si faltan
+ensure_brew() {
+  if ! command -v brew >/dev/null; then
+    echo "ERROR: Homebrew no encontrado. Instálalo desde https://brew.sh y reintenta."
+    exit 1
+  fi
+}
+
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  if ! command -v ffmpeg >/dev/null; then
+    ensure_brew
+    echo "Instalando ffmpeg..."
+    brew install ffmpeg
+  fi
+  if ! command -v yt-dlp >/dev/null; then
+    ensure_brew
+    echo "Instalando yt-dlp..."
+    brew install yt-dlp
+  fi
+  if ! command -v markitdown >/dev/null; then
+    ensure_brew
+    if ! command -v pipx >/dev/null; then
+      echo "Instalando pipx..."
+      brew install pipx
+      pipx ensurepath >/dev/null 2>&1 || true
+      export PATH="$HOME/.local/bin:$PATH"
+    fi
+    echo "Instalando markitdown..."
+    pipx install 'markitdown[all]'
+  fi
+  # pymupdf4llm: usado por scripts/pdf_to_md.py (no viene con markitdown[all])
+  if ! "$HOME/.local/pipx/venvs/markitdown/bin/python" -c "import pymupdf4llm" >/dev/null 2>&1; then
+    echo "Inyectando pymupdf4llm en el venv de markitdown..."
+    pipx inject markitdown pymupdf4llm
+  fi
+else
+  command -v markitdown >/dev/null || echo "AVISO: markitdown no encontrado. Instala con: pipx install 'markitdown[all]'"
+  command -v yt-dlp     >/dev/null || echo "AVISO: yt-dlp no encontrado."
+  command -v ffmpeg     >/dev/null || echo "AVISO: ffmpeg no encontrado."
+fi
 
 # 5. Abrir navegador cuando el server esté listo (macOS)
 URL="http://localhost:5173"
