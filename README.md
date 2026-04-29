@@ -102,6 +102,8 @@ Para que los usuarios puedan iniciar sesión por email cuando olvidan su contras
 
 El primer usuario que se registre queda automáticamente como `owner` (admin). Crea tu cuenta y guárdala bien.
 
+> ⚠️ **La BD local y la de producción son independientes.** Cada entorno (`./data/as-transcribe.db` en local, `/opt/data/as-transcribe.db` en Render) arranca vacío. La primera vez que despliegas a producción debes **registrarte ahí también** desde el tab "Registrarse" — ese registro es el que queda como owner. Si pides un magic link en prod sin haberte registrado, verás `magic-link user_not_found` en los logs.
+
 ### 6. Despliegue en Render (producción)
 
 Ya hay `Dockerfile` listo. En Render:
@@ -453,6 +455,38 @@ La aplicación incluye un sistema completo de seguimiento de uso de la API de Op
   - Visualizar estadísticas detalladas
 
 Estos datos se almacenan en la base de datos SQLite en la carpeta `data` y proporcionan transparencia sobre el uso y costo de la API.
+
+## Logs y operación
+
+El backend imprime una línea estructurada por evento de auth. Útil para diagnosticar en Render sin filtrar PII (los emails se muestran enmascarados como `i***@dominio.com`, los tokens nunca se loguean).
+
+### Línea de configuración al arrancar
+
+```
+[config] {"OPENAI_API_KEY":true,"ANTHROPIC_API_KEY":true,"SECRETS_ENCRYPTION_KEY":true,"RESEND_API_KEY":true,"MAGIC_LINK_FROM_EMAIL":"hola@tu-dominio.com","APP_BASE_URL":"https://..."}
+```
+
+Confirma de un vistazo qué env vars cargaron. `false` o `(no set)` significa que falta esa variable en el panel de Render → Environment.
+
+### Eventos de magic link
+
+| Línea | Significado | Acción |
+|-------|-------------|--------|
+| `[auth] magic-link sent email=i***@... via=resend id=...` | Resend aceptó y envió el correo | Todo bien |
+| `[auth] magic-link sent email=... via=console` | No hay `RESEND_API_KEY`; el link fue impreso en consola | Configurar Resend |
+| `[auth] magic-link user_not_found email=...` | Ese email no está registrado en esta BD | Pídele que se registre primero |
+| `[auth] magic-link send_failed email=... err=...` | Resend rechazó (dominio no verificado, rate limit, sender inválido) | Revisar mensaje y panel Resend |
+| `[auth] magic-link db_error err=...` | Falla escribiendo en SQLite | Revisar disco persistente y permisos |
+| `[auth] magic-link verify_success email=...` | El usuario clicó el link y entró | Todo bien |
+| `[auth] magic-link verify_not_found` | Token no existe | Link manipulado o ya purgado |
+| `[auth] magic-link verify_already_used email=...` | Segundo intento sobre un link consumido | Pedir uno nuevo |
+| `[auth] magic-link verify_expired email=...` | Pasaron más de 15 min desde la emisión | Pedir uno nuevo |
+
+### Render
+
+- **Logs en vivo**: dashboard del servicio → tab "Logs". Filtra con `[auth]` o `[config]`.
+- **Variables de entorno**: dashboard → "Environment" → "Environment Variables". Cambios requieren redeploy automático (se dispara solo).
+- **Disco persistente**: la BD vive en `/opt/data` (montado como disco persistente). Si lo borras, pierdes todos los usuarios y secretos.
 
 ## Solución de Problemas
 
