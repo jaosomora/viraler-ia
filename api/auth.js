@@ -110,12 +110,27 @@ function hashToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
+// Enmascara emails para logs: "info@julianosoriom.com" -> "i***@julianosoriom.com"
+function maskEmail(e) {
+  if (!e || typeof e !== 'string' || !e.includes('@')) return '***';
+  const [user, domain] = e.split('@');
+  return `${user.slice(0, 1)}***@${domain}`;
+}
+
 // Genera un magic link y lo envía por email. Siempre resuelve con éxito (aunque
 // el email no exista) para no permitir enumeración de usuarios.
 export function requestMagicLink(email, baseUrl) {
+  const masked = maskEmail(email);
   return new Promise((resolve) => {
     db.get('SELECT id, email FROM users WHERE email = ?', [email], async (err, user) => {
-      if (err || !user) return resolve({ sent: true });
+      if (err) {
+        console.error(`[auth] magic-link db_error email=${masked} err=${err.message}`);
+        return resolve({ sent: true });
+      }
+      if (!user) {
+        console.log(`[auth] magic-link user_not_found email=${masked}`);
+        return resolve({ sent: true });
+      }
 
       const rawToken = crypto.randomBytes(32).toString('base64url');
       const tokenHash = hashToken(rawToken);
@@ -125,16 +140,21 @@ export function requestMagicLink(email, baseUrl) {
         'INSERT INTO magic_link_tokens (user_id, token_hash, expires_at) VALUES (?, ?, ?)',
         [user.id, tokenHash, expiresAt],
         async function (insertErr) {
-          if (insertErr) return resolve({ sent: true });
+          if (insertErr) {
+            console.error(`[auth] magic-link token_insert_failed email=${masked} err=${insertErr.message}`);
+            return resolve({ sent: true });
+          }
           const link = `${baseUrl.replace(/\/$/, '')}/magic/${rawToken}`;
           try {
-            await sendMagicLinkEmail({
+            const result = await sendMagicLinkEmail({
               to: user.email,
               link,
               expiresMinutes: MAGIC_LINK_TTL_MINUTES
             });
+            const channel = result?.devMode ? 'console' : `resend id=${result?.id || '?'}`;
+            console.log(`[auth] magic-link sent email=${masked} via=${channel} expires=${MAGIC_LINK_TTL_MINUTES}m`);
           } catch (e) {
-            console.error('Error enviando magic link:', e.message);
+            console.error(`[auth] magic-link send_failed email=${masked} err=${e.message}`);
           }
           resolve({ sent: true });
         }
@@ -147,6 +167,7 @@ export function requestMagicLink(email, baseUrl) {
 export function verifyMagicLink(rawToken) {
   return new Promise((resolve, reject) => {
     if (!rawToken || typeof rawToken !== 'string') {
+      console.warn('[auth] magic-link verify_invalid_input');
       return reject(new Error('Token inválido'));
     }
     const tokenHash = hashToken(rawToken);
@@ -157,16 +178,30 @@ export function verifyMagicLink(rawToken) {
        WHERE t.token_hash = ?`,
       [tokenHash],
       (err, row) => {
-        if (err) return reject(err);
-        if (!row) return reject(new Error('Link inválido'));
-        if (row.used_at) return reject(new Error('Este link ya fue utilizado'));
-        if (new Date(row.expires_at) < new Date()) return reject(new Error('Link expirado'));
+        if (err) {
+          console.error(`[auth] magic-link verify_db_error err=${err.message}`);
+          return reject(err);
+        }
+        if (!row) {
+          console.warn('[auth] magic-link verify_not_found');
+          return reject(new Error('Link inválido'));
+        }
+        const masked = maskEmail(row.u_email);
+        if (row.used_at) {
+          console.warn(`[auth] magic-link verify_already_used email=${masked}`);
+          return reject(new Error('Este link ya fue utilizado'));
+        }
+        if (new Date(row.expires_at) < new Date()) {
+          console.warn(`[auth] magic-link verify_expired email=${masked}`);
+          return reject(new Error('Link expirado'));
+        }
 
         db.run(
           'UPDATE magic_link_tokens SET used_at = datetime(\'now\') WHERE id = ?',
           [row.id],
           (updErr) => {
             if (updErr) return reject(updErr);
+            console.log(`[auth] magic-link verify_success email=${masked}`);
             const userData = { id: row.u_id, name: row.u_name, email: row.u_email, role: row.u_role };
             resolve({ user: userData, token: generateToken(userData) });
           }

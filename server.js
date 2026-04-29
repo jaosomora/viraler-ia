@@ -296,6 +296,17 @@ if (process.env.NODE_ENV === 'production') {
 app.listen(PORT, async () => {
   console.log(`Servidor ejecutándose en http://localhost:${PORT}`);
 
+  // Estado de servicios opcionales — útil al diagnosticar prod
+  const cfg = {
+    OPENAI_API_KEY: !!process.env.OPENAI_API_KEY,
+    ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
+    SECRETS_ENCRYPTION_KEY: !!process.env.SECRETS_ENCRYPTION_KEY,
+    RESEND_API_KEY: !!process.env.RESEND_API_KEY,
+    MAGIC_LINK_FROM_EMAIL: process.env.MAGIC_LINK_FROM_EMAIL || '(no set)',
+    APP_BASE_URL: process.env.APP_BASE_URL || '(inferido del request)'
+  };
+  console.log(`[config] ${JSON.stringify(cfg)}`);
+
   if (!process.env.OPENAI_API_KEY) {
     console.warn('\x1b[33m%s\x1b[0m', 'ADVERTENCIA: API Key de OpenAI no configurada.');
   }
