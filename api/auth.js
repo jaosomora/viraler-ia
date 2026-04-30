@@ -25,6 +25,11 @@ export function generateToken(user) {
   );
 }
 
+function isAccessExpired(expiresAt) {
+  if (!expiresAt) return false;
+  return new Date(expiresAt).getTime() < Date.now();
+}
+
 export function authMiddleware(req, res, next) {
   const header = req.headers.authorization;
   if (!header || !header.startsWith('Bearer ')) {
@@ -34,8 +39,27 @@ export function authMiddleware(req, res, next) {
   try {
     const token = header.split(' ')[1];
     const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
-    next();
+
+    // Owner siempre tiene acceso. Para el resto, validar contra DB en cada
+    // request: el owner puede revocar/extender en caliente y el JWT (30d)
+    // no refleja eso por sí solo.
+    if (decoded.role === 'owner') {
+      req.user = decoded;
+      return next();
+    }
+
+    db.get('SELECT access_expires_at FROM users WHERE id = ?', [decoded.id], (err, row) => {
+      if (err) return res.status(500).json({ error: 'Error de autenticación' });
+      if (!row) return res.status(401).json({ error: 'Usuario no encontrado' });
+      if (isAccessExpired(row.access_expires_at)) {
+        return res.status(403).json({
+          error: 'Tu acceso a la herramienta ha expirado. Contacta al administrador.',
+          code: 'ACCESS_EXPIRED'
+        });
+      }
+      req.user = decoded;
+      next();
+    });
   } catch {
     return res.status(401).json({ error: 'Token inválido o expirado' });
   }
@@ -78,10 +102,31 @@ export function registerUser(name, email, password) {
 export function listUsers() {
   return new Promise((resolve, reject) => {
     db.all(
-      'SELECT id, name, email, role, created_at FROM users ORDER BY created_at ASC',
+      'SELECT id, name, email, role, created_at, access_expires_at FROM users ORDER BY created_at ASC',
       (err, rows) => {
         if (err) return reject(err);
         resolve(rows);
+      }
+    );
+  });
+}
+
+// Asigna fecha de expiración del acceso a la herramienta. NULL = sin límite.
+export function setUserAccessExpiry(userId, expiresAt) {
+  return new Promise((resolve, reject) => {
+    let normalized = null;
+    if (expiresAt) {
+      const d = new Date(expiresAt);
+      if (Number.isNaN(d.getTime())) return reject(new Error('Fecha inválida'));
+      normalized = d.toISOString();
+    }
+    db.run(
+      'UPDATE users SET access_expires_at = ? WHERE id = ?',
+      [normalized, userId],
+      function (err) {
+        if (err) return reject(err);
+        if (this.changes === 0) return reject(new Error('Usuario no encontrado'));
+        resolve({ success: true, access_expires_at: normalized });
       }
     );
   });
@@ -172,7 +217,8 @@ export function verifyMagicLink(rawToken) {
     }
     const tokenHash = hashToken(rawToken);
     db.get(
-      `SELECT t.*, u.id AS u_id, u.email AS u_email, u.name AS u_name, u.role AS u_role
+      `SELECT t.*, u.id AS u_id, u.email AS u_email, u.name AS u_name, u.role AS u_role,
+              u.access_expires_at AS u_access_expires_at
        FROM magic_link_tokens t
        JOIN users u ON u.id = t.user_id
        WHERE t.token_hash = ?`,
@@ -194,6 +240,10 @@ export function verifyMagicLink(rawToken) {
         if (new Date(row.expires_at) < new Date()) {
           console.warn(`[auth] magic-link verify_expired email=${masked}`);
           return reject(new Error('Link expirado'));
+        }
+        if (row.u_role !== 'owner' && isAccessExpired(row.u_access_expires_at)) {
+          console.warn(`[auth] magic-link verify_access_expired email=${masked}`);
+          return reject(new Error('Tu acceso a la herramienta ha expirado. Contacta al administrador.'));
         }
 
         db.run(
@@ -219,6 +269,10 @@ export function loginUser(email, password) {
 
       if (!comparePassword(password, user.password_hash)) {
         return reject(new Error('Email o contraseña incorrectos'));
+      }
+
+      if (user.role !== 'owner' && isAccessExpired(user.access_expires_at)) {
+        return reject(new Error('Tu acceso a la herramienta ha expirado. Contacta al administrador.'));
       }
 
       const userData = { id: user.id, name: user.name, email: user.email, role: user.role };

@@ -68,6 +68,19 @@ export const getAdminUsers = async () => {
   return await response.json();
 };
 
+export const setUserAccess = async (userId, expiresAt) => {
+  const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/access`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ expiresAt: expiresAt ?? null })
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || 'Error al actualizar acceso');
+  }
+  return await response.json();
+};
+
 export const resetUserPassword = async (userId, password) => {
   const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/reset-password`, {
     method: 'POST',

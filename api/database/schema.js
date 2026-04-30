@@ -82,6 +82,9 @@ db.serialize(() => {
     }
   });
 
+  // Migration: acceso temporal a la herramienta (NULL = sin límite, ej. owner/internos)
+  db.run(`ALTER TABLE users ADD COLUMN access_expires_at TIMESTAMP`, () => {});
+
   // Tabla de registro de uso
   db.run(`
     CREATE TABLE IF NOT EXISTS usage_stats (
