@@ -8,6 +8,10 @@ AS Tools (Algo Sentido Tools) is a full-stack web app with multiple internal too
 
 Auth: email+password (bcrypt+JWT) plus magic link login by email (Resend, 15min single-use). First registered user becomes `owner`.
 
+**Acceso temporal por usuario** (para clientes): el owner asigna `access_expires_at` desde el panel admin (tab Usuarios). El `authMiddleware` valida la expiración contra DB en cada request (owner exento). Login y magic link rechazan usuarios expirados con mensaje claro. NULL = sin límite (uso interno). Endpoint: `PATCH /api/admin/users/:id/access`.
+
+**Panel admin con tabs** (`/admin`): organizado en Resumen / Usuarios / Transcripciones / Conversiones / Secretos. El tab activo se persiste en `localStorage` (clave `admin_active_tab`).
+
 Part of the Algo Sentido internal toolset. Designed to scale with more tools over time.
 
 ## Tech Stack

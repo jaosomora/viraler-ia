@@ -17,7 +17,7 @@ import {
   revealSecret,
   deleteSecret
 } from './api/secrets.js';
-import { authMiddleware, ownerOnly, registerUser, loginUser, listUsers, adminResetPassword, generateTempPassword, requestMagicLink, verifyMagicLink } from './api/auth.js';
+import { authMiddleware, ownerOnly, registerUser, loginUser, listUsers, adminResetPassword, generateTempPassword, requestMagicLink, verifyMagicLink, setUserAccessExpiry } from './api/auth.js';
 import {
   generateUsageReport,
   resetUsageData,
@@ -207,6 +207,19 @@ app.get('/api/admin/users', authMiddleware, ownerOnly, async (req, res) => {
     res.json(users);
   } catch (error) {
     res.status(500).json({ error: 'Error al obtener usuarios' });
+  }
+});
+
+// Asignar fecha de expiración de acceso. Body: { expiresAt: ISOString | null }
+// null = sin límite (uso interno).
+app.patch('/api/admin/users/:id/access', authMiddleware, ownerOnly, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id, 10);
+    const { expiresAt } = req.body || {};
+    const result = await setUserAccessExpiry(userId, expiresAt ?? null);
+    res.json(result);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
   }
 });
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getUsageStats, resetUsageStats, deleteHistoryEntry, getAdminTranscriptions, getAdminConversions, getAdminUsers, resetUserPassword } from '../services/usageStats';
+import { getUsageStats, resetUsageStats, deleteHistoryEntry, getAdminTranscriptions, getAdminConversions, getAdminUsers, resetUserPassword, setUserAccess } from '../services/usageStats';
 import Spinner from '../components/Spinner';
 import SecretsAdmin from '../components/SecretsAdmin';
 
@@ -18,6 +18,83 @@ const AdminPanel = () => {
   const [users, setUsers] = useState([]);
   const [resetResult, setResetResult] = useState(null);
   const [resetUserTarget, setResetUserTarget] = useState(null);
+  const [activeTab, setActiveTab] = useState(() => localStorage.getItem('admin_active_tab') || 'resumen');
+  useEffect(() => { localStorage.setItem('admin_active_tab', activeTab); }, [activeTab]);
+  const [selectedUserId, setSelectedUserId] = useState(null);
+  const [draftDate, setDraftDate] = useState('');
+  const [draftUnlimited, setDraftUnlimited] = useState(false);
+  const [savingAccess, setSavingAccess] = useState(false);
+
+  const selectedUser = users.find(u => u.id === selectedUserId) || null;
+
+  // Sincronizar el formulario del drawer cuando cambia el usuario seleccionado
+  useEffect(() => {
+    if (!selectedUser) return;
+    if (!selectedUser.access_expires_at) {
+      setDraftUnlimited(selectedUser.role === 'owner' ? true : false);
+      setDraftDate('');
+    } else {
+      setDraftUnlimited(false);
+      setDraftDate(selectedUser.access_expires_at.slice(0, 10));
+    }
+  }, [selectedUserId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const accessStatus = (u) => {
+    if (u.role === 'owner') return { label: 'Sin límite', tone: 'neutral', detail: 'Owner · acceso permanente' };
+    if (!u.access_expires_at) return { label: 'Sin límite', tone: 'neutral', detail: 'Uso interno' };
+    const now = Date.now();
+    const exp = new Date(u.access_expires_at).getTime();
+    const days = Math.round((exp - now) / 86400000);
+    if (exp < now) return { label: 'Expirado', tone: 'expired', detail: `Venció hace ${Math.abs(days)} días` };
+    if (days <= 7) return { label: 'Por vencer', tone: 'warning', detail: `Faltan ${days} días` };
+    return { label: 'Activo', tone: 'active', detail: `Faltan ${days} días` };
+  };
+
+  const formatAccessDate = (iso) => {
+    if (!iso) return '∞';
+    return new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
+
+  const addMonths = (months) => {
+    const base = new Date();
+    base.setMonth(base.getMonth() + months);
+    setDraftUnlimited(false);
+    setDraftDate(base.toISOString().slice(0, 10));
+  };
+
+  const handleSaveAccess = async () => {
+    if (!selectedUser) return;
+    try {
+      setSavingAccess(true);
+      const expiresAt = draftUnlimited ? null : (draftDate ? new Date(`${draftDate}T23:59:59`).toISOString() : null);
+      await setUserAccess(selectedUser.id, expiresAt);
+      setActionSuccess(`Acceso actualizado para ${selectedUser.email}`);
+      setTimeout(() => setActionSuccess(null), 4000);
+      await fetchUsageData();
+    } catch (err) {
+      setError(err.message || 'Error al actualizar acceso');
+    } finally {
+      setSavingAccess(false);
+    }
+  };
+
+  const handleRevokeAccess = async () => {
+    if (!selectedUser) return;
+    try {
+      setSavingAccess(true);
+      const yesterday = new Date(Date.now() - 86400000).toISOString();
+      await setUserAccess(selectedUser.id, yesterday);
+      setActionSuccess(`Acceso revocado para ${selectedUser.email}`);
+      setTimeout(() => setActionSuccess(null), 4000);
+      await fetchUsageData();
+      setDraftDate(yesterday.slice(0, 10));
+      setDraftUnlimited(false);
+    } catch (err) {
+      setError(err.message || 'Error al revocar acceso');
+    } finally {
+      setSavingAccess(false);
+    }
+  };
 
   const fetchUsageData = async () => {
     try {
@@ -142,7 +219,7 @@ const AdminPanel = () => {
   };
 
   return (
-    <div className="flex flex-col space-y-8 max-w-4xl mx-auto">
+    <div className="flex flex-col space-y-6 max-w-6xl mx-auto">
       {/* Mensaje de acción exitosa */}
       {actionSuccess && (
         <div className="bg-green-100 dark:bg-green-900/30 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 p-4 rounded-lg flex items-center">
@@ -158,10 +235,46 @@ const AdminPanel = () => {
           Panel de Administración
         </h1>
         <p className="mt-3 text-gray-600 dark:text-gray-300">
-          Monitorea el uso y los costos de las APIs
+          Monitorea uso, gestiona usuarios y secretos
         </p>
       </div>
 
+      {/* Tabs */}
+      <div className="border-b border-gray-200 dark:border-gray-700">
+        <nav className="-mb-px flex gap-1 overflow-x-auto">
+          {[
+            { id: 'resumen', label: 'Resumen', icon: '📊' },
+            { id: 'usuarios', label: 'Usuarios', icon: '👥', badge: users.length },
+            { id: 'transcripciones', label: 'Transcripciones', icon: '📝', badge: transcriptions.length },
+            { id: 'conversiones', label: 'Conversiones', icon: '📄', badge: conversions.length },
+            { id: 'secretos', label: 'Secretos', icon: '🔐' },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap flex items-center gap-2 transition-colors ${
+                activeTab === tab.id
+                  ? 'border-purple-500 text-purple-600 dark:text-purple-400'
+                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+              }`}
+            >
+              <span>{tab.icon}</span>
+              <span>{tab.label}</span>
+              {tab.badge !== undefined && tab.badge > 0 && (
+                <span className={`ml-1 text-xs px-1.5 py-0.5 rounded ${
+                  activeTab === tab.id
+                    ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300'
+                    : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                }`}>{tab.badge}</span>
+              )}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {/* === TAB: RESUMEN === */}
+      {activeTab === 'resumen' && (
+      <>
       {/* Controles de administración */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
         <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Acciones</h2>
@@ -326,7 +439,12 @@ const AdminPanel = () => {
           </table>
         </div>
       </div>
+      </>
+      )}
 
+      {/* === TAB: TRANSCRIPCIONES === */}
+      {activeTab === 'transcripciones' && (
+      <>
       {/* Transcripciones recientes */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
@@ -364,7 +482,12 @@ const AdminPanel = () => {
           ))}
         </div>
       </div>
+      </>
+      )}
 
+      {/* === TAB: CONVERSIONES === */}
+      {activeTab === 'conversiones' && (
+      <>
       {/* Conversiones recientes */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
@@ -401,49 +524,212 @@ const AdminPanel = () => {
           ))}
         </div>
       </div>
+      </>
+      )}
 
-      {/* Usuarios */}
+      {/* === TAB: USUARIOS === */}
+      {activeTab === 'usuarios' && (
+      <>
+      {/* Usuarios — gestión de acceso */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Usuarios</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Resetea la contraseña de un usuario si la olvidó.</p>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Usuarios y acceso</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Asigna hasta cuándo cada cliente puede usar la herramienta. Click en un usuario para editar.
+          </p>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-900/50">
-              <tr>
-                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nombre</th>
-                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Email</th>
-                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Rol</th>
-                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Acción</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {users.map((u) => (
-                <tr key={u.id} className="hover:bg-gray-50 dark:hover:bg-gray-900/30">
-                  <td className="py-3 px-6 text-sm font-medium text-gray-900 dark:text-white">{u.name}</td>
-                  <td className="py-3 px-6 text-sm text-gray-500 dark:text-gray-300">{u.email}</td>
-                  <td className="py-3 px-6 text-sm text-gray-500 dark:text-gray-300">{u.role}</td>
-                  <td className="py-3 px-6 text-sm">
+
+        <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] min-h-[420px]">
+          {/* Lista compacta */}
+          <ul className="divide-y divide-gray-200 dark:divide-gray-700 lg:border-r lg:border-gray-200 lg:dark:border-gray-700">
+            {users.length === 0 && (
+              <li className="px-4 py-6 text-sm text-center text-gray-500 dark:text-gray-400">No hay usuarios</li>
+            )}
+            {users.map((u) => {
+              const st = accessStatus(u);
+              const initials = (u.name || u.email).slice(0, 2).toUpperCase();
+              const isSelected = u.id === selectedUserId;
+              const toneClass =
+                st.tone === 'expired' ? 'text-red-500'
+                : st.tone === 'warning' ? 'text-amber-500'
+                : st.tone === 'active' ? 'text-emerald-500'
+                : 'text-gray-400';
+              return (
+                <li
+                  key={u.id}
+                  onClick={() => setSelectedUserId(u.id)}
+                  className={`px-4 py-3 cursor-pointer flex items-center justify-between ${
+                    isSelected
+                      ? 'bg-purple-50 dark:bg-purple-900/20 border-l-2 border-purple-500'
+                      : 'hover:bg-gray-50 dark:hover:bg-gray-900/30'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 grid place-items-center text-xs font-semibold shrink-0">
+                      {initials}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-gray-900 dark:text-white truncate">{u.name}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{u.email}</div>
+                    </div>
+                  </div>
+                  <span className={`text-xs ml-2 shrink-0 ${toneClass}`}>
+                    {u.role === 'owner' || !u.access_expires_at ? '∞' : formatAccessDate(u.access_expires_at)}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+
+          {/* Drawer / detalle */}
+          {!selectedUser ? (
+            <div className="grid place-items-center p-10 text-center text-gray-500 dark:text-gray-400">
+              <div>
+                <div className="text-4xl mb-2">←</div>
+                <p className="text-sm">Selecciona un usuario para ver y editar su acceso a la herramienta.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="p-6 space-y-6">
+              {/* Header */}
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 grid place-items-center font-semibold">
+                    {(selectedUser.name || selectedUser.email).slice(0, 2).toUpperCase()}
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{selectedUser.name}</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      {selectedUser.email} · <span className="capitalize">{selectedUser.role}</span>
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedUserId(null)}
+                  className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-xl"
+                  aria-label="Cerrar"
+                >✕</button>
+              </div>
+
+              {/* Estado actual */}
+              {(() => {
+                const st = accessStatus(selectedUser);
+                const bg =
+                  st.tone === 'expired' ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/40'
+                  : st.tone === 'warning' ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/40'
+                  : st.tone === 'active' ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800/40'
+                  : 'bg-gray-50 dark:bg-gray-900/40 border-gray-200 dark:border-gray-700';
+                const dot =
+                  st.tone === 'expired' ? 'bg-red-500'
+                  : st.tone === 'warning' ? 'bg-amber-500'
+                  : st.tone === 'active' ? 'bg-emerald-500'
+                  : 'bg-gray-400';
+                return (
+                  <div className={`p-4 rounded-lg border ${bg}`}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold">Estado actual</span>
+                      <span className="inline-flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-200">
+                        <span className={`w-2 h-2 rounded-full ${dot}`}></span> {st.label}
+                      </span>
+                    </div>
+                    <div className="text-xl font-semibold text-gray-900 dark:text-white">
+                      {selectedUser.role === 'owner' || !selectedUser.access_expires_at
+                        ? 'Sin límite'
+                        : `Hasta el ${formatAccessDate(selectedUser.access_expires_at)}`}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{st.detail}</div>
+                  </div>
+                );
+              })()}
+
+              {/* Editar acceso (oculto para owner) */}
+              {selectedUser.role === 'owner' ? (
+                <div className="text-sm text-gray-500 dark:text-gray-400 italic">
+                  El owner siempre tiene acceso permanente.
+                </div>
+              ) : (
+                <div>
+                  <div className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold mb-3">
+                    Extender acceso
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+                    <button onClick={() => addMonths(1)} className="px-3 py-2 rounded-md bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-sm font-medium text-gray-800 dark:text-gray-100">+1 mes</button>
+                    <button onClick={() => addMonths(3)} className="px-3 py-2 rounded-md bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-sm font-medium text-gray-800 dark:text-gray-100">+3 meses</button>
+                    <button onClick={() => addMonths(6)} className="px-3 py-2 rounded-md bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-sm font-medium text-gray-800 dark:text-gray-100">+6 meses</button>
+                    <button onClick={() => addMonths(12)} className="px-3 py-2 rounded-md bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium">+1 año</button>
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">O fecha exacta</label>
+                      <input
+                        type="date"
+                        value={draftDate}
+                        disabled={draftUnlimited}
+                        onChange={(e) => setDraftDate(e.target.value)}
+                        className="w-full px-3 py-2 rounded-md bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-white disabled:opacity-50"
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 pb-2">
+                        <input
+                          type="checkbox"
+                          checked={draftUnlimited}
+                          onChange={(e) => setDraftUnlimited(e.target.checked)}
+                          className="rounded"
+                        />
+                        Sin límite (uso interno)
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap justify-end gap-2 mt-5">
                     <button
-                      onClick={() => handleResetPassword(u)}
-                      className="text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300"
+                      onClick={handleRevokeAccess}
+                      disabled={savingAccess}
+                      className="px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md font-medium disabled:opacity-50"
                     >
-                      Resetear contraseña
+                      Revocar acceso
                     </button>
-                  </td>
-                </tr>
-              ))}
-              {users.length === 0 && (
-                <tr><td colSpan="4" className="py-4 px-6 text-sm text-center text-gray-500 dark:text-gray-400">No hay usuarios</td></tr>
+                    <button
+                      onClick={handleSaveAccess}
+                      disabled={savingAccess || (!draftUnlimited && !draftDate)}
+                      className="px-5 py-2 text-sm rounded-md bg-purple-600 hover:bg-purple-700 text-white font-medium disabled:opacity-50"
+                    >
+                      {savingAccess ? 'Guardando...' : 'Guardar cambios'}
+                    </button>
+                  </div>
+                </div>
               )}
-            </tbody>
-          </table>
+
+              {/* Acciones extra */}
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-4 flex flex-wrap gap-3 text-sm">
+                <button
+                  onClick={() => handleResetPassword(selectedUser)}
+                  className="text-purple-600 dark:text-purple-400 hover:underline"
+                >
+                  Resetear contraseña
+                </button>
+                <span className="text-gray-300 dark:text-gray-700">·</span>
+                <span className="text-gray-500 dark:text-gray-400">
+                  Registrado el {new Date(selectedUser.created_at).toLocaleDateString('es-CO')}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
+      </>
+      )}
+
+      {/* === TAB: SECRETOS === */}
+      {activeTab === 'secretos' && (
+      <>
       {/* Sobres de credenciales */}
       <SecretsAdmin />
+      </>
+      )}
 
       {/* Modal de contraseña temporal */}
       {resetResult && (
