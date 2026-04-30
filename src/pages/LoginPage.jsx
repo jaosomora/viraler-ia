@@ -52,10 +52,10 @@ const LoginPage = () => {
             AS
           </div>
           <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
-            AS Transcribe
+            Algo Sentido Tools
           </h1>
           <p className="mt-2 text-gray-500 dark:text-gray-400">
-            Registrate y todas tus transcripciones se guardaran en tu cuenta. Accede desde cualquier dispositivo.
+            Registrate para usar las herramientas de Algo Sentido. Tus transcripciones, conversiones y secretos quedan asociados a tu cuenta y disponibles desde cualquier dispositivo.
           </p>
         </div>
 

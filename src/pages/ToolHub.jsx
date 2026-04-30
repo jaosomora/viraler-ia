@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 
 const tools = [
   {
-    name: 'Transcribir Video',
-    description: 'Extrae transcripciones de videos de YouTube, Instagram, TikTok y Facebook de forma automatica.',
+    name: 'Transcribir Video o Audio',
+    description: 'Transcribe videos de YouTube, Instagram, TikTok y Facebook, o sube audios (MP3, audios de WhatsApp) y archivos de video locales.',
     path: '/transcribir',
     icon: (
       <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -48,7 +48,7 @@ const ToolHub = () => {
           Algo Sentido Tools
         </h1>
         <p className="mt-3 text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-          Herramientas internas de Algo Sentido
+          Transcribe videos y audios, convierte documentos y comparte secretos cifrados
         </p>
       </div>
 

@@ -2,7 +2,7 @@
 
 Suite de herramientas internas de Algo Sentido. Aplicación web full-stack con login, panel admin y varias herramientas integradas:
 
-- **Transcribir** — Extrae transcripciones de videos de YouTube, Instagram Reels, TikTok y Facebook (OpenAI `gpt-4o-mini-transcribe`).
+- **Transcribir** — Extrae transcripciones de videos de YouTube, Instagram Reels, TikTok y Facebook por URL, o sube archivos locales de video (MP4, MOV…) y audio (MP3, M4A, OGG, OPUS — incluye audios de WhatsApp). Whisper vía OpenAI `gpt-4o-mini-transcribe`.
 - **Convertir** — Convierte documentos PDF, DOCX, PPTX, XLSX y EPUB a Markdown o HTML (Microsoft MarkItDown + pymupdf4llm).
 - **Secretos** — Comparte credenciales o información sensible mediante un link cifrado (AES-256-GCM). Solo el owner puede ver el contenido. Caduca a 30 días.
 - **Magic Link login** — Login sin contraseña por email (Resend). Útil cuando un usuario olvida su contraseña.
@@ -117,7 +117,7 @@ Ya hay `Dockerfile` listo. En Render:
 - ✅ Login con email/contraseña y JWT
 - ✅ Roles `owner` y `member` (el primer usuario registrado queda como owner)
 - ✅ Panel admin con métricas, gestión de usuarios y reset de contraseñas
-- ✅ Transcripción de videos de YouTube, Instagram Reels, TikTok, Facebook
+- ✅ Transcripción de videos (YouTube, Instagram Reels, TikTok, Facebook) + upload de audio local (MP3, audios de WhatsApp en .opus/.m4a/.ogg)
 - ✅ Conversión de documentos (PDF/DOCX/PPTX/XLSX/EPUB) a Markdown/HTML
 - ✅ Secretos cifrados con AES-256-GCM, caducidad automática a 30 días
 - ✅ SQLite local (sin BD externa) — archivo en `data/as-transcribe.db`

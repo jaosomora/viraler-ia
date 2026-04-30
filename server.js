@@ -126,7 +126,7 @@ const upload = multer({
   dest: os.tmpdir(),
   limits: { fileSize: 500 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    const allowed = /\.(mp4|mov|avi|mkv|webm|m4v|flv|wmv|mp3|wav|m4a|ogg)$/i;
+    const allowed = /\.(mp4|mov|avi|mkv|webm|m4v|flv|wmv|mp3|wav|m4a|ogg|opus)$/i;
     if (allowed.test(file.originalname)) {
       cb(null, true);
     } else {
