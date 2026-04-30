@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useTranscriptionContext } from '../context/TranscriptionContext';
 import Spinner from './Spinner';
 
-const ACCEPTED_FORMATS = '.mp4,.mov,.avi,.mkv,.webm,.m4v,.flv,.wmv,.mp3,.wav,.m4a,.ogg';
+const ACCEPTED_FORMATS = '.mp4,.mov,.avi,.mkv,.webm,.m4v,.flv,.wmv,.mp3,.wav,.m4a,.ogg,.opus';
 
 const TranscriptionForm = () => {
   const [mode, setMode] = useState('url'); // 'url' | 'file'
@@ -76,9 +76,9 @@ const TranscriptionForm = () => {
 
   return (
     <div className="w-full max-w-3xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-8">
-      <h2 className="text-2xl font-bold mb-2 text-center">Transcribir Contenido</h2>
+      <h2 className="text-2xl font-bold mb-2 text-center">Transcribir Video o Audio</h2>
       <p className="text-gray-600 dark:text-gray-300 text-center mb-6">
-        Transcribe contenido de otros creadores para inspirarte y crear tu propia version
+        Pega un link de YouTube, Instagram, TikTok o Facebook, o sube un archivo (incluidos audios de WhatsApp)
       </p>
 
       {/* Mode tabs */}
@@ -147,7 +147,7 @@ const TranscriptionForm = () => {
                 <span className="text-sm text-gray-500 dark:text-gray-400">
                   Arrastra un archivo o haz clic para seleccionar
                 </span>
-                <span className="text-xs text-gray-400 mt-1">MP4, MOV, AVI, MKV, WEBM, MP3, WAV (max 500 MB)</span>
+                <span className="text-xs text-gray-400 mt-1">Video: MP4, MOV, AVI, MKV, WEBM · Audio: MP3, M4A, OGG, OPUS (WhatsApp) · max 500 MB</span>
                 <input
                   ref={fileInputRef}
                   id="video-file"
