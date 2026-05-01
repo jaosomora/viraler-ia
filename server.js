@@ -10,6 +10,7 @@ import os from 'os';
 import { spawn } from 'child_process';
 import transcribeVideo from './api/transcribeVideo.js';
 import transcribeUpload from './api/transcribeUpload.js';
+import downloadVideo from './api/downloadVideo.js';
 import convertDocument from './api/convertDocument.js';
 import {
   createSecret,
@@ -135,6 +136,9 @@ const upload = multer({
   },
 });
 app.post('/api/transcribeUpload', authMiddleware, upload.single('video'), transcribeUpload);
+
+// Descargar video desde URL (máx 30 min)
+app.post('/api/download-video', authMiddleware, downloadVideo);
 
 // Conversión de documentos a Markdown
 const documentUpload = multer({

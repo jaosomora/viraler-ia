@@ -78,7 +78,9 @@ const TranscriptionForm = () => {
     <div className="w-full max-w-3xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-8">
       <h2 className="text-2xl font-bold mb-2 text-center">Transcribir Video o Audio</h2>
       <p className="text-gray-600 dark:text-gray-300 text-center mb-6">
-        Pega un link de YouTube, Instagram, TikTok o Facebook, o sube un archivo (incluidos audios de WhatsApp)
+        Pega un link de YouTube, Instagram, TikTok o Facebook, o sube un archivo (incluidos audios de WhatsApp).
+        <br />
+        <span className="text-sm text-gray-500 dark:text-gray-400">Al transcribir desde URL podrás descargar el video original (máx 30 min).</span>
       </p>
 
       {/* Mode tabs */}

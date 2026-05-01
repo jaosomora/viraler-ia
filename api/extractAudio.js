@@ -61,7 +61,6 @@ export async function extractAudio(url) {
         '--audio-quality', '0',
         '--output', tempPath,
         '--no-warnings',
-        '--no-call-home',
         '--no-check-certificate',
         '--prefer-free-formats',
         '--no-playlist'

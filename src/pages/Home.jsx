@@ -13,7 +13,7 @@ const Home = () => {
           Transcribir Video o Audio
         </h1>
         <p className="mt-3 text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-          Transcribe videos de YouTube, Instagram, TikTok y Facebook, o sube tus propios audios (MP3, audios de WhatsApp) y archivos de video
+          Transcribe videos de YouTube, Instagram, TikTok y Facebook (con opción de descargar el video original), o sube tus propios audios (MP3, audios de WhatsApp) y archivos de video
         </p>
       </div>
       
