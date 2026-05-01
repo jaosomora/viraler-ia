@@ -1,19 +1,59 @@
 import React, { useState } from 'react';
 import { useTranscriptionContext } from '../context/TranscriptionContext';
+import { authFetch } from '../context/AuthContext';
+
+const API_BASE = import.meta.env.MODE === 'development' ? 'http://localhost:3000/api' : '/api';
 
 const TranscriptionResults = () => {
   const { currentTranscription } = useTranscriptionContext();
   const [copySuccess, setCopySuccess] = useState(false);
   const [showUsageInfo, setShowUsageInfo] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState('');
 
   if (!currentTranscription) return null;
 
   const { url, text, platform, title, usageInfo } = currentTranscription;
+  const canDownloadVideo = !!url; // solo para transcripciones desde URL
 
   const handleCopy = () => {
     navigator.clipboard.writeText(text);
     setCopySuccess(true);
     setTimeout(() => setCopySuccess(false), 3000);
+  };
+
+  const handleDownloadVideo = async () => {
+    setDownloadError('');
+    setDownloading(true);
+    try {
+      const res = await authFetch(`${API_BASE}/download-video`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+      if (!res.ok) {
+        let msg = 'No se pudo descargar el video';
+        try { const data = await res.json(); msg = data.error || msg; } catch {}
+        throw new Error(msg);
+      }
+      const blob = await res.blob();
+      // Extraer filename de Content-Disposition si existe
+      const cd = res.headers.get('Content-Disposition') || '';
+      const match = cd.match(/filename="?([^";]+)"?/);
+      const filename = match ? match[1] : `${(title || 'video').replace(/[^\w.-]/g, '_').slice(0, 80)}.mp4`;
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch (e) {
+      setDownloadError(e.message);
+    } finally {
+      setDownloading(false);
+    }
   };
 
   const toggleUsageInfo = () => {
@@ -104,6 +144,31 @@ const TranscriptionResults = () => {
                 <span>Info</span>
               </button>
             )}
+            {canDownloadVideo && (
+              <button
+                onClick={handleDownloadVideo}
+                disabled={downloading}
+                title="Descargar video original (máx 30 min)"
+                className="flex items-center gap-1 py-1 px-3 text-sm bg-purple-100 hover:bg-purple-200 dark:bg-purple-900/40 dark:hover:bg-purple-800/50 text-purple-700 dark:text-purple-300 rounded-full transition disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {downloading ? (
+                  <>
+                    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                    </svg>
+                    <span>Descargando...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
+                    </svg>
+                    <span>Descargar video</span>
+                  </>
+                )}
+              </button>
+            )}
             <button
               onClick={handleCopy}
               className="flex items-center gap-1 py-1 px-3 text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white rounded-full transition"
@@ -133,6 +198,12 @@ const TranscriptionResults = () => {
             </span>
           </div>
         </div>
+
+        {downloadError && (
+          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+            <p className="text-sm text-red-700 dark:text-red-300">{downloadError}</p>
+          </div>
+        )}
 
         {/* Información de uso y costos */}
         {showUsageInfo && usageInfo && (

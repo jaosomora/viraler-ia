@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 const tools = [
   {
     name: 'Transcribir Video o Audio',
-    description: 'Transcribe videos de YouTube, Instagram, TikTok y Facebook, o sube audios (MP3, audios de WhatsApp) y archivos de video locales.',
+    description: 'Transcribe videos de YouTube, Instagram, TikTok y Facebook (con opción de descargar el video original), o sube audios (MP3, audios de WhatsApp) y archivos de video locales.',
     path: '/transcribir',
     icon: (
       <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">

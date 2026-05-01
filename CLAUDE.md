@@ -2,7 +2,7 @@
 
 ## What is this project?
 AS Tools (Algo Sentido Tools) is a full-stack web app with multiple internal tools:
-1. **Transcribe** — Extracts video transcriptions from YouTube, Instagram Reels, TikTok, and Facebook
+1. **Transcribe** — Extracts video transcriptions from YouTube, Instagram Reels, TikTok, and Facebook. Tras transcribir desde URL, el usuario puede **descargar el video original** en MP4 (botón en `TranscriptionResults`, endpoint `POST /api/download-video`, límite 30 min validado con `yt-dlp --dump-json` antes de descargar).
 2. **Convert** — Converts documents (PDF, DOCX, PPTX, XLSX, EPUB) to Markdown / HTML / structured PDF (MarkItDown + pymupdf4llm)
 3. **Secretos** — Encrypted secret sharing (AES-256-GCM): any logged-in user creates a secret, gets a one-time link; only the owner can decrypt. 30-day auto-expiry.
 
