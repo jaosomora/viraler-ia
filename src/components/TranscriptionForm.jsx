@@ -80,7 +80,7 @@ const TranscriptionForm = () => {
       <p className="text-gray-600 dark:text-gray-300 text-center mb-6">
         Pega un link de YouTube, Instagram, TikTok o Facebook, o sube un archivo (incluidos audios de WhatsApp).
         <br />
-        <span className="text-sm text-gray-500 dark:text-gray-400">Al transcribir desde URL podrás descargar el video original (máx 30 min).</span>
+        <span className="text-sm text-gray-500 dark:text-gray-400">Al transcribir desde URL podrás descargar el video original (máx 1 h).</span>
       </p>
 
       {/* Mode tabs */}
