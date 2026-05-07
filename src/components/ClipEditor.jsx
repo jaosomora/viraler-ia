@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useClips } from '../context/ClipsContext';
+import VideoPreview from './VideoPreview';
 
 const KEYWORD_COLORS = [
   { hex: '#FDE047', name: 'Amarillo' },
@@ -49,6 +50,8 @@ const ClipEditor = ({ clip, onClose }) => {
   const [redetecting, setRedetecting] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [applyingFonts, setApplyingFonts] = useState(false);
+  const [newKeyword, setNewKeyword] = useState('');
+  const [previewKey, setPreviewKey] = useState(0); // remount VideoPreview tras descargar
 
   useEffect(() => { if (!fontCatalog) loadFonts(); }, [fontCatalog, loadFonts]);
 
@@ -89,12 +92,14 @@ const ClipEditor = ({ clip, onClose }) => {
 
   const handleReset = () => { setDraft(original); };
 
-  const handleRegenerateCaption = async (tone) => {
-    update({ post_caption_tone: tone });
+  // Solo selecciona el tono (no regenera). El usuario debe pulsar "Regenerar" para aplicar.
+  const handleSelectTone = (tone) => update({ post_caption_tone: tone });
+
+  const handleRegenerateCaption = async () => {
     setRegenerating(true);
     try {
-      await updateClip(clip.id, { ...draft, post_caption_tone: tone });
-      const res = await regenerateCaption(clip.id, tone);
+      await updateClip(clip.id, { ...draft });
+      const res = await regenerateCaption(clip.id, draft.post_caption_tone);
       update({ post_caption: res.post_caption });
     } catch (e) { alert(e.message); }
     setRegenerating(false);
@@ -130,11 +135,22 @@ const ClipEditor = ({ clip, onClose }) => {
     try {
       await persist();
       await downloadClip({ ...clip, ...draft }, clip.output_resolution || '1080');
+      setPreviewKey(k => k + 1); // forzar reload del VideoPreview con MP4 actualizado
     } catch (e) { alert(e.message); }
     setDownloading(false);
   };
 
   const removeKeyword = (idx) => update({ keywords: draft.keywords.filter((_, i) => i !== idx) });
+
+  const addKeyword = () => {
+    const k = newKeyword.trim();
+    if (!k) return;
+    if (draft.keywords.some(x => x.toLowerCase() === k.toLowerCase())) {
+      setNewKeyword(''); return;
+    }
+    update({ keywords: [...draft.keywords, k] });
+    setNewKeyword('');
+  };
 
   const fontOptions = (role) => (fontCatalog?.catalog?.[role] || []).map(f => (
     <option key={f.id} value={f.id}>{f.name}{f.recommended ? ' ⭐ recomendada' : ''}</option>
@@ -177,25 +193,34 @@ const ClipEditor = ({ clip, onClose }) => {
 
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
           <div className="lg:col-span-5 border-b lg:border-b-0 lg:border-r border-gray-200 dark:border-gray-800 p-6 bg-gray-50 dark:bg-gray-950/50 overflow-y-auto">
-            <div className={`${aspectClass} max-w-[280px] mx-auto bg-gradient-to-br from-indigo-900 via-purple-700 to-cyan-700 rounded-xl relative shadow-2xl overflow-hidden`}>
-              <div className="absolute top-[13%] left-0 right-0 h-px bg-yellow-400/30"></div>
-              <div className="absolute bottom-[25%] left-0 right-0 h-px bg-yellow-400/30"></div>
-              <div className="absolute inset-0 flex flex-col justify-end p-4 pb-12 text-center text-white pointer-events-none">
-                <div className="font-black uppercase mb-2" style={{ fontFamily: hookFont, fontSize: '1.5rem', lineHeight: 0.95, textShadow: '0 2px 6px rgba(0,0,0,.85)' }}>
-                  {draft.hook}
-                </div>
-                <div className="text-sm font-semibold" style={{ fontFamily: captionFont, textShadow: '0 2px 4px rgba(0,0,0,.85)' }}>
-                  {draft.caption.split(/(\s+)/).map((token, i) => {
-                    const trimmed = token.replace(/[.,!?]/g, '').toLowerCase();
-                    const isKw = draft.keywords.some(k => k && k.toLowerCase() === trimmed);
-                    return isKw
-                      ? <span key={i} style={{ color: draft.keyword_color, fontWeight: 800, fontFamily: FONT_FAMILY[draft.font_keyword] }}>{token}</span>
-                      : <span key={i}>{token}</span>;
-                  })}
-                </div>
-              </div>
+            <div className={`${aspectClass} max-w-[280px] mx-auto bg-gradient-to-br from-indigo-900 via-purple-700 to-cyan-700 rounded-xl relative shadow-2xl overflow-hidden group`}>
+              <div className="absolute top-[13%] left-0 right-0 h-px bg-yellow-400/30 z-10"></div>
+              <div className="absolute bottom-[25%] left-0 right-0 h-px bg-yellow-400/30 z-10"></div>
+              <VideoPreview
+                key={previewKey}
+                clipId={clip.id}
+                resolution={clip.output_resolution || '1080'}
+                overlay={
+                  <div className="absolute left-[8%] right-[8%] bottom-[32%] text-center text-white pointer-events-none z-10">
+                    <div className="font-black uppercase mb-2" style={{ fontFamily: hookFont, fontSize: '1.4rem', lineHeight: 0.95, textShadow: '0 2px 6px rgba(0,0,0,.85)' }}>
+                      {draft.hook}
+                    </div>
+                    <div className="text-xs font-semibold" style={{ fontFamily: captionFont, textShadow: '0 2px 4px rgba(0,0,0,.85)' }}>
+                      {draft.caption.split(/(\s+)/).map((token, i) => {
+                        const trimmed = token.replace(/[.,!?]/g, '').toLowerCase();
+                        const isKw = draft.keywords.some(k => k && k.toLowerCase() === trimmed);
+                        return isKw
+                          ? <span key={i} style={{ color: draft.keyword_color, fontWeight: 800, fontFamily: FONT_FAMILY[draft.font_keyword] }}>{token}</span>
+                          : <span key={i}>{token}</span>;
+                      })}
+                    </div>
+                  </div>
+                }
+              />
             </div>
-            <p className="text-[11px] text-gray-500 dark:text-gray-400 text-center mt-3 mb-5">Líneas amarillas: zona segura de Instagram</p>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 text-center mt-3 mb-5">
+              Click en el preview para reproducir · Líneas amarillas: zona segura de Instagram
+            </p>
 
             {/* Trim */}
             <div className="space-y-2">
@@ -250,7 +275,7 @@ const ClipEditor = ({ clip, onClose }) => {
                         {redetecting ? 'Detectando…' : 'Volver a detectar'}
                       </button>
                     </div>
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-wrap gap-1.5 mb-2">
                       {draft.keywords.map((k, i) => (
                         <span key={i} onClick={() => removeKeyword(i)}
                           className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs cursor-pointer"
@@ -258,7 +283,15 @@ const ClipEditor = ({ clip, onClose }) => {
                           {k} ✕
                         </span>
                       ))}
-                      {draft.keywords.length === 0 && <span className="text-[11px] text-gray-400">Sin keywords. Usa "Volver a detectar" o agrégalas manualmente.</span>}
+                      {draft.keywords.length === 0 && <span className="text-[11px] text-gray-400">Sin keywords. Agrégalas manualmente o usa "Volver a detectar".</span>}
+                    </div>
+                    <div className="flex gap-1.5">
+                      <input type="text" value={newKeyword} onChange={e => setNewKeyword(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addKeyword(); } }}
+                        placeholder="Agregar palabra clave manualmente…"
+                        className="flex-1 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded px-2 py-1 text-xs text-gray-900 dark:text-white" />
+                      <button type="button" onClick={addKeyword} disabled={!newKeyword.trim()}
+                        className="px-3 py-1 bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white rounded text-xs font-medium">+</button>
                     </div>
                   </div>
                 </div>
@@ -269,16 +302,16 @@ const ClipEditor = ({ clip, onClose }) => {
                   <h4 className="text-xs uppercase tracking-wide text-gray-500 font-semibold">
                     Texto del post <span className="text-gray-400 normal-case">· para pegar al publicar</span>
                   </h4>
-                  <button type="button" onClick={() => handleRegenerateCaption(draft.post_caption_tone)} disabled={regenerating}
-                    className="text-[11px] text-purple-600 dark:text-purple-400 hover:text-purple-500 disabled:opacity-50 flex items-center gap-1">
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                    Regenerar
+                  <button type="button" onClick={handleRegenerateCaption} disabled={regenerating}
+                    className="text-[11px] px-2 py-1 rounded-md bg-purple-600 hover:bg-purple-500 text-white disabled:opacity-50 flex items-center gap-1 font-medium">
+                    <svg className={`w-3 h-3 ${regenerating ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    {regenerating ? 'Generando…' : 'Regenerar con este tono'}
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-1.5 mb-3 text-[11px]">
                   {TONES.map(t => (
                     <button key={t.id} type="button" disabled={regenerating}
-                      onClick={() => handleRegenerateCaption(t.id)}
+                      onClick={() => handleSelectTone(t.id)}
                       className={`px-2.5 py-1 rounded-md font-medium border transition ${draft.post_caption_tone === t.id
                         ? 'bg-purple-500/10 border-purple-500 text-purple-700 dark:text-purple-300'
                         : 'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-400'}`}>
@@ -291,6 +324,9 @@ const ClipEditor = ({ clip, onClose }) => {
                     + Mi prompt
                   </button>
                 </div>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2">
+                  Selecciona un tono y pulsa "Regenerar" para que el LLM genere un nuevo texto.
+                </p>
                 <textarea rows={6} value={draft.post_caption} onChange={e => update({ post_caption: e.target.value })}
                   className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2.5 text-sm leading-relaxed resize-none text-gray-900 dark:text-white"
                   placeholder={regenerating ? 'Regenerando…' : ''} disabled={regenerating} />

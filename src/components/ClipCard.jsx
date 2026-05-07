@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useClips } from '../context/ClipsContext';
+import VideoPreview from './VideoPreview';
 
 const scoreClass = (s) => {
   if (s >= 80) return 'bg-purple-500 text-white';
@@ -66,25 +67,27 @@ const ClipCard = ({ clip, onEdit }) => {
 
   return (
     <article className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:border-purple-300 dark:hover:border-purple-700 transition group">
-      <div className={`${aspectClass} relative bg-gradient-to-br from-indigo-900 via-purple-700 to-cyan-700 cursor-pointer`}
-        onClick={() => onEdit(clip)}>
-        <div className={`absolute top-3 left-3 px-2.5 py-1 rounded-md text-xs font-bold ${scoreClass(clip.virality_score)}`}>
+      <div className={`${aspectClass} relative bg-gradient-to-br from-indigo-900 via-purple-700 to-cyan-700 overflow-hidden`}>
+        <div className={`absolute top-3 left-3 z-20 px-2.5 py-1 rounded-md text-xs font-bold ${scoreClass(clip.virality_score)}`}>
           {clip.virality_score} / 100
         </div>
-        <div className="absolute top-3 right-3 px-2 py-1 bg-black/60 backdrop-blur rounded-md text-xs text-white">{durStr}</div>
-        <div className="absolute inset-0 flex flex-col justify-end p-4 pb-12 text-center text-white pointer-events-none">
-          <div className="font-black uppercase mb-2" style={{ fontFamily: hookFont, fontSize: '1.6rem', lineHeight: 0.95, textShadow: '0 2px 6px rgba(0,0,0,.85)' }}>
-            {clip.hook}
-          </div>
-          <div className="text-sm font-semibold" style={{ textShadow: '0 2px 4px rgba(0,0,0,.85)', fontFamily: "'Inter', sans-serif" }}>
-            {renderCaptionWithKeywords(clip.caption, clip.keywords, clip.keyword_color || '#FDE047')}
-          </div>
-        </div>
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition pointer-events-none">
-          <div className="w-14 h-14 rounded-full bg-white/90 text-gray-900 flex items-center justify-center shadow-2xl">
-            <svg className="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-          </div>
-        </div>
+        <div className="absolute top-3 right-3 z-20 px-2 py-1 bg-black/60 backdrop-blur rounded-md text-xs text-white">{durStr}</div>
+        <VideoPreview
+          clipId={clip.id}
+          resolution={clip.output_resolution || '1080'}
+          overlay={
+            <>
+              <div className="absolute left-[8%] right-[8%] bottom-[32%] text-center text-white pointer-events-none z-10">
+                <div className="font-black uppercase mb-2" style={{ fontFamily: hookFont, fontSize: '1.5rem', lineHeight: 0.95, textShadow: '0 2px 6px rgba(0,0,0,.85)' }}>
+                  {clip.hook}
+                </div>
+                <div className="text-sm font-semibold" style={{ textShadow: '0 2px 4px rgba(0,0,0,.85)', fontFamily: "'Inter', sans-serif" }}>
+                  {renderCaptionWithKeywords(clip.caption, clip.keywords, clip.keyword_color || '#FDE047')}
+                </div>
+              </div>
+            </>
+          }
+        />
       </div>
 
       <div className="p-4">
