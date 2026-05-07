@@ -1,25 +1,12 @@
 import React, { useState } from 'react';
 import { useClips } from '../context/ClipsContext';
 import VideoPreview from './VideoPreview';
+import { FONT_FAMILY } from './LiveCaptionOverlay';
 
 const scoreClass = (s) => {
   if (s >= 80) return 'bg-purple-500 text-white';
   if (s >= 70) return 'bg-amber-500 text-gray-900';
   return 'bg-gray-500 text-white';
-};
-
-const FONT_FAMILY = {
-  Anton: "'Anton', sans-serif",
-  BebasNeue: "'Bebas Neue', sans-serif",
-  LeagueSpartan: "'League Spartan', sans-serif",
-  MontserratBlack: "'Montserrat', sans-serif",
-  Oswald: "'Oswald', sans-serif",
-  InterSemiBold: "'Inter', sans-serif",
-  InterBold: "'Inter', sans-serif",
-  MontserratSemiBold: "'Montserrat', sans-serif",
-  MontserratBold: "'Montserrat', sans-serif",
-  PoppinsBold: "'Poppins', sans-serif",
-  LeagueSpartanBold: "'League Spartan', sans-serif",
 };
 
 const renderCaptionWithKeywords = (caption, keywords, color) => {

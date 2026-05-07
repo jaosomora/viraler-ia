@@ -4,10 +4,12 @@ import fs from 'fs';
 import path from 'path';
 import {
   createJob, processJob, getJobWithClips, listUserJobs, listAllJobs,
-  updateClip, regenerateClipMp4, deleteJob, addCostToJob, STAGES,
+  updateClip, regenerateClipMp4, exportClipMp4, ensureClipBase,
+  deleteJob, addCostToJob, STAGES,
 } from './clipsService.js';
 import { regeneratePostCaption } from './highlightService.js';
 import { FONT_CATALOG } from './subtitleGenerator.js';
+import { getCaptionChunks, loadWhisperJson } from './captionsService.js';
 import db from '../database/schema.js';
 
 const get = (sql, params = []) => new Promise((res, rej) => {
@@ -78,8 +80,81 @@ export async function updateClipHandler(req, res) {
   }
 }
 
+// GET /api/clips/:id/captions — chunks sincronizados (relativos al inicio del clip) con overrides aplicados.
+// El frontend los renderiza encima del base.mp4 en el preview, sin tocar ffmpeg.
+export async function captionsHandler(req, res) {
+  try {
+    const clipId = req.params.id;
+    const clip = await get(
+      `SELECT c.*, j.user_id, j.whisper_json_path FROM clips c
+       JOIN clip_jobs j ON j.id = c.job_id WHERE c.id=?`,
+      [clipId]
+    );
+    if (!clip) return res.status(404).json({ error: 'Clip no encontrado' });
+    if (clip.user_id !== req.user.id && req.user.role !== 'owner') {
+      return res.status(403).json({ error: 'No autorizado' });
+    }
+    const transcript = loadWhisperJson(clip.whisper_json_path);
+    const chunks = getCaptionChunks(clip, transcript);
+    res.json({ chunks, render_mode: clip.render_mode || 'overlay' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+// GET /api/clips/:id/base-video?resolution=1080
+// Sirve el MP4 sin subs (capa de fondo del editor). Genera el base si falta o si los params cambiaron.
+export async function baseVideoHandler(req, res) {
+  try {
+    const clipId = req.params.id;
+    const resolution = String(req.query.resolution || '1080');
+    const clip = await get(
+      `SELECT c.*, j.user_id FROM clips c JOIN clip_jobs j ON j.id=c.job_id WHERE c.id=?`,
+      [clipId]
+    );
+    if (!clip) return res.status(404).json({ error: 'Clip no encontrado' });
+    if (clip.user_id !== req.user.id && req.user.role !== 'owner') {
+      return res.status(403).json({ error: 'No autorizado' });
+    }
+    if (clip.render_mode === 'burned-legacy') {
+      return res.status(409).json({ error: 'Clip legacy: usa /download para el MP4 con subs quemados' });
+    }
+    const basePath = await ensureClipBase(clipId, resolution);
+    res.setHeader('Content-Type', 'video/mp4');
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    fs.createReadStream(basePath).pipe(res);
+  } catch (err) {
+    console.error('[clips] base-video error:', err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
+// POST /api/clips/:id/export?resolution=1080 — quema subs sobre el base.mp4 y devuelve el MP4 final.
+export async function exportClipHandler(req, res) {
+  try {
+    const clipId = req.params.id;
+    const resolution = String(req.query.resolution || req.body?.resolution || '1080');
+    const clip = await get(
+      `SELECT c.*, j.user_id FROM clips c JOIN clip_jobs j ON j.id=c.job_id WHERE c.id=?`,
+      [clipId]
+    );
+    if (!clip) return res.status(404).json({ error: 'Clip no encontrado' });
+    if (clip.user_id !== req.user.id && req.user.role !== 'owner') {
+      return res.status(403).json({ error: 'No autorizado' });
+    }
+    const outPath = await exportClipMp4(clipId, resolution);
+    const filename = `${clip.title || 'clip'}_${clipId}.mp4`.replace(/[^\w\d.-]/g, '_');
+    res.setHeader('Content-Type', 'video/mp4');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    fs.createReadStream(outPath).pipe(res);
+  } catch (err) {
+    console.error('[clips] export error:', err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
 // GET /api/clips/:id/download?resolution=1080
-// Si los parámetros editables cambiaron desde el último render, regenera el MP4 antes de servir.
+// Compat: si es legacy, devuelve el output_path quemado; si es overlay, hace export on-demand.
 export async function downloadClipHandler(req, res) {
   try {
     const clipId = req.params.id;
@@ -173,6 +248,132 @@ export function fontsHandler(req, res) {
 // GET /api/clips/stages — copy creativo de etapas (frontend lo usa por stage_index)
 export function stagesHandler(req, res) {
   res.json({ stages: STAGES });
+}
+
+// POST /api/clips/jobs/:id/disable-hooks — desactiva el gancho en todos los clips del job (bulk).
+export async function disableAllHooksHandler(req, res) {
+  try {
+    const jobId = req.params.id;
+    const job = await get('SELECT user_id FROM clip_jobs WHERE id=?', [jobId]);
+    if (!job) return res.status(404).json({ error: 'Job no encontrado' });
+    if (job.user_id !== req.user.id) return res.status(403).json({ error: 'No autorizado' });
+    const enabled = req.body?.enabled ? 1 : 0;
+    await new Promise((resolve, reject) => {
+      db.run(
+        `UPDATE clips SET hook_enabled=?, updated_at=CURRENT_TIMESTAMP WHERE job_id=?`,
+        [enabled, jobId],
+        function (err) { err ? reject(err) : resolve(this.changes); }
+      );
+    });
+    res.json({ success: true, enabled });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+// GET /api/clips/templates — lista las plantillas de estilo guardadas por el usuario.
+export async function listTemplatesHandler(req, res) {
+  try {
+    const rows = await new Promise((resolve, reject) => {
+      db.all(
+        'SELECT id, name, params, created_at FROM clip_templates WHERE user_id=? ORDER BY created_at DESC',
+        [req.user.id],
+        (err, rows) => err ? reject(err) : resolve(rows || [])
+      );
+    });
+    const templates = rows.map(r => ({
+      id: r.id,
+      name: r.name,
+      params: (() => { try { return JSON.parse(r.params); } catch { return {}; } })(),
+      created_at: r.created_at,
+    }));
+    res.json({ templates });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+// POST /api/clips/templates { name, params } — guarda una plantilla nueva.
+export async function createTemplateHandler(req, res) {
+  try {
+    const { name, params } = req.body || {};
+    if (!name || !params || typeof params !== 'object') {
+      return res.status(400).json({ error: 'name + params requeridos' });
+    }
+    const id = (await import('crypto')).randomBytes(8).toString('hex');
+    await new Promise((resolve, reject) => {
+      db.run(
+        'INSERT INTO clip_templates (id, user_id, name, params) VALUES (?, ?, ?, ?)',
+        [id, req.user.id, name.slice(0, 60), JSON.stringify(params)],
+        function (err) { err ? reject(err) : resolve(); }
+      );
+    });
+    res.json({ id, name, params });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+// DELETE /api/clips/templates/:id
+export async function deleteTemplateHandler(req, res) {
+  try {
+    await new Promise((resolve, reject) => {
+      db.run(
+        'DELETE FROM clip_templates WHERE id=? AND user_id=?',
+        [req.params.id, req.user.id],
+        function (err) { err ? reject(err) : resolve(); }
+      );
+    });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+// POST /api/clips/jobs/:id/apply-style — aplica un set de params de estilo a TODOS los clips del job.
+// Útil para "aplicar plantilla a todos" sin tener que abrir cada clip.
+// Acepta cualquier subset del whitelist de campos seguros (ver allowed[] abajo).
+export async function applyStyleToAllHandler(req, res) {
+  try {
+    const jobId = req.params.id;
+    const job = await get('SELECT user_id FROM clip_jobs WHERE id=?', [jobId]);
+    if (!job) return res.status(404).json({ error: 'Job no encontrado' });
+    if (job.user_id !== req.user.id) return res.status(403).json({ error: 'No autorizado' });
+
+    const allowed = [
+      'font_hook', 'font_caption', 'font_keyword',
+      'hook_color', 'caption_color', 'keyword_color',
+      'keyword_bg_color', 'keyword_bg_opacity',
+      'outline_enabled', 'outline_thickness', 'outline_color', 'shadow_opacity',
+      'hook_font_size', 'caption_font_size',
+      'hook_italic', 'hook_underline',
+      'caption_italic', 'caption_underline',
+      'keyword_italic', 'keyword_underline',
+      'camera_motion', 'sub_position', 'aspect_ratio', 'transition',
+      'hook_enabled',
+    ];
+    const body = req.body || {};
+    const sets = [];
+    const params = [];
+    for (const k of allowed) {
+      if (body[k] !== undefined) {
+        sets.push(`${k}=?`);
+        params.push(body[k]);
+      }
+    }
+    if (sets.length === 0) return res.json({ success: true, updated: 0 });
+
+    sets.push('updated_at=CURRENT_TIMESTAMP');
+    params.push(jobId);
+    const changes = await new Promise((resolve, reject) => {
+      db.run(`UPDATE clips SET ${sets.join(', ')} WHERE job_id=?`, params, function (err) {
+        err ? reject(err) : resolve(this.changes);
+      });
+    });
+    res.json({ success: true, updated: changes });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 }
 
 // POST /api/clips/jobs/:id/apply-fonts — propaga font_hook/caption/keyword a todos los clips del job

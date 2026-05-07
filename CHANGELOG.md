@@ -5,6 +5,70 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-05-06
+
+Reescritura mayor del editor de AS Clips: pipeline split, edición en vivo sin re-render, paquete de fuentes y plantillas con estética editorial "Algo Sentido".
+
+### Añadido — Pipeline Opus-style (split base + export)
+- `renderClipBase` (cut + crop + zoompan, sin subs, generado 1 sola vez por combinación de params)
+- `burnSubtitlesOnBase` (rápido: solo .ass burn-in sobre base ya cropeado)
+- Endpoints `GET /api/clips/:id/captions`, `GET /:id/base-video`, `POST /:id/export`
+- Columnas `clips.render_mode`, `base_video_path`, `base_params_hash`, `caption_overrides`
+- Auto-persist debounced en cambios de trim/aspect/camera/transition
+
+### Añadido — Edición en vivo de subtítulos
+- `LiveCaptionOverlay` sincronizado con `<video>` vía requestAnimationFrame
+- `TranscriptProseView` con click-to-seek por palabra y resaltado de chunk activo
+- `CaptionChunkEditor` con override de texto, ocultar, reset al original
+- Word-active highlight (palabra dicha = scale 1.08 + brightness)
+- Pop animation del chunk al cambiar (CSS keyframes en preview + `\fad\\t\\fscx` en .ass)
+
+### Añadido — Estilo granular del texto
+- Color, tamaño en px, italic, underline para hook / caption / keyword separados
+- `keyword_bg_color` con opacidad (estilo marcador) — preview HTML + truco ASS de outline grueso
+- `outline_color` independiente del color del texto
+- Karaoke `\k<dur>` per-word en .ass + UI toggle + slider de dim opacity. Solo en MP4 exportado
+
+### Añadido — Transiciones (validadas con export real)
+- 7 modos: none, fade-in, fade-out, fade-cross, zoom-in, zoom-out, zoom-cross
+- `TransitionFader` simula fades en preview con CSS opacity
+- Composición correcta con `camera_motion` (zoom transition pisa al motion en bordes)
+
+### Añadido — Plantillas con estética "Algo Sentido"
+- 5 templates editoriales: **Editorial** (Playfair + Lora + oro envejecido), **Documentary** (Inter neutro TED-style), **Boutique** (Lato + DM Serif Italic + oro metálico), **Whisper** (Inter Regular sin outline), **Manuscrito** (EB Garamond + Caveat + terracota)
+- Aplicar a un clip o a todos los del job (shift+click o botón "→ todos")
+- Plantillas user-defined: tabla `clip_templates`, "+ Guardar este estilo"
+- **Default de clips nuevos = Editorial** (antes: Anton + Inter SemiBold + amarillo neón)
+
+### Añadido — Catálogo de fuentes empaquetado
+- 30 TTFs en `assets/fonts/` (Playfair Display, Lora, EB Garamond, DM Serif Display, Cormorant + italics; Inter, Roboto, Lato, Montserrat, etc.)
+- `scripts/download-fonts.sh` baja desde repo google/fonts; re-ejecutable
+- 19 fuentes caption + 20 fuentes keyword agrupadas por carácter en el dropdown
+- Single source of truth: `FONT_FAMILY` + `FONT_WEIGHT` + `FONT_ITALIC` exportados desde `LiveCaptionOverlay.jsx`
+- **Crítico**: antes el burn-in caía a fallback del sistema (DejaVu en Linux); ahora preview ↔ MP4 final coinciden visualmente
+
+### Añadido — UX del editor
+- 5 secciones colapsables: Texto / Estilo / Subtítulos / Movimiento / Salida (estado persistente en localStorage)
+- Tooltips con `?` en conceptos no obvios (Hook, Keywords, Cámara vs Transición, Borde, Karaoke)
+- Banner gancho auto + toggle por clip + endpoint masivo `disable-hooks`
+- Recovery automático de jobs zombie al startup del server
+
+### Añadido — Tooling
+- `scripts/test-transitions.mjs`, `test-pop-animation.mjs`, `test-karaoke.mjs` para validación end-to-end
+- `.claude/sync-memories.sh` ahora soporta worktrees (usa `--git-common-dir`)
+
+### Modificado
+- Editor reorganizado de 9 secciones planas a 5 grupos colapsables + plantillas siempre visibles
+- Botón "Descargar clip editado" → "Exportar MP4 con subtítulos" (refleja separación base/export)
+- ClipsPage banner muestra "Gancho auto añadido" después de generar
+
+### Corregido
+- Rules-of-hooks violado en `ClipEditor.jsx` causaba pantalla negra al abrir el editor
+- `process.env` referenciado en `AdminPanel.jsx` (no existe en Vite client)
+- Botón play del card quedaba detrás del overlay text (z-index 30 explícito)
+- Outline negro sobre texto negro hacía letra ilegible (`outline_color` configurable)
+- `\r` en keyword overrides mataba la animación pop (cambiado a `\rCaption`)
+
 ## [2.2.0] - 2026-04-11
 
 ### Añadido

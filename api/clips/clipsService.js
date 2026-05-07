@@ -9,7 +9,10 @@ import { transcribeWithTimestamps } from './whisperService.js';
 import { generateHighlights } from './highlightService.js';
 import { cleanupOrthography } from './orthographyCleanup.js';
 import { buildAssForClip } from './subtitleGenerator.js';
-import { downloadVideoToPath, getVideoMetadata, extractAudioFromVideo, renderClip } from './videoProcessor.js';
+import {
+  downloadVideoToPath, getVideoMetadata, extractAudioFromVideo,
+  renderClip, renderClipBase, burnSubtitlesOnBase, baseParamsHash,
+} from './videoProcessor.js';
 
 // Etapas con copy creativo (matching el mockup). Frontend lee `stage_index` y resuelve copy desde aquí.
 export const STAGES = [
@@ -59,9 +62,10 @@ export async function createJob({ userId, sourceUrl, sourceFilename, options = {
     defaultResolution = '1080',
     aspectRatio = '9:16',
     fontPresetMode = 'auto', // 'auto' | 'role' | 'single'
-    fontHook = 'Anton',
-    fontCaption = 'InterSemiBold',
-    fontKeyword = 'MontserratBold',
+    // Defaults estética "Algo Sentido": Editorial (Playfair + Lora + italic editorial)
+    fontHook = 'PlayfairDisplay',
+    fontCaption = 'LoraSemiBold',
+    fontKeyword = 'PlayfairDisplayItalic',
   } = options;
   await run(
     `INSERT INTO clip_jobs (
@@ -153,13 +157,18 @@ export async function processJob(jobId) {
       // El LLM ahora devuelve post_captions {pregunta, storytelling, insight}
       const postCaptions = c.post_captions || { pregunta: c.post_caption || '', storytelling: '', insight: '' };
       const activeTone = 'pregunta';
+      // Defaults "Algo Sentido" Editorial: tipografía editorial cálida + oro envejecido sutil
+      // + outline mínimo. Si el usuario quiere algo más fuerte, aplica una plantilla diferente.
       await run(
         `INSERT INTO clips (
           id, job_id, clip_index, title, hook, caption, keywords,
           post_caption, post_caption_tone, post_captions_cache,
           start_seconds, end_seconds, virality_score, reasoning,
-          font_hook, font_caption, font_keyword
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          font_hook, font_caption, font_keyword,
+          hook_color, caption_color, keyword_color, outline_color,
+          outline_enabled, outline_thickness, shadow_opacity,
+          hook_font_size, caption_font_size
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           clipId, jobId, i,
           c.title || `Clip ${i + 1}`,
@@ -170,31 +179,35 @@ export async function processJob(jobId) {
           activeTone,
           JSON.stringify(postCaptions),
           c.start_seconds, c.end_seconds, c.score || 0, c.reasoning || '',
-          job.font_hook_default || 'Anton',
-          job.font_caption_default || 'InterSemiBold',
-          job.font_keyword_default || 'MontserratBold',
+          job.font_hook_default || 'PlayfairDisplay',
+          job.font_caption_default || 'LoraSemiBold',
+          job.font_keyword_default || 'PlayfairDisplayItalic',
+          '#F5F1E8', '#FAFAF7', '#C9A961', '#000000',
+          1, 2, 35,
+          78, 54,
         ]
       );
     }
     log(jobId, `${clips.length} clips guardados en DB`);
 
-    // Etapa 7-9: renderizar a la resolución default del job
+    // Etapa 7-9: renderizar el base.mp4 (sin subs) de cada clip a la resolución default.
+    // Modelo Opus: el .ass + burn-in se hace ON-DEMAND al exportar, no aquí.
+    // El preview en el editor reproduce este base.mp4 con overlay HTML sincronizado encima.
     await setStage(jobId, 7);
     const clipRows = await all('SELECT * FROM clips WHERE job_id=? ORDER BY clip_index', [jobId]);
     const targetRes = job.default_resolution || '1080';
     for (let idx = 0; idx < clipRows.length; idx++) {
       const clip = clipRows[idx];
       const c = { ...clip, keywords: JSON.parse(clip.keywords || '[]'), aspect_ratio: job.aspect_ratio || '9:16' };
-      const assPath = path.join(jobDir, `${c.id}.ass`);
-      const outPath = path.join(jobDir, `${c.id}_${targetRes}.mp4`);
-      fs.writeFileSync(assPath, buildAssForClip(c, transcript));
-      log(jobId, `rendering clip ${idx + 1}/${clipRows.length} "${c.title}" @ ${targetRes}p ${c.aspect_ratio}…`);
+      const basePath = path.join(jobDir, `${c.id}_base_${targetRes}.mp4`);
+      log(jobId, `rendering base ${idx + 1}/${clipRows.length} "${c.title}" @ ${targetRes}p ${c.aspect_ratio} (no subs)…`);
       const renderStart = Date.now();
-      await renderClip({ sourceVideo: sourcePath, clip: c, assPath, outputPath: outPath, resolution: targetRes });
-      log(jobId, `clip ${idx + 1} rendered in ${((Date.now() - renderStart) / 1000).toFixed(1)}s`);
+      await renderClipBase({ sourceVideo: sourcePath, clip: c, outputPath: basePath, resolution: targetRes });
+      log(jobId, `base ${idx + 1} rendered in ${((Date.now() - renderStart) / 1000).toFixed(1)}s`);
+      const hash = baseParamsHash(c, targetRes);
       await run(
-        `UPDATE clips SET output_path=?, output_resolution=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
-        [outPath, targetRes, c.id]
+        `UPDATE clips SET base_video_path=?, base_params_hash=?, output_resolution=?, render_mode='overlay', updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+        [basePath, hash, targetRes, c.id]
       );
     }
     await setStage(jobId, 8);
@@ -270,7 +283,14 @@ export async function updateClip(clipId, userId, updates) {
   const allowed = ['title', 'hook', 'caption', 'post_caption', 'post_caption_tone',
     'start_seconds', 'end_seconds', 'font_hook', 'font_caption', 'font_keyword',
     'keyword_color', 'camera_motion', 'sub_position', 'aspect_ratio',
-    'outline_enabled', 'outline_thickness', 'shadow_opacity'];
+    'outline_enabled', 'outline_thickness', 'shadow_opacity',
+    'hook_font_size', 'caption_font_size',
+    'hook_italic', 'hook_underline', 'caption_italic', 'caption_underline',
+    'keyword_italic', 'keyword_underline',
+    'keyword_bg_color', 'keyword_bg_opacity',
+    'transition', 'hook_enabled',
+    'hook_color', 'caption_color', 'outline_color',
+    'karaoke_enabled', 'karaoke_dim_opacity'];
   const sets = [];
   const params = [];
   for (const k of allowed) {
@@ -284,40 +304,89 @@ export async function updateClip(clipId, userId, updates) {
     sets.push('post_captions_cache=?');
     params.push(typeof updates.post_captions_cache === 'string' ? updates.post_captions_cache : JSON.stringify(updates.post_captions_cache));
   }
+  if (updates.caption_overrides !== undefined) {
+    sets.push('caption_overrides=?');
+    params.push(typeof updates.caption_overrides === 'string' ? updates.caption_overrides : JSON.stringify(updates.caption_overrides));
+  }
   if (sets.length === 0) return;
   sets.push('updated_at=CURRENT_TIMESTAMP');
   params.push(clipId);
   await run(`UPDATE clips SET ${sets.join(', ')} WHERE id=?`, params);
 }
 
-// Re-renderiza un clip aplicando los parámetros actuales (texto, fuentes, keywords, etc.)
-// Llamado al hacer "Descargar" si hubo cambios en el editor.
-export async function regenerateClipMp4(clipId, resolution = '1080') {
+// Asegura que el base.mp4 exista y corresponda a los params actuales (start/end/aspect/camera/res).
+// Si el hash cambió o no existe el archivo, lo regenera. Reusa si ya está válido.
+export async function ensureClipBase(clipId, resolution = '1080') {
   const clip = await get('SELECT * FROM clips WHERE id=?', [clipId]);
   if (!clip) throw new Error('Clip no encontrado');
+  if (clip.render_mode === 'burned-legacy') {
+    throw new Error('Este clip es legacy (subs quemados): no se puede previsualizar con overlay');
+  }
   const job = await get('SELECT * FROM clip_jobs WHERE id=?', [clip.job_id]);
   if (!job || !job.source_video_path || !fs.existsSync(job.source_video_path)) {
     throw new Error('Video fuente ya no disponible — el job fue purgado');
   }
+  const c = { ...clip, keywords: JSON.parse(clip.keywords || '[]') };
+  const jobDir = path.dirname(job.source_video_path);
+  const basePath = path.join(jobDir, `${clipId}_base_${resolution}.mp4`);
+  const expected = baseParamsHash(c, resolution);
+  const valid = clip.base_video_path === basePath
+    && clip.base_params_hash === expected
+    && fs.existsSync(basePath);
+  if (!valid) {
+    log(clip.job_id, `regenerating base for ${clipId} @ ${resolution}p (params changed or missing)`);
+    await renderClipBase({ sourceVideo: job.source_video_path, clip: c, outputPath: basePath, resolution });
+    await run(
+      `UPDATE clips SET base_video_path=?, base_params_hash=?, output_resolution=?, render_mode='overlay', updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+      [basePath, expected, resolution, clipId]
+    );
+  }
+  return basePath;
+}
+
+// Exporta MP4 final con subs quemados, partiendo del base.mp4 (rápido: solo burn-in).
+// Usado por el botón "Exportar MP4" del editor. Reemplaza al viejo regenerateClipMp4.
+export async function exportClipMp4(clipId, resolution = '1080') {
+  const clip = await get('SELECT * FROM clips WHERE id=?', [clipId]);
+  if (!clip) throw new Error('Clip no encontrado');
+  const job = await get('SELECT * FROM clip_jobs WHERE id=?', [clip.job_id]);
+  if (!job) throw new Error('Job no encontrado');
+
+  // Compatibilidad legacy: si el clip nació con subs quemados, mantenemos el path viejo.
+  if (clip.render_mode === 'burned-legacy') {
+    if (!fs.existsSync(job.source_video_path || '')) throw new Error('Video fuente no disponible');
+    const transcript = JSON.parse(fs.readFileSync(job.whisper_json_path, 'utf8'));
+    const c = { ...clip, keywords: JSON.parse(clip.keywords || '[]') };
+    const jobDir = path.dirname(job.source_video_path);
+    const assPath = path.join(jobDir, `${clipId}.ass`);
+    const outPath = path.join(jobDir, `${clipId}_${resolution}.mp4`);
+    fs.writeFileSync(assPath, buildAssForClip(c, transcript));
+    await renderClip({ sourceVideo: job.source_video_path, clip: c, assPath, outputPath: outPath, resolution });
+    await run(
+      `UPDATE clips SET output_path=?, output_resolution=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+      [outPath, resolution, clipId]
+    );
+    return outPath;
+  }
+
+  // Modo overlay (default): reusa base.mp4, solo quema subs encima.
+  const basePath = await ensureClipBase(clipId, resolution);
   const transcript = JSON.parse(fs.readFileSync(job.whisper_json_path, 'utf8'));
   const c = { ...clip, keywords: JSON.parse(clip.keywords || '[]') };
   const jobDir = path.dirname(job.source_video_path);
   const assPath = path.join(jobDir, `${clipId}.ass`);
-  const outPath = path.join(jobDir, `${clipId}_${resolution}.mp4`);
+  const outPath = path.join(jobDir, `${clipId}_export_${resolution}.mp4`);
   fs.writeFileSync(assPath, buildAssForClip(c, transcript));
-  await renderClip({
-    sourceVideo: job.source_video_path,
-    clip: c,
-    assPath,
-    outputPath: outPath,
-    resolution,
-  });
+  await burnSubtitlesOnBase({ baseVideo: basePath, assPath, outputPath: outPath });
   await run(
     `UPDATE clips SET output_path=?, output_resolution=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
     [outPath, resolution, clipId]
   );
   return outPath;
 }
+
+// Alias retrocompatible.
+export const regenerateClipMp4 = exportClipMp4;
 
 export async function deleteJob(jobId, userId, isOwner = false) {
   const where = isOwner ? 'WHERE id=?' : 'WHERE id=? AND user_id=?';
@@ -329,6 +398,27 @@ export async function deleteJob(jobId, userId, isOwner = false) {
   if (fs.existsSync(jobDir)) fs.rmSync(jobDir, { recursive: true, force: true });
   // Borrar de DB (CASCADE borra clips)
   await run('DELETE FROM clip_jobs WHERE id=?', [jobId]);
+}
+
+// Al arrancar el server, todo job que quedó en estado no-terminal es zombie (su worker murió).
+// Los marcamos como error con un mensaje claro para que el usuario sepa que debe reintentar.
+// El pipeline corre en el mismo proceso del server (no hay queue externa), así que un reinicio
+// — sea por nodemon, deploy o crash — siempre interrumpe trabajos en vuelo.
+export async function recoverZombieJobs() {
+  const zombies = await all(
+    `SELECT id, title, source_url FROM clip_jobs WHERE status NOT IN ('done', 'error')`
+  );
+  if (zombies.length === 0) return 0;
+  await run(
+    `UPDATE clip_jobs SET status='error',
+       error_message='Interrumpido por reinicio del servidor. Vuelve a generar.',
+       finished_at=CURRENT_TIMESTAMP
+     WHERE status NOT IN ('done', 'error')`
+  );
+  for (const z of zombies) {
+    console.warn(`[clips] zombie recuperado: ${z.id.slice(0,8)} "${z.title || z.source_url || ''}"`);
+  }
+  return zombies.length;
 }
 
 export async function addCostToJob(jobId, addLlmCost) {

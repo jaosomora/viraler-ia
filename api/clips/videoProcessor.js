@@ -90,8 +90,162 @@ function getOutputDimensions(resolution, aspectRatio) {
   return { w, h: h % 2 === 0 ? h : h + 1 }; // h2v requiere par
 }
 
+// Hash de los parámetros que afectan al base.mp4 (cut + crop + zoom + transition). Si cambian → regenerar base.
+export function baseParamsHash(clip, resolution) {
+  const h = [
+    clip.start_seconds, clip.end_seconds,
+    clip.aspect_ratio || '9:16',
+    clip.camera_motion || 'zoom-in',
+    clip.transition || 'none',
+    resolution,
+  ].join('|');
+  return Buffer.from(h).toString('base64').slice(0, 16);
+}
+
+// Construye los filtros de transición (fade in/out, zoom in/out en bordes) según clip.transition.
+// El zoom de transición es DISTINTO del camera_motion: el motion es lento y abarca todo el clip;
+// la transición es un "punch" en los primeros/últimos 0.5s.
+function transitionFilters(clip) {
+  const t = clip.transition || 'none';
+  const dur = clip.end_seconds - clip.start_seconds;
+  const fadeDur = 0.5;
+  const fadeOutSt = Math.max(0, dur - fadeDur);
+  const filters = [];
+
+  if (t === 'fade-in' || t === 'fade-cross') {
+    filters.push(`fade=t=in:st=0:d=${fadeDur}`);
+  }
+  if (t === 'fade-out' || t === 'fade-cross') {
+    filters.push(`fade=t=out:st=${fadeOutSt.toFixed(3)}:d=${fadeDur}`);
+  }
+  return filters;
+}
+
 /**
- * Renderiza un clip individual.
+ * Renderiza el base.mp4 SIN subtítulos: cut + crop al aspect ratio + zoompan.
+ * Es el "video base" que se usa como capa de fondo en el preview con overlay HTML
+ * y como input para burn-in en el export final.
+ */
+export function renderClipBase({ sourceVideo, clip, outputPath, resolution = '1080' }) {
+  return new Promise((resolve, reject) => {
+    const ffmpeg = process.env.FFMPEG_PATH || 'ffmpeg';
+    const aspect = clip.aspect_ratio || '9:16';
+    const { w, h } = getOutputDimensions(resolution, aspect);
+    const dur = clip.end_seconds - clip.start_seconds;
+
+    let cropExpr;
+    if (aspect === '9:16') cropExpr = 'crop=ih*9/16:ih';
+    else if (aspect === '1:1') cropExpr = 'crop=ih:ih';
+    else if (aspect === '4:5') cropExpr = 'crop=ih*4/5:ih';
+    else cropExpr = 'crop=ih*9/16:ih';
+
+    const fps = 30;
+    const totalFrames = Math.ceil(dur * fps);
+    const transitionFrames = Math.min(15, Math.floor(totalFrames / 4)); // 0.5s @ 30fps o 25% del clip si es muy corto
+    const t = clip.transition || 'none';
+    const isZoomTrans = t === 'zoom-in' || t === 'zoom-out' || t === 'zoom-cross';
+
+    // Componemos UNA sola expresión de zoom que cubre camera_motion + transition.
+    // Si la transición es zoom-*, su efecto en los bordes pisa al camera_motion en esos frames.
+    let zoomExpr;
+    if (isZoomTrans) {
+      const exitStart = totalFrames - transitionFrames;
+      const motionExpr = clip.camera_motion === 'zoom-in'
+        ? `min(1.0+${(0.08/totalFrames).toFixed(6)}*on,1.08)`
+        : clip.camera_motion === 'zoom-out'
+          ? `max(1.08-${(0.08/totalFrames).toFixed(6)}*on,1.0)`
+          : '1.0';
+      const entryExpr = `(1.3-(on/${transitionFrames})*0.3)`;          // 1.3 → 1.0 en transitionFrames
+      const exitExpr  = `(1.0+((on-${exitStart})/${transitionFrames})*0.3)`; // 1.0 → 1.3 en transitionFrames
+
+      if (t === 'zoom-in') {
+        zoomExpr = `if(lt(on,${transitionFrames}),${entryExpr},${motionExpr})`;
+      } else if (t === 'zoom-out') {
+        zoomExpr = `if(gt(on,${exitStart}),${exitExpr},${motionExpr})`;
+      } else { // zoom-cross
+        zoomExpr = `if(lt(on,${transitionFrames}),${entryExpr},if(gt(on,${exitStart}),${exitExpr},${motionExpr}))`;
+      }
+    } else if (clip.camera_motion === 'zoom-in') {
+      zoomExpr = `min(1.0+${(0.08/totalFrames).toFixed(6)}*on,1.08)`;
+    } else if (clip.camera_motion === 'zoom-out') {
+      zoomExpr = `max(1.08-${(0.08/totalFrames).toFixed(6)}*on,1.0)`;
+    } else {
+      zoomExpr = null;
+    }
+
+    const zoomFilter = zoomExpr
+      ? `,zoompan=z='${zoomExpr}':d=1:s=${w}x${h}:fps=${fps}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'`
+      : '';
+
+    const fades = transitionFilters(clip);
+    const fadeChain = fades.length ? ',' + fades.join(',') : '';
+
+    const vf = `${cropExpr},scale=${w}:${h}${zoomFilter}${fadeChain}`;
+
+    const args = [
+      '-y',
+      '-ss', String(clip.start_seconds),
+      '-i', sourceVideo,
+      '-t', String(dur),
+      '-vf', vf,
+      '-c:v', 'libx264',
+      '-preset', 'veryfast',
+      '-crf', '22',
+      '-c:a', 'aac',
+      '-b:a', '128k',
+      '-movflags', '+faststart',
+      outputPath,
+    ];
+
+    const p = spawn(ffmpeg, args);
+    let stderr = '';
+    p.stderr.on('data', d => { stderr += d.toString(); });
+    p.on('close', code => {
+      if (code === 0 && fs.existsSync(outputPath)) resolve(outputPath);
+      else reject(new Error(`ffmpeg base render exit ${code}: ${stderr.slice(-1000)}`));
+    });
+    p.on('error', reject);
+  });
+}
+
+/**
+ * Burn-in rápido: toma el base.mp4 (ya cropeado, escalado, con zoom) y le quema el .ass encima.
+ * Mucho más rápido que renderClip porque no recodifica el filtro complejo, solo subtitles + reencode.
+ */
+export function burnSubtitlesOnBase({ baseVideo, assPath, outputPath }) {
+  return new Promise((resolve, reject) => {
+    const ffmpeg = process.env.FFMPEG_PATH || 'ffmpeg';
+    const escapedAss = assPath.replace(/\\/g, '/').replace(/:/g, '\\:');
+    const fontsDir = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../assets/fonts');
+    const fontsArg = fs.existsSync(fontsDir) ? `:fontsdir='${fontsDir.replace(/:/g, '\\:')}'` : '';
+    const vf = `subtitles='${escapedAss}'${fontsArg}`;
+
+    const args = [
+      '-y',
+      '-i', baseVideo,
+      '-vf', vf,
+      '-c:v', 'libx264',
+      '-preset', 'veryfast',
+      '-crf', '22',
+      '-c:a', 'copy',
+      '-movflags', '+faststart',
+      outputPath,
+    ];
+
+    const p = spawn(ffmpeg, args);
+    let stderr = '';
+    p.stderr.on('data', d => { stderr += d.toString(); });
+    p.on('close', code => {
+      if (code === 0 && fs.existsSync(outputPath)) resolve(outputPath);
+      else reject(new Error(`ffmpeg burn exit ${code}: ${stderr.slice(-1000)}`));
+    });
+    p.on('error', reject);
+  });
+}
+
+/**
+ * Renderiza un clip individual (legacy/burned). Mantenido para compatibilidad.
+ * Hace cut + crop + zoom + burn-in subs en una sola pasada.
  * @param {object} opts
  * @param {string} opts.sourceVideo — ruta al video fuente
  * @param {object} opts.clip — fila de clips de DB
