@@ -7,6 +7,7 @@ import crypto from 'crypto';
 import db from '../database/schema.js';
 import { transcribeWithTimestamps } from './whisperService.js';
 import { generateHighlights } from './highlightService.js';
+import { cleanupOrthography } from './orthographyCleanup.js';
 import { buildAssForClip } from './subtitleGenerator.js';
 import { downloadVideoToPath, getVideoMetadata, extractAudioFromVideo, renderClip } from './videoProcessor.js';
 
@@ -118,13 +119,19 @@ export async function processJob(jobId) {
 
     await setStage(jobId, 2);
     log(jobId, `calling Whisper…`);
-    const { transcript, costUsd: whisperCost } = await transcribeWithTimestamps(audioPath, 'es');
-    log(jobId, `Whisper done · ${transcript.words?.length || 0} palabras · $${whisperCost.toFixed(4)} (${elapsed()})`);
+    const { transcript: rawTranscript, costUsd: whisperCost } = await transcribeWithTimestamps(audioPath, 'es');
+    log(jobId, `Whisper done · ${rawTranscript.words?.length || 0} palabras · $${whisperCost.toFixed(4)} (${elapsed()})`);
+
+    // Pase de limpieza ortográfica con GPT-4o-mini (acentos, mayúsculas, ¿?). Si falla, usa el original.
+    log(jobId, `cleaning orthography…`);
+    const { cleaned: transcript, costUsd: cleanupCost } = await cleanupOrthography(rawTranscript);
+    log(jobId, `cleanup done · $${cleanupCost.toFixed(4)} (${elapsed()})`);
+
     const whisperJsonPath = path.join(jobDir, 'whisper.json');
     fs.writeFileSync(whisperJsonPath, JSON.stringify(transcript));
     await run(
-      'UPDATE clip_jobs SET whisper_json_path=?, whisper_cost_usd=? WHERE id=?',
-      [whisperJsonPath, whisperCost, jobId]
+      'UPDATE clip_jobs SET whisper_json_path=?, whisper_cost_usd=?, llm_cost_usd=llm_cost_usd+?, total_cost_usd=total_cost_usd+? WHERE id=?',
+      [whisperJsonPath, whisperCost, cleanupCost, cleanupCost, jobId]
     );
     fs.unlinkSync(audioPath);
 

@@ -65,27 +65,48 @@ const ClipCard = ({ clip, onEdit }) => {
 
   const hookFont = FONT_FAMILY[clip.font_hook] || FONT_FAMILY.Anton;
 
+  // Misma lógica que el editor: bottom % en función de sub_position, y text-shadow combinando outline + shadow
+  const subPositionPercent = ((Math.max(40, Math.min(90, clip.sub_position ?? 68)) - 40) / 50) * 47 + 10;
+  const textShadowCSS = (() => {
+    const parts = [];
+    const outlineEnabled = clip.outline_enabled === undefined ? 1 : clip.outline_enabled;
+    const thickness = clip.outline_thickness ?? 5;
+    const shadowOpacity = clip.shadow_opacity ?? 50;
+    if (outlineEnabled && thickness > 0) {
+      const t = Math.round(thickness * 0.7);
+      for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+        if (dx === 0 && dy === 0) continue;
+        parts.push(`${dx * t}px ${dy * t}px 0 #000`);
+      }
+    }
+    if (shadowOpacity > 0) parts.push(`0 2px 6px rgba(0,0,0,${(shadowOpacity / 100).toFixed(2)})`);
+    return parts.join(', ') || 'none';
+  })();
+  const cameraIcon = clip.camera_motion === 'zoom-in' ? '🔍' : clip.camera_motion === 'zoom-out' ? '🔎' : '⏸';
+
   return (
     <article className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:border-purple-300 dark:hover:border-purple-700 transition group">
       <div className={`${aspectClass} relative bg-gradient-to-br from-indigo-900 via-purple-700 to-cyan-700 overflow-hidden`}>
         <div className={`absolute top-3 left-3 z-20 px-2.5 py-1 rounded-md text-xs font-bold ${scoreClass(clip.virality_score)}`}>
           {clip.virality_score} / 100
         </div>
-        <div className="absolute top-3 right-3 z-20 px-2 py-1 bg-black/60 backdrop-blur rounded-md text-xs text-white">{durStr}</div>
+        <div className="absolute top-3 right-3 z-20 flex items-center gap-1">
+          <span className="px-1.5 py-1 bg-black/60 backdrop-blur rounded text-[11px] text-white" title={`Cámara: ${clip.camera_motion || 'static'}`}>{cameraIcon}</span>
+          <span className="px-2 py-1 bg-black/60 backdrop-blur rounded-md text-xs text-white">{durStr}</span>
+        </div>
         <VideoPreview
           clipId={clip.id}
           resolution={clip.output_resolution || '1080'}
           overlay={
-            <>
-              <div className="absolute left-[8%] right-[8%] bottom-[32%] text-center text-white pointer-events-none z-10">
-                <div className="font-black uppercase mb-2" style={{ fontFamily: hookFont, fontSize: '1.5rem', lineHeight: 0.95, textShadow: '0 2px 6px rgba(0,0,0,.85)' }}>
-                  {clip.hook}
-                </div>
-                <div className="text-sm font-semibold" style={{ textShadow: '0 2px 4px rgba(0,0,0,.85)', fontFamily: "'Inter', sans-serif" }}>
-                  {renderCaptionWithKeywords(clip.caption, clip.keywords, clip.keyword_color || '#FDE047')}
-                </div>
+            <div className="absolute left-[8%] right-[8%] text-center text-white pointer-events-none z-10"
+                 style={{ bottom: `${subPositionPercent}%` }}>
+              <div className="font-black uppercase mb-2" style={{ fontFamily: hookFont, fontSize: '1.5rem', lineHeight: 0.95, textShadow: textShadowCSS }}>
+                {clip.hook}
               </div>
-            </>
+              <div className="text-sm font-semibold" style={{ textShadow: textShadowCSS, fontFamily: "'Inter', sans-serif" }}>
+                {renderCaptionWithKeywords(clip.caption, clip.keywords, clip.keyword_color || '#FDE047')}
+              </div>
+            </div>
           }
         />
       </div>

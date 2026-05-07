@@ -246,6 +246,10 @@ const ClipEditor = ({ clip, onClose }) => {
             <div className={`${aspectClass} max-w-[280px] mx-auto bg-gradient-to-br from-indigo-900 via-purple-700 to-cyan-700 rounded-xl relative shadow-2xl overflow-hidden group`}>
               <div className="absolute top-[13%] left-0 right-0 h-px bg-yellow-400/30 z-10"></div>
               <div className="absolute bottom-[25%] left-0 right-0 h-px bg-yellow-400/30 z-10"></div>
+              <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-black/60 backdrop-blur rounded text-[10px] text-white z-20"
+                title={`Cámara: ${draft.camera_motion}`}>
+                {draft.camera_motion === 'zoom-in' ? '🔍 zoom in' : draft.camera_motion === 'zoom-out' ? '🔎 zoom out' : '⏸ estático'}
+              </div>
               <VideoPreview
                 key={previewKey}
                 clipId={clip.id}
