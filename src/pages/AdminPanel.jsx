@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getUsageStats, resetUsageStats, deleteHistoryEntry, getAdminTranscriptions, getAdminConversions, getAdminUsers, resetUserPassword, setUserAccess } from '../services/usageStats';
+import { getUsageStats, resetUsageStats, deleteHistoryEntry, getAdminTranscriptions, getAdminConversions, getAdminUsers, getAdminClips, resetUserPassword, setUserAccess } from '../services/usageStats';
 import Spinner from '../components/Spinner';
 import SecretsAdmin from '../components/SecretsAdmin';
 import ClipsAdmin from '../components/ClipsAdmin';
@@ -8,6 +8,7 @@ const AdminPanel = () => {
   const [usageData, setUsageData] = useState(null);
   const [transcriptions, setTranscriptions] = useState([]);
   const [conversions, setConversions] = useState([]);
+  const [clipJobs, setClipJobs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -100,16 +101,18 @@ const AdminPanel = () => {
   const fetchUsageData = async () => {
     try {
       setIsLoading(true);
-      const [data, txns, convs, us] = await Promise.all([
+      const [data, txns, convs, us, clips] = await Promise.all([
         getUsageStats(),
         getAdminTranscriptions(),
         getAdminConversions(),
-        getAdminUsers()
+        getAdminUsers(),
+        getAdminClips().catch(() => []),
       ]);
       setUsageData(data);
       setTranscriptions(txns);
       setConversions(convs);
       setUsers(us);
+      setClipJobs(clips || []);
       setError(null);
     } catch (err) {
       setError(err.message || 'Error al cargar datos de uso');
@@ -117,6 +120,19 @@ const AdminPanel = () => {
       setIsLoading(false);
     }
   };
+
+  // Aggregate de costos clips para el Resumen
+  const clipsAgg = (() => {
+    const total = (clipJobs || []).reduce((acc, j) => ({
+      jobs: acc.jobs + 1,
+      clips: acc.clips + (j.clip_count || 0),
+      cost: acc.cost + (j.total_cost_usd || 0),
+      whisperCost: acc.whisperCost + (j.whisper_cost_usd || 0),
+      llmCost: acc.llmCost + (j.llm_cost_usd || 0),
+      minutes: acc.minutes + ((j.duration_seconds || 0) / 60),
+    }), { jobs: 0, clips: 0, cost: 0, whisperCost: 0, llmCost: 0, minutes: 0 });
+    return total;
+  })();
 
   useEffect(() => {
     fetchUsageData();
@@ -302,58 +318,51 @@ const AdminPanel = () => {
         </div>
       </div>
 
+      {/* Costo total unificado — toda la cuenta lo que has gastado */}
+      <div className="bg-gradient-to-br from-purple-600 to-indigo-600 rounded-xl shadow-md p-6 text-white">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-sm uppercase tracking-wide opacity-80 font-semibold">Costo total acumulado · todas las herramientas</h3>
+          <svg className="w-5 h-5 opacity-80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <p className="text-4xl font-bold tabular-nums">{formatPrice((usageData.estimatedCost || 0) + clipsAgg.cost)}</p>
+        <div className="mt-3 grid grid-cols-2 gap-3 text-xs opacity-90">
+          <div className="bg-white/10 rounded-lg px-3 py-2">
+            <div className="opacity-80 text-[11px]">Transcripciones</div>
+            <div className="font-semibold tabular-nums">{formatPrice(usageData.estimatedCost || 0)}</div>
+          </div>
+          <div className="bg-white/10 rounded-lg px-3 py-2">
+            <div className="opacity-80 text-[11px]">Clips · Whisper {formatPrice(clipsAgg.whisperCost)} + LLM {formatPrice(clipsAgg.llmCost)}</div>
+            <div className="font-semibold tabular-nums">{formatPrice(clipsAgg.cost)}</div>
+          </div>
+        </div>
+      </div>
+
       {/* Tarjetas de resumen */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">Transcripciones</h3>
-            <div className="p-2 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-              </svg>
-            </div>
-          </div>
-          <p className="mt-4 text-3xl font-bold text-gray-900 dark:text-white">{usageData.totalTranscriptions}</p>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">transcripciones totales</p>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-5">
+          <h3 className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 font-semibold">Transcripciones</h3>
+          <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-white tabular-nums">{usageData.totalTranscriptions}</p>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{formatNumber(usageData.totalAudioMinutes)} min · {formatPrice(usageData.estimatedCost)}</p>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">Minutos de audio</h3>
-            <div className="p-2 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-          </div>
-          <p className="mt-4 text-3xl font-bold text-gray-900 dark:text-white">{formatNumber(usageData.totalAudioMinutes)}</p>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">minutos procesados</p>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-5">
+          <h3 className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 font-semibold">Clips generados</h3>
+          <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-white tabular-nums">{clipsAgg.clips}</p>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{clipsAgg.jobs} jobs · {Math.round(clipsAgg.minutes)} min · {formatPrice(clipsAgg.cost)}</p>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">Costo total</h3>
-            <div className="p-2 rounded-full bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-          </div>
-          <p className="mt-4 text-3xl font-bold text-gray-900 dark:text-white">{formatPrice(usageData.estimatedCost)}</p>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">costo estimado (USD)</p>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-5">
+          <h3 className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 font-semibold">Conversiones</h3>
+          <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-white tabular-nums">{usageData.totalConversions || 0}</p>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">documentos</p>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">Conversiones</h3>
-            <div className="p-2 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-          </div>
-          <p className="mt-4 text-3xl font-bold text-gray-900 dark:text-white">{usageData.totalConversions || 0}</p>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">documentos convertidos</p>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-5">
+          <h3 className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 font-semibold">Usuarios</h3>
+          <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-white tabular-nums">{users.length}</p>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">registrados</p>
         </div>
       </div>
 

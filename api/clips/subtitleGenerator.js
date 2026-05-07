@@ -67,10 +67,18 @@ export function buildAssForClip(clip, whisperJson) {
   const kwColor = hexToAssColor(clip.keyword_color || '#FDE047');
 
   // sub_position 0..100 → MarginV en ASS (PlayResY=1920)
-  // Default 68 = MarginV ~620 (centrado en zona segura ~y=1300)
-  // Range válido: 40 (cerca al fondo, riesgo IG) ... 90 (mitad superior)
+  // Default 68 = MarginV ~620 (subs centrados-bajos, ~y=1300, dentro de zona segura IG)
   const marginV = Math.round(2000 - (sub_position / 100) * 2000 + 200);
-  const marginVHook = Math.max(80, marginV + 180); // hook va arriba del caption
+  const marginVHook = Math.max(80, marginV + 220);
+
+  // Hook: tamaño adaptativo según longitud (más largo = más pequeño para que quepa con wrap)
+  // Anton es muy ancho. Calibramos: ~28 chars cabe a 80pt en 1080px con wrap 2 líneas.
+  const hookText = (hook || '').toUpperCase();
+  let hookSize;
+  if (hookText.length <= 22) hookSize = 90;
+  else if (hookText.length <= 32) hookSize = 78;
+  else if (hookText.length <= 44) hookSize = 66;
+  else hookSize = 58;
 
   // Word chunks del caption con timestamps relativos al clip
   const words = (whisperJson.words || []).filter(
@@ -129,15 +137,15 @@ export function buildAssForClip(clip, whisperJson) {
   return `[Script Info]
 Title: AS Clips
 ScriptType: v4.00+
-WrapStyle: 2
+WrapStyle: 0
 ScaledBorderAndShadow: yes
 PlayResX: 1080
 PlayResY: 1920
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Hook,${fontHook.name},96,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,${fontHook.bold},0,0,0,100,100,0,0,1,6,3,2,80,80,${marginVHook},1
-Style: Caption,${fontCap.name},66,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,${fontCap.bold},0,0,0,100,100,0,0,1,5,2,2,80,80,${marginV},1
+Style: Hook,${fontHook.name},${hookSize},&H00FFFFFF,&H000000FF,&H00000000,&H80000000,${fontHook.bold},0,0,0,100,100,0,0,1,5,2,2,120,120,${marginVHook},1
+Style: Caption,${fontCap.name},58,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,${fontCap.bold},0,0,0,100,100,0,0,1,4,2,2,100,100,${marginV},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
