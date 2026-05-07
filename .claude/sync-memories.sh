@@ -7,8 +7,20 @@
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
 REPO_MEMORY="$REPO_ROOT/.claude/memory"
 
-# Build the Claude project path from repo root
-SAFE_PATH=$(echo "$REPO_ROOT" | sed 's|/|-|g')
+# Si estamos en un worktree, las memorias de Claude viven indexadas por el path
+# del repo principal (Claude las guarda según el filesystem real). Detectamos el
+# repo "canónico" via --git-common-dir para que el push/pull funcione desde cualquier worktree.
+COMMON_DIR="$(git rev-parse --git-common-dir 2>/dev/null)"
+if [ -n "$COMMON_DIR" ]; then
+  case "$COMMON_DIR" in
+    /*) CANONICAL_ROOT="$(dirname "$COMMON_DIR")" ;;
+    *)  CANONICAL_ROOT="$(cd "$REPO_ROOT" && cd "$(dirname "$COMMON_DIR")" && pwd)" ;;
+  esac
+else
+  CANONICAL_ROOT="$REPO_ROOT"
+fi
+
+SAFE_PATH=$(echo "$CANONICAL_ROOT" | sed 's|/|-|g')
 LOCAL_MEMORY="$HOME/.claude/projects/$SAFE_PATH/memory"
 
 if [ "$1" = "push" ]; then

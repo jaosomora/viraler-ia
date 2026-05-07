@@ -31,7 +31,16 @@ import {
   stagesHandler as clipsStages,
   applyFontsToAllHandler as clipsApplyFontsAll,
   redetectKeywordsHandler as clipsRedetectKeywords,
+  captionsHandler as clipsCaptions,
+  baseVideoHandler as clipsBaseVideo,
+  exportClipHandler as clipsExport,
+  disableAllHooksHandler as clipsDisableHooks,
+  applyStyleToAllHandler as clipsApplyStyleAll,
+  listTemplatesHandler as clipsListTemplates,
+  createTemplateHandler as clipsCreateTemplate,
+  deleteTemplateHandler as clipsDeleteTemplate,
 } from './api/clips/routes.js';
+import { recoverZombieJobs } from './api/clips/clipsService.js';
 import { authMiddleware, ownerOnly, registerUser, loginUser, listUsers, adminResetPassword, generateTempPassword, requestMagicLink, verifyMagicLink, setUserAccessExpiry } from './api/auth.js';
 import {
   generateUsageReport,
@@ -187,9 +196,17 @@ app.get('/api/clips/jobs/:id', authMiddleware, clipsGetJob);
 app.delete('/api/clips/jobs/:id', authMiddleware, clipsDeleteJob);
 app.patch('/api/clips/:id', authMiddleware, clipsUpdateClip);
 app.get('/api/clips/:id/download', authMiddleware, clipsDownload);
+app.get('/api/clips/:id/captions', authMiddleware, clipsCaptions);
+app.get('/api/clips/:id/base-video', authMiddleware, clipsBaseVideo);
+app.post('/api/clips/:id/export', authMiddleware, clipsExport);
 app.post('/api/clips/:id/regenerate-caption', authMiddleware, clipsRegenCaption);
 app.post('/api/clips/:id/redetect-keywords', authMiddleware, clipsRedetectKeywords);
 app.post('/api/clips/jobs/:id/apply-fonts', authMiddleware, clipsApplyFontsAll);
+app.post('/api/clips/jobs/:id/apply-style', authMiddleware, clipsApplyStyleAll);
+app.get('/api/clips/templates', authMiddleware, clipsListTemplates);
+app.post('/api/clips/templates', authMiddleware, clipsCreateTemplate);
+app.delete('/api/clips/templates/:id', authMiddleware, clipsDeleteTemplate);
+app.post('/api/clips/jobs/:id/disable-hooks', authMiddleware, clipsDisableHooks);
 app.get('/api/admin/clips', authMiddleware, ownerOnly, clipsAdminList);
 
 // Transcripciones del usuario
@@ -360,6 +377,12 @@ app.listen(PORT, async () => {
     APP_BASE_URL: process.env.APP_BASE_URL || '(inferido del request)'
   };
   console.log(`[config] ${JSON.stringify(cfg)}`);
+
+  // Recuperar jobs de clips que quedaron zombie por reinicio del servidor.
+  try {
+    const n = await recoverZombieJobs();
+    if (n > 0) console.log(`[clips] ${n} job(s) marcados como error tras reinicio (zombies recuperados).`);
+  } catch (e) { console.warn('[clips] zombie recovery falló:', e.message); }
 
   if (!process.env.OPENAI_API_KEY) {
     console.warn('\x1b[33m%s\x1b[0m', 'ADVERTENCIA: API Key de OpenAI no configurada.');

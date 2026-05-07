@@ -186,6 +186,53 @@ db.serialize(() => {
   db.run(`ALTER TABLE clips ADD COLUMN outline_enabled INTEGER DEFAULT 1`, () => {});
   db.run(`ALTER TABLE clips ADD COLUMN outline_thickness INTEGER DEFAULT 5`, () => {});
   db.run(`ALTER TABLE clips ADD COLUMN shadow_opacity INTEGER DEFAULT 50`, () => {});
+  // Modelo Opus: el render pesado se separa en (1) base.mp4 sin subs y (2) export con subs on-demand.
+  // 'overlay' = preview en HTML/CSS sobre base.mp4, export quema subs solo al pedir.
+  // 'burned-legacy' = clips antiguos: el output_path ya tiene subs quemados, no editable en preview.
+  db.run(`ALTER TABLE clips ADD COLUMN render_mode TEXT DEFAULT 'overlay'`, () => {
+    // Marcar clips ya existentes con output_path como legacy (no se les puede editar el preview).
+    db.run(`UPDATE clips SET render_mode='burned-legacy' WHERE output_path IS NOT NULL AND render_mode IS NULL`, () => {});
+  });
+  db.run(`ALTER TABLE clips ADD COLUMN base_video_path TEXT`, () => {});
+  // Hash de params que afectan al base.mp4 (start/end/aspect/camera_motion). Si cambian, regeneramos base.
+  db.run(`ALTER TABLE clips ADD COLUMN base_params_hash TEXT`, () => {});
+  // Overrides de chunks de subtítulos: JSON [{idx, text, hidden}]
+  db.run(`ALTER TABLE clips ADD COLUMN caption_overrides TEXT`, () => {});
+  // Tipografía granular (paridad con editores tipo Opus): tamaño, italic, underline, fondo de keyword.
+  db.run(`ALTER TABLE clips ADD COLUMN hook_font_size INTEGER`, () => {}); // null = adaptativo (legacy)
+  db.run(`ALTER TABLE clips ADD COLUMN caption_font_size INTEGER DEFAULT 58`, () => {});
+  db.run(`ALTER TABLE clips ADD COLUMN hook_italic INTEGER DEFAULT 0`, () => {});
+  db.run(`ALTER TABLE clips ADD COLUMN hook_underline INTEGER DEFAULT 0`, () => {});
+  db.run(`ALTER TABLE clips ADD COLUMN caption_italic INTEGER DEFAULT 0`, () => {});
+  db.run(`ALTER TABLE clips ADD COLUMN caption_underline INTEGER DEFAULT 0`, () => {});
+  db.run(`ALTER TABLE clips ADD COLUMN keyword_italic INTEGER DEFAULT 0`, () => {});
+  db.run(`ALTER TABLE clips ADD COLUMN keyword_underline INTEGER DEFAULT 0`, () => {});
+  db.run(`ALTER TABLE clips ADD COLUMN keyword_bg_color TEXT`, () => {}); // null = sin fondo
+  db.run(`ALTER TABLE clips ADD COLUMN keyword_bg_opacity INTEGER DEFAULT 100`, () => {});
+  // Transición de entrada/salida del clip. Valores: 'none', 'fade-in', 'fade-out', 'fade-cross',
+  // 'zoom-in' (entry), 'zoom-out' (exit), 'zoom-cross' (ambos). Default 'none'.
+  db.run(`ALTER TABLE clips ADD COLUMN transition TEXT DEFAULT 'none'`, () => {});
+  // Gancho visible en el video. 0 oculta el hook; texto sigue editable pero no se quema.
+  db.run(`ALTER TABLE clips ADD COLUMN hook_enabled INTEGER DEFAULT 1`, () => {});
+  // Colores del texto base (sin keywords). Default blanco para mantener compatibilidad.
+  db.run(`ALTER TABLE clips ADD COLUMN hook_color TEXT DEFAULT '#FFFFFF'`, () => {});
+  db.run(`ALTER TABLE clips ADD COLUMN caption_color TEXT DEFAULT '#FFFFFF'`, () => {});
+  // Color del outline (borde) del texto. Default negro. Cuando el texto es oscuro conviene cambiar a blanco.
+  db.run(`ALTER TABLE clips ADD COLUMN outline_color TEXT DEFAULT '#000000'`, () => {});
+  // Karaoke style: la palabra se "ilumina" mientras se dice. Atenúa las palabras aún no dichas.
+  db.run(`ALTER TABLE clips ADD COLUMN karaoke_enabled INTEGER DEFAULT 0`, () => {});
+  db.run(`ALTER TABLE clips ADD COLUMN karaoke_dim_opacity INTEGER DEFAULT 50`, () => {});
+
+  // Plantillas de estilo guardadas por el usuario. Cada plantilla = snapshot de ~25 params del editor.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS clip_templates (
+      id TEXT PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      params TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 
   // Clips individuales generados por un job. Cada clip tiene parámetros editables
   // (texto, fuentes, keywords, etc.) que se aplican al regenerar el MP4 al descargar.

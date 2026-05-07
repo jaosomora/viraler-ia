@@ -408,7 +408,7 @@ const AdminPanel = () => {
           <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700 opacity-60">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs uppercase tracking-wide text-amber-600 dark:text-amber-400 font-semibold">Anthropic</span>
-              <span className="text-[11px] text-gray-500">{process.env.ANTHROPIC_AVAILABLE ? '✓ activo' : 'no configurado'}</span>
+              <span className="text-[11px] text-gray-500">no configurado</span>
             </div>
             <div className="font-mono text-sm text-gray-900 dark:text-white">claude-sonnet-4</div>
             <div className="text-xs text-gray-500 mt-1">No conectado · pendiente activar</div>

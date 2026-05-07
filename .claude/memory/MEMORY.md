@@ -4,4 +4,5 @@
 - [Estilo directo](feedback_direct_style.md) — Ejecutar primero, explicar después, sin rodeos
 - [Simplicidad](feedback_simplicity.md) — Si no se usa, se elimina. No agregar features especulativas
 - [Estado AS Transcribe v2.1](project_viralai_state.md) — React+Express+SQLite, auth JWT, deploy en Render
+- [AS Clips - Pendientes](project_clips_pending.md) — Pendientes priorizados de AS Clips para futuras conversaciones
 - [Render deploy](reference_render_deploy.md) — Docker, /opt/data, env vars necesarias

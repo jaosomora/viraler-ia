@@ -135,6 +135,45 @@ export const ClipsProvider = ({ children }) => {
     URL.revokeObjectURL(a.href);
   }, []);
 
+  // Modelo Opus: descarga el base.mp4 (sin subs) para reproducir en el editor con overlay HTML.
+  const loadBaseVideoBlob = useCallback(async (clipId, resolution = '1080') => {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API_BASE}/clips/${clipId}/base-video?resolution=${resolution}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Error cargando video base');
+    }
+    return URL.createObjectURL(await res.blob());
+  }, []);
+
+  // Carga los chunks de subtítulos (timestamps relativos al clip) con overrides aplicados.
+  const loadCaptions = useCallback(async (clipId) => {
+    const res = await authFetch(`${API_BASE}/clips/${clipId}/captions`);
+    if (!res.ok) throw new Error('Error cargando captions');
+    return await res.json();
+  }, []);
+
+  // Exporta MP4 final con subs quemados (rápido: parte del base ya cropeado).
+  const exportClip = useCallback(async (clip, resolution = '1080') => {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API_BASE}/clips/${clip.id}/export?resolution=${resolution}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Error exportando');
+    }
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${(clip.title || 'clip').replace(/[^\w\d.-]/g, '_')}_${resolution}p.mp4`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }, []);
+
   const applyFontsToAll = useCallback(async (jobId, payload) => {
     const res = await authFetch(`${API_BASE}/clips/jobs/${jobId}/apply-fonts`, {
       method: 'POST',
@@ -144,6 +183,48 @@ export const ClipsProvider = ({ children }) => {
     if (!res.ok) throw new Error('Error aplicando fuentes');
     if (activeJobId === jobId) await loadJob(activeJobId);
   }, [activeJobId, loadJob]);
+
+  // Aplica un estilo completo (todos los params de una plantilla) a todos los clips del job.
+  const applyStyleToAll = useCallback(async (jobId, params) => {
+    const res = await authFetch(`${API_BASE}/clips/jobs/${jobId}/apply-style`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Error aplicando estilo a todos');
+    }
+    const data = await res.json();
+    if (activeJobId === jobId) await loadJob(activeJobId);
+    return data;
+  }, [activeJobId, loadJob]);
+
+  const [userTemplates, setUserTemplates] = useState([]);
+  const loadUserTemplates = useCallback(async () => {
+    try {
+      const res = await authFetch(`${API_BASE}/clips/templates`);
+      if (res.ok) setUserTemplates((await res.json()).templates || []);
+    } catch {}
+  }, []);
+  const saveUserTemplate = useCallback(async (name, params) => {
+    const res = await authFetch(`${API_BASE}/clips/templates`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, params }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Error guardando plantilla');
+    }
+    await loadUserTemplates();
+    return await res.json();
+  }, [loadUserTemplates]);
+  const deleteUserTemplate = useCallback(async (id) => {
+    const res = await authFetch(`${API_BASE}/clips/templates/${id}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('Error eliminando plantilla');
+    await loadUserTemplates();
+  }, [loadUserTemplates]);
 
   const redetectKeywords = useCallback(async (clipId) => {
     const res = await authFetch(`${API_BASE}/clips/${clipId}/redetect-keywords`, { method: 'POST' });
@@ -170,6 +251,9 @@ export const ClipsProvider = ({ children }) => {
       loadFonts, loadStages, loadJobs, loadJob,
       generate, updateClip, regenerateCaption, downloadClip, deleteJob,
       applyFontsToAll, redetectKeywords,
+      loadBaseVideoBlob, loadCaptions, exportClip,
+      applyStyleToAll,
+      userTemplates, loadUserTemplates, saveUserTemplate, deleteUserTemplate,
     }}>
       {children}
     </ClipsContext.Provider>
