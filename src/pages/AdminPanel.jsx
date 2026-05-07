@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getUsageStats, resetUsageStats, deleteHistoryEntry, getAdminTranscriptions, getAdminConversions, getAdminUsers, resetUserPassword, setUserAccess } from '../services/usageStats';
 import Spinner from '../components/Spinner';
 import SecretsAdmin from '../components/SecretsAdmin';
+import ClipsAdmin from '../components/ClipsAdmin';
 
 const AdminPanel = () => {
   const [usageData, setUsageData] = useState(null);
@@ -246,6 +247,7 @@ const AdminPanel = () => {
             { id: 'resumen', label: 'Resumen', icon: '📊' },
             { id: 'usuarios', label: 'Usuarios', icon: '👥', badge: users.length },
             { id: 'transcripciones', label: 'Transcripciones', icon: '📝', badge: transcriptions.length },
+            { id: 'clips', label: 'Clips', icon: '🎬' },
             { id: 'conversiones', label: 'Conversiones', icon: '📄', badge: conversions.length },
             { id: 'secretos', label: 'Secretos', icon: '🔐' },
           ].map((tab) => (
@@ -484,6 +486,9 @@ const AdminPanel = () => {
       </div>
       </>
       )}
+
+      {/* === TAB: CLIPS === */}
+      {activeTab === 'clips' && <ClipsAdmin />}
 
       {/* === TAB: CONVERSIONES === */}
       {activeTab === 'conversiones' && (

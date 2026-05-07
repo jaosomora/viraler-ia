@@ -75,6 +75,16 @@ const Header = () => {
     Transcribir
   </Link>
   <Link
+    to="/clips"
+    className={`font-medium transition ${
+      isActive('/clips')
+        ? 'text-purple-600 dark:text-purple-400'
+        : 'text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400'
+    }`}
+  >
+    Clips
+  </Link>
+  <Link
     to="/convertir"
     className={`font-medium transition ${
       isActive('/convertir')
@@ -209,6 +219,17 @@ const Header = () => {
               }`}
             >
               Transcribir
+            </Link>
+            <Link
+              to="/clips"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className={`block py-2 px-4 rounded ${
+                isActive('/clips')
+                  ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+              }`}
+            >
+              Clips
             </Link>
             <Link
               to="/convertir"

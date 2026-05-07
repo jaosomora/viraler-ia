@@ -6,6 +6,7 @@ import Footer from './components/Footer';
 import ToolHub from './pages/ToolHub';
 import Home from './pages/Home';
 import ConvertPage from './pages/ConvertPage';
+import ClipsPage from './pages/ClipsPage';
 import MyResults from './pages/MyResults';
 import AdminPanel from './pages/AdminPanel';
 import NotFound from './pages/NotFound';
@@ -71,6 +72,7 @@ function App() {
           <Route path="/" element={<ToolHub />} />
           <Route path="/transcribir" element={<Home />} />
           <Route path="/convertir" element={<ConvertPage />} />
+          <Route path="/clips" element={<ClipsPage />} />
           <Route path="/mis-resultados" element={<MyResults />} />
           <Route path="/secretos" element={<SecretsPage />} />
           <Route path="/secreto/:token" element={<ViewSecretPage />} />

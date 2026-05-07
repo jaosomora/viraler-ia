@@ -143,6 +143,61 @@ db.serialize(() => {
   db.run(`DROP TABLE IF EXISTS secret_items`);
   db.run(`DROP TABLE IF EXISTS secret_deliveries`);
 
+  // AS Clips — jobs de generación de clips verticales (9:16) con subs IG-style.
+  // Un job = una URL/upload procesado. Genera N clips con highlights detectados por LLM.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS clip_jobs (
+      id TEXT PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      source_url TEXT,
+      source_filename TEXT,
+      title TEXT,
+      duration_seconds INTEGER,
+      thumbnail TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      stage_index INTEGER DEFAULT 0,
+      error_message TEXT,
+      total_clips INTEGER DEFAULT 0,
+      whisper_cost_usd REAL DEFAULT 0,
+      llm_cost_usd REAL DEFAULT 0,
+      total_cost_usd REAL DEFAULT 0,
+      whisper_json_path TEXT,
+      source_video_path TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      finished_at TIMESTAMP
+    )
+  `);
+
+  // Clips individuales generados por un job. Cada clip tiene parámetros editables
+  // (texto, fuentes, keywords, etc.) que se aplican al regenerar el MP4 al descargar.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS clips (
+      id TEXT PRIMARY KEY,
+      job_id TEXT NOT NULL REFERENCES clip_jobs(id) ON DELETE CASCADE,
+      clip_index INTEGER NOT NULL,
+      title TEXT,
+      hook TEXT,
+      caption TEXT,
+      keywords TEXT,
+      post_caption TEXT,
+      post_caption_tone TEXT DEFAULT 'pregunta',
+      start_seconds REAL NOT NULL,
+      end_seconds REAL NOT NULL,
+      virality_score INTEGER,
+      reasoning TEXT,
+      font_hook TEXT DEFAULT 'Anton',
+      font_caption TEXT DEFAULT 'Inter SemiBold',
+      font_keyword TEXT DEFAULT 'Montserrat Bold',
+      keyword_color TEXT DEFAULT '#FDE047',
+      camera_motion TEXT DEFAULT 'zoom-in',
+      sub_position INTEGER DEFAULT 68,
+      output_path TEXT,
+      output_resolution TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   // Magic link tokens — login sin contraseña por email (15 min, un solo uso).
   // Se guarda el hash SHA-256 del token, nunca el token en claro.
   db.run(`

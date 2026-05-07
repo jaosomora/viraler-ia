@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { TranscriptionProvider } from './context/TranscriptionContext'
 import { ConversionProvider } from './context/ConversionContext'
+import { ClipsProvider } from './context/ClipsContext'
 import App from './App.jsx'
 import './index.css'
 
@@ -12,9 +13,11 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <AuthProvider>
       <TranscriptionProvider>
         <ConversionProvider>
-          <BrowserRouter>
-            <App />
-          </BrowserRouter>
+          <ClipsProvider>
+            <BrowserRouter>
+              <App />
+            </BrowserRouter>
+          </ClipsProvider>
         </ConversionProvider>
       </TranscriptionProvider>
     </AuthProvider>

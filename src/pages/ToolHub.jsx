@@ -15,6 +15,18 @@ const tools = [
     bgHover: 'hover:border-purple-300 dark:hover:border-purple-700',
   },
   {
+    name: 'AS Clips',
+    description: 'Convierte videos largos en clips verticales para Instagram Reels y TikTok. Hooks elegidos por IA, subtítulos estilo IG, post copy sugerido.',
+    path: '/clips',
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+      </svg>
+    ),
+    color: 'from-pink-500 to-orange-500',
+    bgHover: 'hover:border-pink-300 dark:hover:border-pink-700',
+  },
+  {
     name: 'Convertir Documento',
     description: 'Convierte documentos PDF, DOCX, PPTX, XLSX y EPUB a Markdown o HTML listo para usar.',
     path: '/convertir',
