@@ -3,6 +3,7 @@
 - [Claude config en git](feedback_claude_config_in_git.md) — Todo versionado para portabilidad entre máquinas
 - [Estilo directo](feedback_direct_style.md) — Ejecutar primero, explicar después, sin rodeos
 - [Simplicidad](feedback_simplicity.md) — Si no se usa, se elimina. No agregar features especulativas
+- [Estética AS Clips](feedback_clips_aesthetic.md) — Editorial elegante, NO Opus Clip neón. Filtro para templates/colores/fuentes
 - [Estado AS Transcribe v2.1](project_viralai_state.md) — React+Express+SQLite, auth JWT, deploy en Render
-- [AS Clips - Pendientes](project_clips_pending.md) — Pendientes priorizados de AS Clips para futuras conversaciones
+- [AS Clips - Estado y pendientes](project_clips_pending.md) — Lo que ya está hecho (no proponer de nuevo) + pendientes priorizados
 - [Render deploy](reference_render_deploy.md) — Docker, /opt/data, env vars necesarias
