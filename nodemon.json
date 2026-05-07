@@ -1,0 +1,12 @@
+{
+  "watch": ["server.js", "api/"],
+  "ext": "js,mjs,cjs,json",
+  "ignore": [
+    "data/",
+    "data/**",
+    "dist/",
+    "node_modules/",
+    "src/",
+    "/opt/data/**"
+  ]
+}
