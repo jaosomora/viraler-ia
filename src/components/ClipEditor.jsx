@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useClips } from '../context/ClipsContext';
 import VideoPreview from './VideoPreview';
+import TrimSlider from './TrimSlider';
 
 const KEYWORD_COLORS = [
   // Sutiles / brand-friendly
@@ -82,6 +83,9 @@ const ClipEditor = ({ clip, onClose }) => {
       camera_motion: clip.camera_motion || 'zoom-in',
       sub_position: clip.sub_position ?? 68,
       aspect_ratio: clip.aspect_ratio || '9:16',
+      outline_enabled: clip.outline_enabled === undefined ? 1 : clip.outline_enabled,
+      outline_thickness: clip.outline_thickness ?? 5,
+      shadow_opacity: clip.shadow_opacity ?? 50,
     };
     setDraft(initial);
     setOriginal(initial);
@@ -202,6 +206,23 @@ const ClipEditor = ({ clip, onClose }) => {
   // Mapeo sub_position 40..90 → bottom percentage en preview (alineado con backend)
   const subPositionPercent = ((Math.max(40, Math.min(90, draft.sub_position)) - 40) / 50) * 47 + 10;
 
+  // Construye text-shadow CSS combinando outline (multiple shadows tipo stroke) + sombra (un solo shadow grande)
+  const textShadowCSS = (() => {
+    const parts = [];
+    if (draft.outline_enabled && draft.outline_thickness > 0) {
+      const t = Math.round(draft.outline_thickness * 0.7); // pixel offset adaptado al preview
+      for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+        if (dx === 0 && dy === 0) continue;
+        parts.push(`${dx * t}px ${dy * t}px 0 #000`);
+      }
+    }
+    if (draft.shadow_opacity > 0) {
+      const a = (draft.shadow_opacity / 100).toFixed(2);
+      parts.push(`0 2px 6px rgba(0,0,0,${a})`);
+    }
+    return parts.join(', ') || 'none';
+  })();
+
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur z-50 flex items-center justify-center p-4">
       <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 w-full max-w-6xl max-h-[92vh] overflow-hidden flex flex-col">
@@ -232,10 +253,10 @@ const ClipEditor = ({ clip, onClose }) => {
                 overlay={
                   <div className="absolute left-[8%] right-[8%] text-center text-white pointer-events-none z-10 transition-all duration-150"
                        style={{ bottom: `${subPositionPercent}%` }}>
-                    <div className="font-black uppercase mb-2" style={{ fontFamily: hookFont, fontSize: '1.4rem', lineHeight: 0.95, textShadow: '0 2px 6px rgba(0,0,0,.85)' }}>
+                    <div className="font-black uppercase mb-2" style={{ fontFamily: hookFont, fontSize: '1.4rem', lineHeight: 0.95, textShadow: textShadowCSS }}>
                       {draft.hook}
                     </div>
-                    <div className="text-xs font-semibold" style={{ fontFamily: captionFont, textShadow: '0 2px 4px rgba(0,0,0,.85)' }}>
+                    <div className="text-xs font-semibold" style={{ fontFamily: captionFont, textShadow: textShadowCSS }}>
                       {draft.caption.split(/(\s+)/).map((token, i) => {
                         const trimmed = token.replace(/[.,!?]/g, '').toLowerCase();
                         const isKw = draft.keywords.some(k => k && k.toLowerCase() === trimmed);
@@ -252,28 +273,13 @@ const ClipEditor = ({ clip, onClose }) => {
               Click en el preview para reproducir · Líneas amarillas: zona segura de Instagram
             </p>
 
-            {/* Trim */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
-                <span className="font-semibold uppercase tracking-wide">Recortar</span>
-                <span className="font-mono">{fmtTime(dur)}</span>
-              </div>
-              <div>
-                <label className="text-[11px] text-gray-500 mb-1 block">Inicio · {fmtTime(draft.start_seconds)}</label>
-                <input type="range" min={trimMin} max={Math.max(trimMin + 1, draft.end_seconds - 5)} step={0.1}
-                  value={draft.start_seconds}
-                  onChange={(e) => update({ start_seconds: parseFloat(e.target.value) })}
-                  className="w-full accent-purple-500" />
-              </div>
-              <div>
-                <label className="text-[11px] text-gray-500 mb-1 block">Fin · {fmtTime(draft.end_seconds)}</label>
-                <input type="range" min={Math.min(trimMax - 1, draft.start_seconds + 5)} max={trimMax} step={0.1}
-                  value={draft.end_seconds}
-                  onChange={(e) => update({ end_seconds: parseFloat(e.target.value) })}
-                  className="w-full accent-purple-500" />
-              </div>
-              <p className="text-[10px] text-gray-500">Rango: {fmtTime(trimMin)} – {fmtTime(trimMax)}</p>
-            </div>
+            <TrimSlider
+              min={trimMin}
+              max={trimMax}
+              start={draft.start_seconds}
+              end={draft.end_seconds}
+              onChange={({ start, end }) => update({ start_seconds: start, end_seconds: end })}
+            />
           </div>
 
           <div className="lg:col-span-7 overflow-y-auto">
@@ -431,6 +437,33 @@ const ClipEditor = ({ clip, onClose }) => {
                         <span className="text-[11px] text-gray-500">para tu marca</span>
                       </div>
                     </div>
+                  </div>
+                </div>
+              </section>
+
+              <section>
+                <h4 className="text-xs uppercase tracking-wide text-gray-500 mb-3 font-semibold">Borde y sombra del texto</h4>
+                <div className="space-y-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-800 rounded-lg p-3">
+                  <label className="flex items-center justify-between cursor-pointer">
+                    <span className="text-sm text-gray-900 dark:text-white">Borde negro alrededor del texto</span>
+                    <input type="checkbox" checked={!!draft.outline_enabled}
+                      onChange={e => update({ outline_enabled: e.target.checked ? 1 : 0 })}
+                      className="accent-purple-500 w-4 h-4" />
+                  </label>
+                  {draft.outline_enabled ? (
+                    <div>
+                      <label className="text-[11px] text-gray-500 mb-1 block">Grosor del borde · {draft.outline_thickness}</label>
+                      <input type="range" min="1" max="10" value={draft.outline_thickness}
+                        onChange={e => update({ outline_thickness: +e.target.value })}
+                        className="w-full accent-purple-500" />
+                    </div>
+                  ) : null}
+                  <div>
+                    <label className="text-[11px] text-gray-500 mb-1 block">Opacidad de la sombra · {draft.shadow_opacity}%</label>
+                    <input type="range" min="0" max="100" value={draft.shadow_opacity}
+                      onChange={e => update({ shadow_opacity: +e.target.value })}
+                      className="w-full accent-purple-500" />
+                    <p className="text-[10px] text-gray-500 mt-1">0% = sin sombra · 100% = sombra negra fuerte</p>
                   </div>
                 </div>
               </section>

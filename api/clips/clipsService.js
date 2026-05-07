@@ -262,7 +262,8 @@ export async function updateClip(clipId, userId, updates) {
 
   const allowed = ['title', 'hook', 'caption', 'post_caption', 'post_caption_tone',
     'start_seconds', 'end_seconds', 'font_hook', 'font_caption', 'font_keyword',
-    'keyword_color', 'camera_motion', 'sub_position'];
+    'keyword_color', 'camera_motion', 'sub_position', 'aspect_ratio',
+    'outline_enabled', 'outline_thickness', 'shadow_opacity'];
   const sets = [];
   const params = [];
   for (const k of allowed) {

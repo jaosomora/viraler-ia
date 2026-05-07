@@ -75,13 +75,19 @@ export function buildAssForClip(clip, whisperJson) {
   const marginVHook = Math.max(80, marginV + 220);
 
   // Hook: tamaño adaptativo según longitud (más largo = más pequeño para que quepa con wrap)
-  // Anton es muy ancho. Calibramos: ~28 chars cabe a 80pt en 1080px con wrap 2 líneas.
   const hookText = (hook || '').toUpperCase();
   let hookSize;
   if (hookText.length <= 22) hookSize = 90;
   else if (hookText.length <= 32) hookSize = 78;
   else if (hookText.length <= 44) hookSize = 66;
   else hookSize = 58;
+
+  // Outline + sombra configurables. outline_thickness 0..10. shadow_opacity 0..100 (alpha invertida).
+  const outlineThickness = clip.outline_enabled === 0 ? 0 : Math.max(0, Math.min(10, clip.outline_thickness ?? 5));
+  const shadowOpacity = Math.max(0, Math.min(100, clip.shadow_opacity ?? 50));
+  // ASS alpha: 00 = opaco, FF = transparente. Convertimos: alpha = 255 - (opacity/100 * 255)
+  const shadowAlphaHex = Math.round(255 - (shadowOpacity / 100) * 255).toString(16).padStart(2, '0').toUpperCase();
+  const shadowDepth = shadowOpacity > 0 ? 2 : 0;
 
   // Word chunks del caption con timestamps relativos al clip
   const words = (whisperJson.words || []).filter(
@@ -147,8 +153,8 @@ PlayResY: 1920
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Hook,${fontHook.name},${hookSize},&H00FFFFFF,&H000000FF,&H00000000,&H80000000,${fontHook.bold},0,0,0,100,100,0,0,1,5,2,2,120,120,${marginVHook},1
-Style: Caption,${fontCap.name},58,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,${fontCap.bold},0,0,0,100,100,0,0,1,4,2,2,100,100,${marginV},1
+Style: Hook,${fontHook.name},${hookSize},&H00FFFFFF,&H000000FF,&H00000000,&H${shadowAlphaHex}000000,${fontHook.bold},0,0,0,100,100,0,0,1,${outlineThickness},${shadowDepth},2,120,120,${marginVHook},1
+Style: Caption,${fontCap.name},58,&H00FFFFFF,&H000000FF,&H00000000,&H${shadowAlphaHex}000000,${fontCap.bold},0,0,0,100,100,0,0,1,${Math.max(0, outlineThickness - 1)},${shadowDepth},2,100,100,${marginV},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text

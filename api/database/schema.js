@@ -182,6 +182,10 @@ db.serialize(() => {
   db.run(`ALTER TABLE clips ADD COLUMN aspect_ratio TEXT DEFAULT '9:16'`, () => {});
   // Cache de las 3 versiones del post_caption por tono (JSON: {pregunta, storytelling, insight})
   db.run(`ALTER TABLE clips ADD COLUMN post_captions_cache TEXT`, () => {});
+  // Estilo de borde y sombra de subtítulos
+  db.run(`ALTER TABLE clips ADD COLUMN outline_enabled INTEGER DEFAULT 1`, () => {});
+  db.run(`ALTER TABLE clips ADD COLUMN outline_thickness INTEGER DEFAULT 5`, () => {});
+  db.run(`ALTER TABLE clips ADD COLUMN shadow_opacity INTEGER DEFAULT 50`, () => {});
 
   // Clips individuales generados por un job. Cada clip tiene parámetros editables
   // (texto, fuentes, keywords, etc.) que se aplican al regenerar el MP4 al descargar.

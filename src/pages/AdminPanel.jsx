@@ -366,86 +366,124 @@ const AdminPanel = () => {
         </div>
       </div>
 
-      {/* Estadísticas adicionales */}
+      {/* Modelos de IA en uso — todos los que cuestan dinero */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Estadísticas de Transcripción</h2>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Modelos de IA en uso</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Todos los servicios externos que generan costo en la app</p>
         </div>
-        <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Promedio por transcripción</h3>
-            <div className="bg-gray-50 dark:bg-gray-750 dark:bg-gray-900/50 p-4 rounded-lg border dark:border-gray-700">
-              <div className="flex justify-between mb-2">
-                <span className="text-gray-600 dark:text-gray-300">Costo</span>
-                <span className="font-medium text-gray-900 dark:text-white">{formatPrice(usageData.averageCostPerTranscription)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600 dark:text-gray-300">Duración</span>
-                <span className="font-medium text-gray-900 dark:text-white">{formatNumber(usageData.averageAudioMinutesPerTranscription)} min</span>
-              </div>
+        <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs uppercase tracking-wide text-purple-600 dark:text-purple-400 font-semibold">Transcribir</span>
+              <span className="text-[11px] text-gray-500">OpenAI</span>
             </div>
+            <div className="font-mono text-sm text-gray-900 dark:text-white">gpt-4o-mini-transcribe</div>
+            <div className="text-xs text-gray-500 mt-1">$0.003 / minuto · audio → texto</div>
           </div>
-          <div>
-            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Modelo de Transcripción</h3>
-            <div className="bg-gray-50 dark:bg-gray-750 dark:bg-gray-900/50 p-4 rounded-lg border dark:border-gray-700">
-              <div className="flex justify-between mb-2">
-                <span className="text-gray-600 dark:text-gray-300">Modelo</span>
-                <span className="font-medium text-gray-900 dark:text-white">gpt-4o-mini-transcribe</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600 dark:text-gray-300">Costo por minuto</span>
-                <span className="font-medium text-gray-900 dark:text-white">$0.003</span>
-              </div>
+          <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs uppercase tracking-wide text-pink-600 dark:text-pink-400 font-semibold">Clips · transcripción</span>
+              <span className="text-[11px] text-gray-500">OpenAI</span>
             </div>
+            <div className="font-mono text-sm text-gray-900 dark:text-white">whisper-1</div>
+            <div className="text-xs text-gray-500 mt-1">$0.006 / minuto · word-timestamps</div>
+          </div>
+          <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs uppercase tracking-wide text-pink-600 dark:text-pink-400 font-semibold">Clips · highlights</span>
+              <span className="text-[11px] text-gray-500">OpenAI</span>
+            </div>
+            <div className="font-mono text-sm text-gray-900 dark:text-white">gpt-4o</div>
+            <div className="text-xs text-gray-500 mt-1">$2.50/M input · $10/M output</div>
+          </div>
+          <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs uppercase tracking-wide text-pink-600 dark:text-pink-400 font-semibold">Clips · keywords</span>
+              <span className="text-[11px] text-gray-500">OpenAI</span>
+            </div>
+            <div className="font-mono text-sm text-gray-900 dark:text-white">gpt-4o-mini</div>
+            <div className="text-xs text-gray-500 mt-1">$0.15/M input · $0.60/M output</div>
+          </div>
+          <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700 opacity-60">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs uppercase tracking-wide text-amber-600 dark:text-amber-400 font-semibold">Anthropic</span>
+              <span className="text-[11px] text-gray-500">{process.env.ANTHROPIC_AVAILABLE ? '✓ activo' : 'no configurado'}</span>
+            </div>
+            <div className="font-mono text-sm text-gray-900 dark:text-white">claude-sonnet-4</div>
+            <div className="text-xs text-gray-500 mt-1">No conectado · pendiente activar</div>
+          </div>
+          <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs uppercase tracking-wide text-emerald-600 dark:text-emerald-400 font-semibold">Convertir</span>
+              <span className="text-[11px] text-gray-500">local</span>
+            </div>
+            <div className="font-mono text-sm text-gray-900 dark:text-white">markitdown</div>
+            <div className="text-xs text-gray-500 mt-1">$0 · sin LLM, conversión nativa</div>
           </div>
         </div>
       </div>
 
-      {/* Historial de uso */}
+      {/* Historial de uso unificado: transcripciones + clips por fecha */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Historial de uso reciente</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Actividad agregada por día — todas las herramientas</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-750 dark:bg-gray-900/50">
+            <thead className="bg-gray-50 dark:bg-gray-900/50">
               <tr>
                 <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Fecha</th>
-                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Transcripciones</th>
-                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Minutos</th>
-                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Costo</th>
-                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Conversiones</th>
-                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Accion</th>
+                <th className="py-3 px-6 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Transcripciones</th>
+                <th className="py-3 px-6 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Clips · jobs</th>
+                <th className="py-3 px-6 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Min. procesados</th>
+                <th className="py-3 px-6 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Costo total</th>
+                <th className="py-3 px-6"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {usageData.recentHistory && usageData.recentHistory.map((entry, index) => (
-                <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-750 dark:hover:bg-gray-900/30">
-                  <td className="py-3 px-6 text-sm font-medium text-gray-900 dark:text-white">{entry.date}</td>
-                  <td className="py-3 px-6 text-sm text-gray-500 dark:text-gray-300">{entry.transcriptions}</td>
-                  <td className="py-3 px-6 text-sm text-gray-500 dark:text-gray-300">{formatNumber(entry.audioMinutes)}</td>
-                  <td className="py-3 px-6 text-sm text-gray-500 dark:text-gray-300">{formatPrice(entry.cost)}</td>
-                  <td className="py-3 px-6 text-sm text-gray-500 dark:text-gray-300">{entry.conversions || 0}</td>
-                  <td className="py-3 px-6 text-sm">
-                    <button
-                      onClick={() => handleDeleteClick(entry.date)}
-                      className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 flex items-center"
-                    >
-                      <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                      Eliminar
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {(!usageData.recentHistory || usageData.recentHistory.length === 0) && (
-                <tr>
-                  <td colSpan="6" className="py-4 px-6 text-sm text-center text-gray-500 dark:text-gray-400">
-                    No hay datos históricos disponibles
-                  </td>
-                </tr>
-              )}
+              {(() => {
+                const byDate = {};
+                (usageData.recentHistory || []).forEach(e => {
+                  byDate[e.date] = byDate[e.date] || { date: e.date, txns: 0, txnMin: 0, txnCost: 0, clipJobs: 0, clipMin: 0, clipCost: 0 };
+                  byDate[e.date].txns += e.transcriptions || 0;
+                  byDate[e.date].txnMin += e.audioMinutes || 0;
+                  byDate[e.date].txnCost += e.cost || 0;
+                });
+                (clipJobs || []).forEach(j => {
+                  if (!j.created_at) return;
+                  const date = j.created_at.slice(0, 10);
+                  byDate[date] = byDate[date] || { date, txns: 0, txnMin: 0, txnCost: 0, clipJobs: 0, clipMin: 0, clipCost: 0 };
+                  byDate[date].clipJobs += 1;
+                  byDate[date].clipMin += (j.duration_seconds || 0) / 60;
+                  byDate[date].clipCost += j.total_cost_usd || 0;
+                });
+                const rows = Object.values(byDate).sort((a, b) => b.date.localeCompare(a.date));
+                if (rows.length === 0) {
+                  return (
+                    <tr><td colSpan="6" className="py-8 px-6 text-sm text-center text-gray-500 dark:text-gray-400">Sin actividad aún</td></tr>
+                  );
+                }
+                return rows.map((r) => (
+                  <tr key={r.date} className="hover:bg-gray-50 dark:hover:bg-gray-900/30">
+                    <td className="py-3 px-6 text-sm font-medium text-gray-900 dark:text-white">{r.date}</td>
+                    <td className="py-3 px-6 text-sm text-right tabular-nums text-gray-700 dark:text-gray-300">{r.txns}</td>
+                    <td className="py-3 px-6 text-sm text-right tabular-nums text-gray-700 dark:text-gray-300">{r.clipJobs}</td>
+                    <td className="py-3 px-6 text-sm text-right tabular-nums text-gray-700 dark:text-gray-300">{formatNumber(r.txnMin + r.clipMin)}</td>
+                    <td className="py-3 px-6 text-sm text-right tabular-nums font-semibold text-purple-600 dark:text-purple-400">{formatPrice(r.txnCost + r.clipCost)}</td>
+                    <td className="py-3 px-6 text-right">
+                      {r.txns > 0 && (
+                        <button onClick={() => handleDeleteClick(r.date)}
+                          className="text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-1 rounded"
+                          title="Eliminar registro de transcripciones de este día">
+                          ✕
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ));
+              })()}
             </tbody>
           </table>
         </div>
