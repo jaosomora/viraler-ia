@@ -148,7 +148,7 @@ const TranscriptionResults = () => {
               <button
                 onClick={handleDownloadVideo}
                 disabled={downloading}
-                title="Descargar video original (máx 30 min)"
+                title="Descargar video original (máx 1 h)"
                 className="flex items-center gap-1 py-1 px-3 text-sm bg-purple-100 hover:bg-purple-200 dark:bg-purple-900/40 dark:hover:bg-purple-800/50 text-purple-700 dark:text-purple-300 rounded-full transition disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {downloading ? (

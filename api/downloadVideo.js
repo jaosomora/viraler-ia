@@ -10,7 +10,7 @@ import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const MAX_DURATION_SECONDS = 30 * 60; // 30 minutos
+const MAX_DURATION_SECONDS = 60 * 60; // 60 minutos
 
 const getCookieArgs = () => {
   if (process.env.INSTAGRAM_COOKIES_FILE && fs.existsSync(process.env.INSTAGRAM_COOKIES_FILE)) {
@@ -84,7 +84,7 @@ export default async function downloadVideo(req, res) {
     if (duration > MAX_DURATION_SECONDS) {
       const mins = Math.ceil(duration / 60);
       return res.status(400).json({
-        error: `El video dura ${mins} min. Máximo permitido: 30 min.`
+        error: `El video dura ${mins} min. Máximo permitido: 60 min.`
       });
     }
 

@@ -18,6 +18,20 @@ import {
   revealSecret,
   deleteSecret
 } from './api/secrets.js';
+import {
+  generateHandler as clipsGenerate,
+  getJobHandler as clipsGetJob,
+  listJobsHandler as clipsListJobs,
+  updateClipHandler as clipsUpdateClip,
+  downloadClipHandler as clipsDownload,
+  regenerateCaptionHandler as clipsRegenCaption,
+  deleteJobHandler as clipsDeleteJob,
+  adminListJobsHandler as clipsAdminList,
+  fontsHandler as clipsFonts,
+  stagesHandler as clipsStages,
+  applyFontsToAllHandler as clipsApplyFontsAll,
+  redetectKeywordsHandler as clipsRedetectKeywords,
+} from './api/clips/routes.js';
 import { authMiddleware, ownerOnly, registerUser, loginUser, listUsers, adminResetPassword, generateTempPassword, requestMagicLink, verifyMagicLink, setUserAccessExpiry } from './api/auth.js';
 import {
   generateUsageReport,
@@ -154,6 +168,29 @@ const documentUpload = multer({
   },
 });
 app.post('/api/convert', authMiddleware, documentUpload.single('document'), convertDocument);
+
+// --- AS Clips ---
+const clipsUpload = multer({
+  dest: os.tmpdir(),
+  limits: { fileSize: 1024 * 1024 * 1024 }, // 1GB
+  fileFilter: (req, file, cb) => {
+    const allowed = /\.(mp4|mov|avi|mkv|webm|m4v)$/i;
+    if (allowed.test(file.originalname)) cb(null, true);
+    else cb(new Error('Formato no soportado para clips. Usa MP4, MOV, MKV, WEBM.'));
+  },
+});
+app.get('/api/clips/fonts', authMiddleware, clipsFonts);
+app.get('/api/clips/stages', authMiddleware, clipsStages);
+app.post('/api/clips/generate', authMiddleware, clipsUpload.single('video'), clipsGenerate);
+app.get('/api/clips/jobs', authMiddleware, clipsListJobs);
+app.get('/api/clips/jobs/:id', authMiddleware, clipsGetJob);
+app.delete('/api/clips/jobs/:id', authMiddleware, clipsDeleteJob);
+app.patch('/api/clips/:id', authMiddleware, clipsUpdateClip);
+app.get('/api/clips/:id/download', authMiddleware, clipsDownload);
+app.post('/api/clips/:id/regenerate-caption', authMiddleware, clipsRegenCaption);
+app.post('/api/clips/:id/redetect-keywords', authMiddleware, clipsRedetectKeywords);
+app.post('/api/clips/jobs/:id/apply-fonts', authMiddleware, clipsApplyFontsAll);
+app.get('/api/admin/clips', authMiddleware, ownerOnly, clipsAdminList);
 
 // Transcripciones del usuario
 app.get('/api/transcriptions', authMiddleware, async (req, res) => {
