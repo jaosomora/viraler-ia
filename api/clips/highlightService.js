@@ -42,15 +42,34 @@ Devuelve JSON estricto:
   "clips": [{"title", "hook", "caption", "keywords": [string], "post_caption", "start_seconds": number, "end_seconds": number, "score": number, "reasoning"}]
 }`;
 
-export async function generateHighlights(whisperJson) {
+async function fetchWithTimeout(url, options, timeoutMs = 90_000) {
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (e) {
+    if (e.name === 'AbortError') throw new Error(`OpenAI timeout (>${Math.round(timeoutMs/1000)}s)`);
+    throw e;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+export async function generateHighlights(whisperJson, opts = {}) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error('OPENAI_API_KEY no configurada');
+
+  const clipCount = opts.clipCount; // null/undefined = auto
 
   const transcript = whisperJson.segments
     .map(s => `[${s.start.toFixed(1)}-${s.end.toFixed(1)}] ${s.text.trim()}`)
     .join('\n');
 
-  const res = await fetch(OPENAI_CHAT_URL, {
+  const userPrompt = clipCount
+    ? `Genera EXACTAMENTE ${clipCount} clips. Transcript del video:\n\n${transcript}`
+    : `Transcript del video:\n\n${transcript}`;
+
+  const res = await fetchWithTimeout(OPENAI_CHAT_URL, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -60,7 +79,7 @@ export async function generateHighlights(whisperJson) {
       model: MODEL,
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: `Transcript del video:\n\n${transcript}` },
+        { role: 'user', content: userPrompt },
       ],
       response_format: { type: 'json_object' },
       temperature: 0.4,
@@ -69,7 +88,7 @@ export async function generateHighlights(whisperJson) {
 
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(`LLM error ${res.status}: ${err}`);
+    throw new Error(`LLM error ${res.status}: ${err.slice(0, 300)}`);
   }
 
   const json = await res.json();
@@ -128,7 +147,7 @@ Contexto del clip:
 
 Devuelve JSON: {"post_caption": string}`;
 
-  const res = await fetch(OPENAI_CHAT_URL, {
+  const res = await fetchWithTimeout(OPENAI_CHAT_URL, {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -137,7 +156,7 @@ Devuelve JSON: {"post_caption": string}`;
       response_format: { type: 'json_object' },
       temperature: 0.7,
     }),
-  });
+  }, 60_000);
 
   if (!res.ok) throw new Error(`LLM error ${res.status}`);
   const json = await res.json();

@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { authFetch } from './AuthContext';
 
-const API_BASE = import.meta.env.MODE === 'development' ? 'http://localhost:3000/api' : '/api';
+// Usamos URL relativa siempre para que Vite proxie /api desde cualquier IP (LAN, móvil, etc.)
+const API_BASE = '/api';
 
 const ClipsContext = createContext();
 export const useClips = () => useContext(ClipsContext);
@@ -61,7 +62,7 @@ export const ClipsProvider = ({ children }) => {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [activeJobId, loadJob, loadJobs]);
 
-  const generate = useCallback(async ({ url, file }) => {
+  const generate = useCallback(async ({ url, file, options = {} }) => {
     setError(null);
     setIsGenerating(true);
     try {
@@ -69,12 +70,13 @@ export const ClipsProvider = ({ children }) => {
       if (file) {
         const fd = new FormData();
         fd.append('video', file);
+        fd.append('options', JSON.stringify(options));
         res = await authFetch(`${API_BASE}/clips/generate`, { method: 'POST', body: fd });
       } else {
         res = await authFetch(`${API_BASE}/clips/generate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url }),
+          body: JSON.stringify({ url, options }),
         });
       }
       const data = await res.json();
@@ -133,6 +135,27 @@ export const ClipsProvider = ({ children }) => {
     URL.revokeObjectURL(a.href);
   }, []);
 
+  const applyFontsToAll = useCallback(async (jobId, payload) => {
+    const res = await authFetch(`${API_BASE}/clips/jobs/${jobId}/apply-fonts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error('Error aplicando fuentes');
+    if (activeJobId === jobId) await loadJob(activeJobId);
+  }, [activeJobId, loadJob]);
+
+  const redetectKeywords = useCallback(async (clipId) => {
+    const res = await authFetch(`${API_BASE}/clips/${clipId}/redetect-keywords`, { method: 'POST' });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'Error detectando keywords');
+    }
+    const data = await res.json();
+    if (activeJobId) await loadJob(activeJobId);
+    return data;
+  }, [activeJobId, loadJob]);
+
   const deleteJob = useCallback(async (jobId) => {
     const res = await authFetch(`${API_BASE}/clips/jobs/${jobId}`, { method: 'DELETE' });
     if (!res.ok) throw new Error('Error eliminando');
@@ -146,6 +169,7 @@ export const ClipsProvider = ({ children }) => {
       jobs, fontCatalog, stages, error, isGenerating,
       loadFonts, loadStages, loadJobs, loadJob,
       generate, updateClip, regenerateCaption, downloadClip, deleteJob,
+      applyFontsToAll, redetectKeywords,
     }}>
       {children}
     </ClipsContext.Provider>

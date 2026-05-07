@@ -17,10 +17,17 @@ const ensureFonts = () => {
 };
 
 const ClipsPage = () => {
-  const { jobs, activeJob, activeJobId, setActiveJobId, loadJobs } = useClips();
+  const { jobs, activeJob, activeJobId, setActiveJobId, loadJobs, downloadClip } = useClips();
   const [editingClip, setEditingClip] = useState(null);
 
   useEffect(() => { ensureFonts(); loadJobs(); }, [loadJobs]);
+
+  const downloadAll = async (clips) => {
+    for (const c of clips) {
+      try { await downloadClip(c, c.output_resolution || '1080'); }
+      catch (e) { console.error('download failed', c.id, e); }
+    }
+  };
 
   const inProgress = jobs.filter(j => j.status !== 'done' && j.status !== 'error');
   const finished = jobs.filter(j => j.status === 'done');
@@ -49,7 +56,7 @@ const ClipsPage = () => {
 
         {displayedJob && displayedJob.status === 'done' && displayedJob.clips?.length > 0 && (
           <section>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
               <div>
                 <h3 className="font-bold text-lg text-gray-900 dark:text-white">
                   {displayedJob.total_clips} clip{displayedJob.total_clips === 1 ? '' : 's'} de "{displayedJob.title}"
@@ -58,6 +65,10 @@ const ClipsPage = () => {
                   Costo: ${displayedJob.total_cost_usd.toFixed(4)} · {Math.round(displayedJob.duration_seconds / 60)}min de fuente
                 </p>
               </div>
+              <button onClick={() => downloadAll(displayedJob.clips)}
+                className="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg text-sm font-medium">
+                Descargar todos
+              </button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {displayedJob.clips.map(c => (

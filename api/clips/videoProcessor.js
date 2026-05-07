@@ -66,12 +66,29 @@ export function extractAudioFromVideo(videoPath, audioPath) {
   });
 }
 
+// Resoluciones definidas en formato 9:16. Para 1:1 y 4:5 escalamos proporcionalmente.
 const RESOLUTION_MAP = {
-  '720': { w: 720, h: 1280, fontScale: 0.67 },
-  '1080': { w: 1080, h: 1920, fontScale: 1 },
-  '2k': { w: 1440, h: 2560, fontScale: 1.33 },
-  '4k': { w: 2160, h: 3840, fontScale: 2 },
+  '720': { base: 720 },
+  '1080': { base: 1080 },
+  '2k': { base: 1440 },
+  '4k': { base: 2160 },
 };
+
+// Aspect ratios soportados (width:height). El height se calcula desde base*ratio.
+const ASPECT_RATIOS = {
+  '9:16': { wRatio: 9, hRatio: 16 },
+  '1:1': { wRatio: 1, hRatio: 1 },
+  '4:5': { wRatio: 4, hRatio: 5 },
+};
+
+function getOutputDimensions(resolution, aspectRatio) {
+  const r = RESOLUTION_MAP[resolution] || RESOLUTION_MAP['1080'];
+  const a = ASPECT_RATIOS[aspectRatio] || ASPECT_RATIOS['9:16'];
+  // base = ancho. Calcular height manteniendo proporción.
+  const w = r.base;
+  const h = Math.round((w * a.hRatio) / a.wRatio);
+  return { w, h: h % 2 === 0 ? h : h + 1 }; // h2v requiere par
+}
 
 /**
  * Renderiza un clip individual.
@@ -85,25 +102,35 @@ const RESOLUTION_MAP = {
 export function renderClip({ sourceVideo, clip, assPath, outputPath, resolution = '1080' }) {
   return new Promise((resolve, reject) => {
     const ffmpeg = process.env.FFMPEG_PATH || 'ffmpeg';
-    const r = RESOLUTION_MAP[resolution] || RESOLUTION_MAP['1080'];
+    const aspect = clip.aspect_ratio || '9:16';
+    const { w, h } = getOutputDimensions(resolution, aspect);
     const dur = clip.end_seconds - clip.start_seconds;
+
+    // Crop expression según aspect ratio: tomamos del centro la proporción correcta.
+    // Para 9:16 vertical desde 16:9 fuente: crop=ih*9/16:ih (recorta laterales).
+    // Para 1:1 cuadrado: crop=ih:ih (centro cuadrado).
+    // Para 4:5: crop=ih*4/5:ih (cuadrado ligeramente alto).
+    let cropExpr;
+    if (aspect === '9:16') cropExpr = 'crop=ih*9/16:ih';
+    else if (aspect === '1:1') cropExpr = 'crop=ih:ih';
+    else if (aspect === '4:5') cropExpr = 'crop=ih*4/5:ih';
+    else cropExpr = 'crop=ih*9/16:ih';
 
     // Camera motion: zoom-in / zoom-out / static via zoompan filter
     const fps = 30;
     const totalFrames = Math.ceil(dur * fps);
     let zoomFilter = '';
     if (clip.camera_motion === 'zoom-in') {
-      zoomFilter = `,zoompan=z='min(1.0+${(0.08/totalFrames).toFixed(6)}*on,1.08)':d=1:s=${r.w}x${r.h}:fps=${fps}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'`;
+      zoomFilter = `,zoompan=z='min(1.0+${(0.08/totalFrames).toFixed(6)}*on,1.08)':d=1:s=${w}x${h}:fps=${fps}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'`;
     } else if (clip.camera_motion === 'zoom-out') {
-      zoomFilter = `,zoompan=z='max(1.08-${(0.08/totalFrames).toFixed(6)}*on,1.0)':d=1:s=${r.w}x${r.h}:fps=${fps}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'`;
+      zoomFilter = `,zoompan=z='max(1.08-${(0.08/totalFrames).toFixed(6)}*on,1.0)':d=1:s=${w}x${h}:fps=${fps}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'`;
     }
 
-    // ASS subtitles filter — escape colon and backslash in path for ffmpeg filtergraph
     const escapedAss = assPath.replace(/\\/g, '/').replace(/:/g, '\\:');
     const fontsDir = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../assets/fonts');
     const fontsArg = fs.existsSync(fontsDir) ? `:fontsdir='${fontsDir.replace(/:/g, '\\:')}'` : '';
 
-    const vf = `crop=ih*9/16:ih,scale=${r.w}:${r.h}${zoomFilter},subtitles='${escapedAss}'${fontsArg}`;
+    const vf = `${cropExpr},scale=${w}:${h}${zoomFilter},subtitles='${escapedAss}'${fontsArg}`;
 
     const args = [
       '-y',

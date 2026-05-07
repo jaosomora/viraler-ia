@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { authFetch } from '../context/AuthContext';
 
-const API_BASE = import.meta.env.MODE === 'development' ? 'http://localhost:3000/api' : '/api';
+const API_BASE = '/api';
 
 const fmt = (n, d = 4) => `$${Number(n || 0).toFixed(d)}`;
 const fmtDate = (iso) => new Date(iso).toLocaleString('es-CO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });

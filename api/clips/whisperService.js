@@ -18,15 +18,27 @@ export async function transcribeWithTimestamps(audioPath, language = 'es') {
   form.append('timestamp_granularities[]', 'segment');
   form.append('language', language);
 
-  const res = await fetch(OPENAI_URL, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}` },
-    body: form,
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5 * 60 * 1000); // 5min hard timeout
+
+  let res;
+  try {
+    res = await fetch(OPENAI_URL, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}` },
+      body: form,
+      signal: controller.signal,
+    });
+  } catch (e) {
+    if (e.name === 'AbortError') throw new Error('Whisper timeout (>5min)');
+    throw e;
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(`Whisper error ${res.status}: ${err}`);
+    throw new Error(`Whisper error ${res.status}: ${err.slice(0, 300)}`);
   }
 
   const data = await res.json();

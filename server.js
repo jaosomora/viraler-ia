@@ -29,6 +29,8 @@ import {
   adminListJobsHandler as clipsAdminList,
   fontsHandler as clipsFonts,
   stagesHandler as clipsStages,
+  applyFontsToAllHandler as clipsApplyFontsAll,
+  redetectKeywordsHandler as clipsRedetectKeywords,
 } from './api/clips/routes.js';
 import { authMiddleware, ownerOnly, registerUser, loginUser, listUsers, adminResetPassword, generateTempPassword, requestMagicLink, verifyMagicLink, setUserAccessExpiry } from './api/auth.js';
 import {
@@ -186,6 +188,8 @@ app.delete('/api/clips/jobs/:id', authMiddleware, clipsDeleteJob);
 app.patch('/api/clips/:id', authMiddleware, clipsUpdateClip);
 app.get('/api/clips/:id/download', authMiddleware, clipsDownload);
 app.post('/api/clips/:id/regenerate-caption', authMiddleware, clipsRegenCaption);
+app.post('/api/clips/:id/redetect-keywords', authMiddleware, clipsRedetectKeywords);
+app.post('/api/clips/jobs/:id/apply-fonts', authMiddleware, clipsApplyFontsAll);
 app.get('/api/admin/clips', authMiddleware, ownerOnly, clipsAdminList);
 
 // Transcripciones del usuario

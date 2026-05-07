@@ -40,16 +40,39 @@ const all = (sql, params = []) => new Promise((res, rej) => {
   db.all(sql, params, (err, rows) => err ? rej(err) : res(rows || []));
 });
 
-async function setStage(jobId, stageIdx, status = 'running') {
-  await run('UPDATE clip_jobs SET stage_index=?, status=? WHERE id=?', [stageIdx, status, jobId]);
+function log(jobId, msg) {
+  const short = jobId.slice(0, 8);
+  console.log(`[clips:${short}] ${msg}`);
 }
 
-export async function createJob({ userId, sourceUrl, sourceFilename }) {
+async function setStage(jobId, stageIdx, status = 'running') {
+  await run('UPDATE clip_jobs SET stage_index=?, status=? WHERE id=?', [stageIdx, status, jobId]);
+  const stage = STAGES[stageIdx] || { msg: `stage ${stageIdx}` };
+  log(jobId, `→ stage ${stageIdx}: ${stage.msg}`);
+}
+
+export async function createJob({ userId, sourceUrl, sourceFilename, options = {} }) {
   const id = newId();
+  const {
+    clipCount = null, // null = auto (LLM decide)
+    defaultResolution = '1080',
+    aspectRatio = '9:16',
+    fontPresetMode = 'auto', // 'auto' | 'role' | 'single'
+    fontHook = 'Anton',
+    fontCaption = 'InterSemiBold',
+    fontKeyword = 'MontserratBold',
+  } = options;
   await run(
-    `INSERT INTO clip_jobs (id, user_id, source_url, source_filename, status) VALUES (?, ?, ?, ?, 'pending')`,
-    [id, userId, sourceUrl || null, sourceFilename || null]
+    `INSERT INTO clip_jobs (
+      id, user_id, source_url, source_filename, status,
+      requested_clip_count, default_resolution, aspect_ratio,
+      font_preset_mode, font_hook_default, font_caption_default, font_keyword_default
+    ) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?)`,
+    [id, userId, sourceUrl || null, sourceFilename || null,
+     clipCount, defaultResolution, aspectRatio,
+     fontPresetMode, fontHook, fontCaption, fontKeyword]
   );
+  log(id, `created (clips=${clipCount || 'auto'}, res=${defaultResolution}, aspect=${aspectRatio}, fonts=${fontPresetMode})`);
   return id;
 }
 
@@ -57,6 +80,8 @@ export async function createJob({ userId, sourceUrl, sourceFilename }) {
 export async function processJob(jobId) {
   const jobDir = path.join(CLIPS_ROOT, jobId);
   fs.mkdirSync(jobDir, { recursive: true });
+  const t0 = Date.now();
+  const elapsed = () => `${((Date.now() - t0) / 1000).toFixed(1)}s`;
 
   try {
     const job = await get('SELECT * FROM clip_jobs WHERE id=?', [jobId]);
@@ -66,16 +91,20 @@ export async function processJob(jobId) {
     await setStage(jobId, 0);
     const sourcePath = path.join(jobDir, 'source.mp4');
     if (job.source_url) {
+      log(jobId, `fetching metadata for ${job.source_url}`);
       const meta = await getVideoMetadata(job.source_url);
       if (meta.duration > 3600) throw new Error('Video supera el límite de 60 minutos');
+      log(jobId, `video: "${meta.title}" · ${Math.round(meta.duration)}s · ${meta.width}x${meta.height}`);
       await run(
-        'UPDATE clip_jobs SET title=?, duration_seconds=?, thumbnail=? WHERE id=?',
-        [meta.title, meta.duration, meta.thumbnail, jobId]
+        'UPDATE clip_jobs SET title=?, duration_seconds=?, thumbnail=?, source_width=?, source_height=? WHERE id=?',
+        [meta.title, meta.duration, meta.thumbnail, meta.width || null, meta.height || null, jobId]
       );
+      log(jobId, `downloading video…`);
       await downloadVideoToPath(job.source_url, sourcePath);
+      log(jobId, `download complete (${elapsed()})`);
     } else if (job.source_filename) {
-      // archivo subido ya está en source_filename
       fs.copyFileSync(job.source_filename, sourcePath);
+      log(jobId, `copied uploaded file (${elapsed()})`);
     } else {
       throw new Error('Job sin source_url ni source_filename');
     }
@@ -85,9 +114,12 @@ export async function processJob(jobId) {
     await setStage(jobId, 1);
     const audioPath = path.join(jobDir, 'audio.mp3');
     await extractAudioFromVideo(sourcePath, audioPath);
+    log(jobId, `audio extracted (${elapsed()})`);
 
     await setStage(jobId, 2);
+    log(jobId, `calling Whisper…`);
     const { transcript, costUsd: whisperCost } = await transcribeWithTimestamps(audioPath, 'es');
+    log(jobId, `Whisper done · ${transcript.words?.length || 0} palabras · $${whisperCost.toFixed(4)} (${elapsed()})`);
     const whisperJsonPath = path.join(jobDir, 'whisper.json');
     fs.writeFileSync(whisperJsonPath, JSON.stringify(transcript));
     await run(
@@ -98,11 +130,15 @@ export async function processJob(jobId) {
 
     // Etapa 3-5: highlights + speakers + post captions (1 sola llamada LLM)
     await setStage(jobId, 3);
-    const { clips, costUsd: llmCost, speakerCount, speakersSummary } = await generateHighlights(transcript);
+    log(jobId, `calling GPT-4o for highlights (timeout 90s)…`);
+    const { clips, costUsd: llmCost, speakerCount, speakersSummary } = await generateHighlights(transcript, {
+      clipCount: job.requested_clip_count,
+    });
+    log(jobId, `GPT-4o done · ${clips.length} clips · ${speakerCount} speakers · $${llmCost.toFixed(4)} (${elapsed()})`);
     await setStage(jobId, 4);
     await setStage(jobId, 5);
 
-    // Etapa 6: insertar clips en DB
+    // Etapa 6: insertar clips en DB con preferencias job-level
     await setStage(jobId, 6);
     for (let i = 0; i < clips.length; i++) {
       const c = clips[i];
@@ -110,8 +146,9 @@ export async function processJob(jobId) {
       await run(
         `INSERT INTO clips (
           id, job_id, clip_index, title, hook, caption, keywords, post_caption,
-          start_seconds, end_seconds, virality_score, reasoning
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          start_seconds, end_seconds, virality_score, reasoning,
+          font_hook, font_caption, font_keyword
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           clipId, jobId, i,
           c.title || `Clip ${i + 1}`,
@@ -119,23 +156,32 @@ export async function processJob(jobId) {
           c.caption || '',
           JSON.stringify(c.keywords || []),
           c.post_caption || '',
-          c.start_seconds, c.end_seconds, c.score || 0, c.reasoning || ''
+          c.start_seconds, c.end_seconds, c.score || 0, c.reasoning || '',
+          job.font_hook_default || 'Anton',
+          job.font_caption_default || 'InterSemiBold',
+          job.font_keyword_default || 'MontserratBold',
         ]
       );
     }
+    log(jobId, `${clips.length} clips guardados en DB`);
 
-    // Etapa 7-9: renderizar todos los clips a 1080p (resolución default)
+    // Etapa 7-9: renderizar a la resolución default del job
     await setStage(jobId, 7);
     const clipRows = await all('SELECT * FROM clips WHERE job_id=? ORDER BY clip_index', [jobId]);
-    for (const clip of clipRows) {
-      const c = { ...clip, keywords: JSON.parse(clip.keywords || '[]') };
+    const targetRes = job.default_resolution || '1080';
+    for (let idx = 0; idx < clipRows.length; idx++) {
+      const clip = clipRows[idx];
+      const c = { ...clip, keywords: JSON.parse(clip.keywords || '[]'), aspect_ratio: job.aspect_ratio || '9:16' };
       const assPath = path.join(jobDir, `${c.id}.ass`);
-      const outPath = path.join(jobDir, `${c.id}_1080.mp4`);
+      const outPath = path.join(jobDir, `${c.id}_${targetRes}.mp4`);
       fs.writeFileSync(assPath, buildAssForClip(c, transcript));
-      await renderClip({ sourceVideo: sourcePath, clip: c, assPath, outputPath: outPath, resolution: '1080' });
+      log(jobId, `rendering clip ${idx + 1}/${clipRows.length} "${c.title}" @ ${targetRes}p ${c.aspect_ratio}…`);
+      const renderStart = Date.now();
+      await renderClip({ sourceVideo: sourcePath, clip: c, assPath, outputPath: outPath, resolution: targetRes });
+      log(jobId, `clip ${idx + 1} rendered in ${((Date.now() - renderStart) / 1000).toFixed(1)}s`);
       await run(
-        `UPDATE clips SET output_path=?, output_resolution='1080', updated_at=CURRENT_TIMESTAMP WHERE id=?`,
-        [outPath, c.id]
+        `UPDATE clips SET output_path=?, output_resolution=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+        [outPath, targetRes, c.id]
       );
     }
     await setStage(jobId, 8);

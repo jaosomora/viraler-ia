@@ -168,6 +168,19 @@ db.serialize(() => {
     )
   `);
 
+  // Migrations: preferencias job-level que se eligen en el form al generar.
+  db.run(`ALTER TABLE clip_jobs ADD COLUMN requested_clip_count INTEGER`, () => {});
+  db.run(`ALTER TABLE clip_jobs ADD COLUMN default_resolution TEXT DEFAULT '1080'`, () => {});
+  db.run(`ALTER TABLE clip_jobs ADD COLUMN aspect_ratio TEXT DEFAULT '9:16'`, () => {});
+  db.run(`ALTER TABLE clip_jobs ADD COLUMN font_preset_mode TEXT DEFAULT 'auto'`, () => {});
+  db.run(`ALTER TABLE clip_jobs ADD COLUMN font_hook_default TEXT DEFAULT 'Anton'`, () => {});
+  db.run(`ALTER TABLE clip_jobs ADD COLUMN font_caption_default TEXT DEFAULT 'InterSemiBold'`, () => {});
+  db.run(`ALTER TABLE clip_jobs ADD COLUMN font_keyword_default TEXT DEFAULT 'MontserratBold'`, () => {});
+  db.run(`ALTER TABLE clip_jobs ADD COLUMN source_width INTEGER`, () => {});
+  db.run(`ALTER TABLE clip_jobs ADD COLUMN source_height INTEGER`, () => {});
+  // Migrations: aspect_ratio per-clip (override del job-level si el editor lo cambia)
+  db.run(`ALTER TABLE clips ADD COLUMN aspect_ratio TEXT DEFAULT '9:16'`, () => {});
+
   // Clips individuales generados por un job. Cada clip tiene parámetros editables
   // (texto, fuentes, keywords, etc.) que se aplican al regenerar el MP4 al descargar.
   db.run(`
