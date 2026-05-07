@@ -143,19 +143,25 @@ export async function processJob(jobId) {
     for (let i = 0; i < clips.length; i++) {
       const c = clips[i];
       const clipId = newId();
+      // El LLM ahora devuelve post_captions {pregunta, storytelling, insight}
+      const postCaptions = c.post_captions || { pregunta: c.post_caption || '', storytelling: '', insight: '' };
+      const activeTone = 'pregunta';
       await run(
         `INSERT INTO clips (
-          id, job_id, clip_index, title, hook, caption, keywords, post_caption,
+          id, job_id, clip_index, title, hook, caption, keywords,
+          post_caption, post_caption_tone, post_captions_cache,
           start_seconds, end_seconds, virality_score, reasoning,
           font_hook, font_caption, font_keyword
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           clipId, jobId, i,
           c.title || `Clip ${i + 1}`,
           c.hook || '',
           c.caption || '',
           JSON.stringify(c.keywords || []),
-          c.post_caption || '',
+          postCaptions[activeTone] || '',
+          activeTone,
+          JSON.stringify(postCaptions),
           c.start_seconds, c.end_seconds, c.score || 0, c.reasoning || '',
           job.font_hook_default || 'Anton',
           job.font_caption_default || 'InterSemiBold',
@@ -217,7 +223,11 @@ export async function getJobWithClips(jobId, userId = null) {
   const job = await get(`SELECT * FROM clip_jobs ${where}`, params);
   if (!job) return null;
   const rawClips = await all('SELECT * FROM clips WHERE job_id=? ORDER BY clip_index', [jobId]);
-  const clips = rawClips.map(c => ({ ...c, keywords: JSON.parse(c.keywords || '[]') }));
+  const clips = rawClips.map(c => ({
+    ...c,
+    keywords: JSON.parse(c.keywords || '[]'),
+    post_captions_cache: c.post_captions_cache ? JSON.parse(c.post_captions_cache) : null,
+  }));
   const stage = STAGES[job.stage_index] || STAGES[STAGES.length - 1];
   return { ...job, clips, stage };
 }
@@ -261,6 +271,10 @@ export async function updateClip(clipId, userId, updates) {
   if (updates.keywords !== undefined) {
     sets.push('keywords=?');
     params.push(JSON.stringify(updates.keywords));
+  }
+  if (updates.post_captions_cache !== undefined) {
+    sets.push('post_captions_cache=?');
+    params.push(typeof updates.post_captions_cache === 'string' ? updates.post_captions_cache : JSON.stringify(updates.post_captions_cache));
   }
   if (sets.length === 0) return;
   sets.push('updated_at=CURRENT_TIMESTAMP');

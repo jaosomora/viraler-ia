@@ -180,6 +180,8 @@ db.serialize(() => {
   db.run(`ALTER TABLE clip_jobs ADD COLUMN source_height INTEGER`, () => {});
   // Migrations: aspect_ratio per-clip (override del job-level si el editor lo cambia)
   db.run(`ALTER TABLE clips ADD COLUMN aspect_ratio TEXT DEFAULT '9:16'`, () => {});
+  // Cache de las 3 versiones del post_caption por tono (JSON: {pregunta, storytelling, insight})
+  db.run(`ALTER TABLE clips ADD COLUMN post_captions_cache TEXT`, () => {});
 
   // Clips individuales generados por un job. Cada clip tiene parámetros editables
   // (texto, fuentes, keywords, etc.) que se aplican al regenerar el MP4 al descargar.

@@ -125,7 +125,15 @@ export async function regenerateCaptionHandler(req, res) {
     if (clip.user_id !== req.user.id) return res.status(403).json({ error: 'No autorizado' });
 
     const { postCaption, costUsd } = await regeneratePostCaption(clip, tone);
-    await updateClip(clipId, req.user.id, { post_caption: postCaption, post_caption_tone: tone });
+    // Actualizar también el cache del tono específico
+    let cache = {};
+    try { cache = clip.post_captions_cache ? JSON.parse(clip.post_captions_cache) : {}; } catch {}
+    cache[tone] = postCaption;
+    await updateClip(clipId, req.user.id, {
+      post_caption: postCaption,
+      post_caption_tone: tone,
+      post_captions_cache: cache,
+    });
     await addCostToJob(clip.job_id, costUsd);
     res.json({ post_caption: postCaption, tone });
   } catch (err) {

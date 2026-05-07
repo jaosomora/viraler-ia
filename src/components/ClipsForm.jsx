@@ -57,7 +57,9 @@ const ClipsForm = () => {
   };
 
   const fontOpts = (role) => (fontCatalog?.catalog?.[role] || []).map(f => (
-    <option key={f.id} value={f.id}>{f.name}{f.recommended ? ' ⭐' : ''}</option>
+    <option key={f.id} value={f.id} style={{ fontFamily: f.familyName || f.name, fontWeight: f.weight || 400 }}>
+      {f.name}{f.recommended ? ' ⭐' : ''}
+    </option>
   ));
 
   return (
@@ -186,7 +188,11 @@ const ClipsForm = () => {
               <div className="pl-6">
                 <select value={singleFont} onChange={e => setSingleFont(e.target.value)}
                   className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded px-2 py-1.5 text-xs">
-                  {allFonts.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                  {allFonts.map(f => (
+                    <option key={f.id} value={f.id} style={{ fontFamily: f.familyName || f.name, fontWeight: f.weight || 400 }}>
+                      {f.name}
+                    </option>
+                  ))}
                 </select>
               </div>
             )}

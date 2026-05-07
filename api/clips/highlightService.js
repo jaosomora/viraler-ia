@@ -27,7 +27,10 @@ Para cada clip genera además:
 - hook: pregunta o frase de apertura quotable (10-12 palabras, irá como sub grande tipo Anton)
 - caption: línea de soporte (8-10 palabras, sub más pequeño tipo Inter)
 - keywords: array de 1-3 palabras o frases cortas a destacar dentro del caption
-- post_caption: texto sugerido para pegar al publicar (estilo IG: hook impactante, 2-3 líneas de desarrollo, pregunta o CTA, 3-4 hashtags relevantes en español). Tono: pregunta provocadora.
+- post_captions: objeto con 3 versiones del texto para publicar, cada una de ~150-220 caracteres + 3-4 hashtags relevantes en español:
+    * pregunta: empieza con pregunta provocadora que retenga
+    * storytelling: empieza con mini-historia en primera persona
+    * insight: afirmación contundente + CTA claro al final
 - score: 0-100
 - reasoning: 1 frase explicando por qué es viral
 
@@ -39,7 +42,11 @@ Devuelve JSON estricto:
 {
   "speaker_count": number,
   "speakers_summary": string,
-  "clips": [{"title", "hook", "caption", "keywords": [string], "post_caption", "start_seconds": number, "end_seconds": number, "score": number, "reasoning"}]
+  "clips": [{
+    "title", "hook", "caption", "keywords": [string],
+    "post_captions": {"pregunta": string, "storytelling": string, "insight": string},
+    "start_seconds": number, "end_seconds": number, "score": number, "reasoning"
+  }]
 }`;
 
 async function fetchWithTimeout(url, options, timeoutMs = 90_000) {

@@ -3,10 +3,18 @@ import { useClips } from '../context/ClipsContext';
 import VideoPreview from './VideoPreview';
 
 const KEYWORD_COLORS = [
+  // Sutiles / brand-friendly
+  { hex: '#FFFFFF', name: 'Blanco' },
+  { hex: '#FCD34D', name: 'Mostaza' },
+  { hex: '#FCA5A5', name: 'Coral suave' },
+  { hex: '#86EFAC', name: 'Verde menta' },
+  { hex: '#A78BFA', name: 'Lavanda' },
+  { hex: '#7DD3FC', name: 'Azul cielo' },
+  // Vibrantes (originales)
   { hex: '#FDE047', name: 'Amarillo' },
   { hex: '#22D3EE', name: 'Cyan' },
   { hex: '#F472B6', name: 'Rosa' },
-  { hex: '#FFFFFF', name: 'Blanco' },
+  { hex: '#F87171', name: 'Rojo suave' },
 ];
 
 const TONES = [
@@ -64,6 +72,7 @@ const ClipEditor = ({ clip, onClose }) => {
       keywords: Array.isArray(clip.keywords) ? clip.keywords : [],
       post_caption: clip.post_caption || '',
       post_caption_tone: clip.post_caption_tone || 'pregunta',
+      post_captions_cache: clip.post_captions_cache || { pregunta: clip.post_caption || '', storytelling: '', insight: '' },
       start_seconds: clip.start_seconds,
       end_seconds: clip.end_seconds,
       font_hook: clip.font_hook || 'Anton',
@@ -92,15 +101,23 @@ const ClipEditor = ({ clip, onClose }) => {
 
   const handleReset = () => { setDraft(original); };
 
-  // Solo selecciona el tono (no regenera). El usuario debe pulsar "Regenerar" para aplicar.
-  const handleSelectTone = (tone) => update({ post_caption_tone: tone });
+  // Cambia el tono activo y carga el texto cacheado (sin llamar al LLM).
+  const handleSelectTone = (tone) => {
+    const cached = draft.post_captions_cache?.[tone] || '';
+    update({ post_caption_tone: tone, post_caption: cached });
+  };
 
+  // Genera/regenera el texto del tono actual con LLM y lo guarda en cache.
   const handleRegenerateCaption = async () => {
     setRegenerating(true);
     try {
+      const tone = draft.post_caption_tone;
       await updateClip(clip.id, { ...draft });
-      const res = await regenerateCaption(clip.id, draft.post_caption_tone);
-      update({ post_caption: res.post_caption });
+      const res = await regenerateCaption(clip.id, tone);
+      update({
+        post_caption: res.post_caption,
+        post_captions_cache: { ...draft.post_captions_cache, [tone]: res.post_caption },
+      });
     } catch (e) { alert(e.message); }
     setRegenerating(false);
   };
@@ -153,8 +170,17 @@ const ClipEditor = ({ clip, onClose }) => {
   };
 
   const fontOptions = (role) => (fontCatalog?.catalog?.[role] || []).map(f => (
-    <option key={f.id} value={f.id}>{f.name}{f.recommended ? ' ⭐ recomendada' : ''}</option>
+    <option key={f.id} value={f.id} style={{ fontFamily: f.familyName || f.name, fontWeight: f.weight || 400, fontSize: '15px' }}>
+      {f.name}{f.recommended ? ' ⭐ recomendada' : ''}
+    </option>
   ));
+
+  // Para que el <select> cerrado muestre el valor en la fuente seleccionada.
+  const fontStyleFor = (role, id) => {
+    const f = (fontCatalog?.catalog?.[role] || []).find(x => x.id === id);
+    if (!f) return {};
+    return { fontFamily: f.familyName || f.name, fontWeight: f.weight || 400 };
+  };
 
   const dur = draft.end_seconds - draft.start_seconds;
   const hashtagCount = (draft.post_caption.match(/#\w+/g) || []).length;
@@ -172,6 +198,9 @@ const ClipEditor = ({ clip, onClose }) => {
   const aspectClass = draft.aspect_ratio === '1:1' ? 'aspect-square' : draft.aspect_ratio === '4:5' ? 'aspect-[4/5]' : 'aspect-[9/16]';
   const hookFont = FONT_FAMILY[draft.font_hook] || FONT_FAMILY.Anton;
   const captionFont = FONT_FAMILY[draft.font_caption] || FONT_FAMILY.InterSemiBold;
+
+  // Mapeo sub_position 40..90 → bottom percentage en preview (alineado con backend)
+  const subPositionPercent = ((Math.max(40, Math.min(90, draft.sub_position)) - 40) / 50) * 47 + 10;
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur z-50 flex items-center justify-center p-4">
@@ -201,7 +230,8 @@ const ClipEditor = ({ clip, onClose }) => {
                 clipId={clip.id}
                 resolution={clip.output_resolution || '1080'}
                 overlay={
-                  <div className="absolute left-[8%] right-[8%] bottom-[32%] text-center text-white pointer-events-none z-10">
+                  <div className="absolute left-[8%] right-[8%] text-center text-white pointer-events-none z-10 transition-all duration-150"
+                       style={{ bottom: `${subPositionPercent}%` }}>
                     <div className="font-black uppercase mb-2" style={{ fontFamily: hookFont, fontSize: '1.4rem', lineHeight: 0.95, textShadow: '0 2px 6px rgba(0,0,0,.85)' }}>
                       {draft.hook}
                     </div>
@@ -303,9 +333,10 @@ const ClipEditor = ({ clip, onClose }) => {
                     Texto del post <span className="text-gray-400 normal-case">· para pegar al publicar</span>
                   </h4>
                   <button type="button" onClick={handleRegenerateCaption} disabled={regenerating}
-                    className="text-[11px] px-2 py-1 rounded-md bg-purple-600 hover:bg-purple-500 text-white disabled:opacity-50 flex items-center gap-1 font-medium">
+                    className="text-[11px] px-2.5 py-1 rounded-md bg-purple-600 hover:bg-purple-500 text-white disabled:opacity-50 flex items-center gap-1 font-medium"
+                    title="Pide al LLM una nueva variación del texto en el tono seleccionado">
                     <svg className={`w-3 h-3 ${regenerating ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                    {regenerating ? 'Generando…' : 'Regenerar con este tono'}
+                    {regenerating ? 'Generando…' : 'Pedir otra versión'}
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-1.5 mb-3 text-[11px]">
@@ -325,7 +356,7 @@ const ClipEditor = ({ clip, onClose }) => {
                   </button>
                 </div>
                 <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2">
-                  Selecciona un tono y pulsa "Regenerar" para que el LLM genere un nuevo texto.
+                  Click en un tono para ver su versión cacheada. "Pedir otra versión" te genera una nueva con el tono activo.
                 </p>
                 <textarea rows={6} value={draft.post_caption} onChange={e => update({ post_caption: e.target.value })}
                   className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2.5 text-sm leading-relaxed resize-none text-gray-900 dark:text-white"
@@ -351,7 +382,8 @@ const ClipEditor = ({ clip, onClose }) => {
                   <div>
                     <label className="text-[11px] text-gray-500 mb-1 block">Hook · fuente de impacto</label>
                     <select value={draft.font_hook} onChange={e => update({ font_hook: e.target.value })}
-                      className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white">
+                      style={{ ...fontStyleFor('hook', draft.font_hook), fontSize: '17px' }}
+                      className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white">
                       {fontOptions('hook')}
                       <option disabled>──── personalizada (próximamente) ────</option>
                       <option disabled>+ Subir mi propia fuente (.ttf)</option>
@@ -360,7 +392,8 @@ const ClipEditor = ({ clip, onClose }) => {
                   <div>
                     <label className="text-[11px] text-gray-500 mb-1 block">Caption · cuerpo legible</label>
                     <select value={draft.font_caption} onChange={e => update({ font_caption: e.target.value })}
-                      className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white">
+                      style={{ ...fontStyleFor('caption', draft.font_caption), fontSize: '15px' }}
+                      className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white">
                       {fontOptions('caption')}
                     </select>
                   </div>
@@ -368,15 +401,34 @@ const ClipEditor = ({ clip, onClose }) => {
                     <label className="text-[11px] text-gray-500 mb-1 block">Palabras clave · énfasis</label>
                     <div className="flex gap-2">
                       <select value={draft.font_keyword} onChange={e => update({ font_keyword: e.target.value })}
-                        className="flex-1 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white">
+                        style={{ ...fontStyleFor('keyword', draft.font_keyword), fontSize: '15px' }}
+                        className="flex-1 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white">
                         {fontOptions('keyword')}
                       </select>
-                      <div className="flex gap-1.5">
+                    </div>
+                    <div className="mt-2">
+                      <div className="flex flex-wrap gap-1.5 mb-2">
                         {KEYWORD_COLORS.map(c => (
                           <button key={c.hex} title={c.name} type="button" onClick={() => update({ keyword_color: c.hex })}
-                            className={`w-9 h-9 rounded transition ${draft.keyword_color === c.hex ? 'ring-2 ring-offset-2 ring-offset-gray-50 dark:ring-offset-gray-900' : ''}`}
-                            style={{ background: c.hex, '--tw-ring-color': c.hex }} />
+                            className={`w-8 h-8 rounded transition border border-black/10 dark:border-white/20 ${draft.keyword_color.toLowerCase() === c.hex.toLowerCase() ? 'ring-2 ring-offset-2 ring-purple-500 ring-offset-gray-50 dark:ring-offset-gray-900' : ''}`}
+                            style={{ background: c.hex }} />
                         ))}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <label className="text-[11px] text-gray-500">Personalizado:</label>
+                        <input type="color" value={draft.keyword_color}
+                          onChange={e => update({ keyword_color: e.target.value })}
+                          className="w-10 h-8 border border-gray-300 dark:border-gray-700 rounded cursor-pointer" />
+                        <input type="text" value={draft.keyword_color}
+                          onChange={e => {
+                            const v = e.target.value.trim();
+                            if (/^#?[0-9A-Fa-f]{0,6}$/.test(v)) {
+                              update({ keyword_color: v.startsWith('#') ? v : '#' + v });
+                            }
+                          }}
+                          placeholder="#FDE047"
+                          className="flex-1 max-w-[120px] bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded px-2 py-1 text-xs font-mono uppercase text-gray-900 dark:text-white" />
+                        <span className="text-[11px] text-gray-500">para tu marca</span>
                       </div>
                     </div>
                   </div>

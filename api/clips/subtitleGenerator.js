@@ -66,9 +66,12 @@ export function buildAssForClip(clip, whisperJson) {
   const fontKw = fontIdToAss(clip.font_keyword || 'MontserratBold', 'keyword');
   const kwColor = hexToAssColor(clip.keyword_color || '#FDE047');
 
-  // sub_position 0..100 → MarginV en ASS (PlayResY=1920)
-  // Default 68 = MarginV ~620 (subs centrados-bajos, ~y=1300, dentro de zona segura IG)
-  const marginV = Math.round(2000 - (sub_position / 100) * 2000 + 200);
+  // sub_position 40..90 → MarginV (distancia desde abajo). Más alto = subs MÁS arriba.
+  // 40 → MarginV 200 (cerca al borde inferior, zona límite IG)
+  // 68 → MarginV ~700 (default, centrado-bajo en zona segura)
+  // 90 → MarginV 1100 (a la mitad de la pantalla)
+  const sp = Math.max(40, Math.min(90, sub_position));
+  const marginV = Math.round(200 + ((sp - 40) / 50) * 900);
   const marginVHook = Math.max(80, marginV + 220);
 
   // Hook: tamaño adaptativo según longitud (más largo = más pequeño para que quepa con wrap)
