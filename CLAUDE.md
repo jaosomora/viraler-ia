@@ -5,6 +5,9 @@ AS Tools (Algo Sentido Tools) is a full-stack web app with multiple internal too
 1. **Transcribe** — Extracts video transcriptions from YouTube, Instagram Reels, TikTok, and Facebook. Tras transcribir desde URL, el usuario puede **descargar el video original** en MP4 (botón en `TranscriptionResults`, endpoint `POST /api/download-video`, límite 30 min validado con `yt-dlp --dump-json` antes de descargar).
 2. **Convert** — Converts documents (PDF, DOCX, PPTX, XLSX, EPUB) to Markdown / HTML / structured PDF (MarkItDown + pymupdf4llm)
 3. **Secretos** — Encrypted secret sharing (AES-256-GCM): any logged-in user creates a secret, gets a one-time link; only the owner can decrypt. 30-day auto-expiry.
+4. **AS Clips** — Convierte videos largos en clips verticales con subs estilo Instagram. **Dos modos de selección**:
+   - **Automático**: pipeline de 2 pases (segmentChapters + generateHighlights) elige los mejores momentos por el usuario.
+   - **Manual** ("Yo elijo"): tras transcribir, el job pausa en `status='awaiting_selection'`; el usuario marca rangos en el transcript con click-click (1er click=inicio, 2do=fin), backend snap a fronteras de palabra + retreat de cierres con conectores, filtro duro 10-120s, hook+caption+post_captions opcional con gpt-4o-mini ($0.001/clip). Soft warning si rango fuera de 30-90s pero permite generar igual. Botón "✂️ Agregar más clips" en jobs done reabre el job sin re-transcribir.
 
 Auth: email+password (bcrypt+JWT) plus magic link login by email (Resend, 15min single-use). First registered user becomes `owner`.
 

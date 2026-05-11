@@ -6,7 +6,7 @@ import path from 'path';
 import crypto from 'crypto';
 import db from '../database/schema.js';
 import { transcribeWithTimestamps } from './whisperService.js';
-import { generateHighlights } from './highlightService.js';
+import { generateHighlights, generateHookForRange, snapRangeToSegments } from './highlightService.js';
 import { cleanupOrthography } from './orthographyCleanup.js';
 import { buildAssForClip } from './subtitleGenerator.js';
 import {
@@ -58,7 +58,7 @@ async function setStage(jobId, stageIdx, status = 'running') {
 export async function createJob({ userId, sourceUrl, sourceFilename, options = {} }) {
   const id = newId();
   const {
-    clipCount = null, // null = auto (LLM decide)
+    clipCount = null, // null = auto (LLM decide) — ignorado en modo manual
     defaultResolution = '1080',
     aspectRatio = '9:16',
     fontPresetMode = 'auto', // 'auto' | 'role' | 'single'
@@ -66,22 +66,29 @@ export async function createJob({ userId, sourceUrl, sourceFilename, options = {
     fontHook = 'PlayfairDisplay',
     fontCaption = 'LoraSemiBold',
     fontKeyword = 'PlayfairDisplayItalic',
+    // Nuevo: modo de selección de clips
+    mode = 'auto', // 'auto' | 'manual'
+    hookAutoEnabled = 1, // solo aplica en modo manual
   } = options;
   await run(
     `INSERT INTO clip_jobs (
       id, user_id, source_url, source_filename, status,
       requested_clip_count, default_resolution, aspect_ratio,
-      font_preset_mode, font_hook_default, font_caption_default, font_keyword_default
-    ) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?)`,
+      font_preset_mode, font_hook_default, font_caption_default, font_keyword_default,
+      mode, hook_auto_enabled
+    ) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [id, userId, sourceUrl || null, sourceFilename || null,
      clipCount, defaultResolution, aspectRatio,
-     fontPresetMode, fontHook, fontCaption, fontKeyword]
+     fontPresetMode, fontHook, fontCaption, fontKeyword,
+     mode, hookAutoEnabled ? 1 : 0]
   );
-  log(id, `created (clips=${clipCount || 'auto'}, res=${defaultResolution}, aspect=${aspectRatio}, fonts=${fontPresetMode})`);
+  log(id, `created (mode=${mode}, clips=${clipCount || 'auto'}, res=${defaultResolution}, aspect=${aspectRatio}, fonts=${fontPresetMode})`);
   return id;
 }
 
 // Worker async — se dispara después de devolver el jobId al cliente.
+// Si el job tiene mode='manual', pausa en status='awaiting_selection' tras transcribir
+// y espera a que el cliente llame POST /jobs/:id/submit-ranges (que dispara resumeManualJob).
 export async function processJob(jobId) {
   const jobDir = path.join(CLIPS_ROOT, jobId);
   fs.mkdirSync(jobDir, { recursive: true });
@@ -91,6 +98,7 @@ export async function processJob(jobId) {
   try {
     const job = await get('SELECT * FROM clip_jobs WHERE id=?', [jobId]);
     if (!job) throw new Error('Job no encontrado');
+    const isManual = job.mode === 'manual';
 
     // Etapa 0: descargar video
     await setStage(jobId, 0);
@@ -140,6 +148,19 @@ export async function processJob(jobId) {
       [whisperJsonPath, whisperCost, cleanupCost, cleanupCost, jobId]
     );
     fs.unlinkSync(audioPath);
+
+    // ========== Branch modo manual ==========
+    // El usuario decidirá qué fragmentos van. Pausamos el worker y esperamos POST /submit-ranges.
+    // El video fuente (source.mp4) queda en disco para que renderemos las bases cuando el usuario decida.
+    if (isManual) {
+      await run(
+        `UPDATE clip_jobs SET status='awaiting_selection', stage_index=3 WHERE id=?`,
+        [jobId]
+      );
+      log(jobId, `→ awaiting_selection: transcript listo (${transcript.words?.length || 0} palabras). Esperando rangos del usuario. (${elapsed()})`);
+      return;
+    }
+    // ========== /Branch modo manual ==========
 
     // Etapa 3-5: highlights + speakers + post captions (1 sola llamada LLM)
     await setStage(jobId, 3);
@@ -237,6 +258,199 @@ export async function processJob(jobId) {
       [String(err.message || err).slice(0, 500), jobId]
     );
   }
+}
+
+// Reanuda un job en modo manual cuando el usuario envía sus rangos vía POST /submit-ranges.
+// - Snap cada rango a fronteras de palabra (whisper segments) y aplica retreatEndIfContinuation.
+// - Filtra rangos fuera de [10s, 120s] (rango duro más permisivo que el auto [25-100]).
+// - Por cada rango, genera hook + caption + keywords + post_captions con gpt-4o-mini (si está habilitado).
+// - Inserta clips y dispara el render de bases (stages 7-9).
+const MANUAL_MIN_DURATION = 10;
+const MANUAL_MAX_DURATION = 120;
+
+export async function resumeManualJob(jobId, rangesInput) {
+  const t0 = Date.now();
+  const elapsed = () => `${((Date.now() - t0) / 1000).toFixed(1)}s`;
+
+  try {
+    const job = await get('SELECT * FROM clip_jobs WHERE id=?', [jobId]);
+    if (!job) throw new Error('Job no encontrado');
+    if (job.status !== 'awaiting_selection') {
+      throw new Error(`Job no está esperando selección (status=${job.status})`);
+    }
+    if (!job.whisper_json_path || !fs.existsSync(job.whisper_json_path)) {
+      throw new Error('Transcript ya no disponible');
+    }
+    if (!job.source_video_path || !fs.existsSync(job.source_video_path)) {
+      throw new Error('Video fuente ya no disponible');
+    }
+
+    const whisperJson = JSON.parse(fs.readFileSync(job.whisper_json_path, 'utf8'));
+    const hookAuto = job.hook_auto_enabled !== 0;
+
+    // 1. Snap + retreat + filtro de duración
+    const validRanges = [];
+    for (const r of (rangesInput || [])) {
+      if (typeof r.start !== 'number' || typeof r.end !== 'number') continue;
+      if (r.end <= r.start) continue;
+      const snapped = snapRangeToSegments(whisperJson, r.start, r.end);
+      const dur = snapped.end_seconds - snapped.start_seconds;
+      if (dur < MANUAL_MIN_DURATION || dur > MANUAL_MAX_DURATION) {
+        console.warn(`[clips:${jobId.slice(0,8)}] dropping manual range ${snapped.start_seconds.toFixed(1)}-${snapped.end_seconds.toFixed(1)} — duración ${dur.toFixed(1)}s fuera de [${MANUAL_MIN_DURATION}, ${MANUAL_MAX_DURATION}]`);
+        continue;
+      }
+      validRanges.push(snapped);
+    }
+
+    if (validRanges.length === 0) {
+      throw new Error('No hay rangos válidos (mínimo 10s, máximo 120s después de snap)');
+    }
+
+    // Guardar rangos para auditoría y avanzar status
+    await run(
+      `UPDATE clip_jobs SET manual_ranges=?, status='running', stage_index=6 WHERE id=?`,
+      [JSON.stringify(validRanges), jobId]
+    );
+    log(jobId, `manual: ${validRanges.length} rango(s) válido(s) tras snap (${elapsed()})`);
+
+    // 2. Por cada rango, generar copy (hook+caption+keywords+post_captions) con gpt-4o-mini.
+    //    Si hookAuto=false, los campos quedan vacíos para que el usuario los rellene en el editor.
+    let totalHookCost = 0;
+    const clipsToInsert = [];
+    for (let i = 0; i < validRanges.length; i++) {
+      const r = validRanges[i];
+      let copy;
+      if (hookAuto) {
+        copy = await generateHookForRange(whisperJson, r.start_seconds, r.end_seconds);
+        totalHookCost += copy.costUsd || 0;
+        log(jobId, `manual: hook ${i + 1}/${validRanges.length} generado · $${(copy.costUsd || 0).toFixed(4)}`);
+      } else {
+        copy = {
+          title: `Mi clip ${i + 1}`,
+          hook: '',
+          caption: '',
+          keywords: [],
+          post_captions: { pregunta: '', storytelling: '', insight: '' },
+          costUsd: 0,
+        };
+      }
+      clipsToInsert.push({ ...r, ...copy });
+    }
+    await run(
+      `UPDATE clip_jobs SET llm_cost_usd=llm_cost_usd+?, total_cost_usd=total_cost_usd+? WHERE id=?`,
+      [totalHookCost, totalHookCost, jobId]
+    );
+
+    // 3. Insertar clips en DB
+    // Si el job ya tenía clips (caso "agregar más clips"), arrancamos clip_index desde MAX+1
+    // para no chocar con los existentes y mantener el orden de creación.
+    const maxExistingIdx = await get(
+      'SELECT COALESCE(MAX(clip_index), -1) AS max_idx FROM clips WHERE job_id=?',
+      [jobId]
+    );
+    const startIdx = (maxExistingIdx?.max_idx ?? -1) + 1;
+    for (let i = 0; i < clipsToInsert.length; i++) {
+      const c = clipsToInsert[i];
+      const clipId = newId();
+      const postCaptions = c.post_captions || { pregunta: '', storytelling: '', insight: '' };
+      const activeTone = 'pregunta';
+      await run(
+        `INSERT INTO clips (
+          id, job_id, clip_index, title, hook, caption, keywords,
+          post_caption, post_caption_tone, post_captions_cache,
+          start_seconds, end_seconds, virality_score, reasoning,
+          font_hook, font_caption, font_keyword,
+          hook_color, caption_color, keyword_color, outline_color,
+          outline_enabled, outline_thickness, shadow_opacity,
+          hook_font_size, caption_font_size
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          clipId, jobId, startIdx + i,
+          c.title || `Clip ${startIdx + i + 1}`,
+          c.hook || '',
+          c.caption || '',
+          JSON.stringify(c.keywords || []),
+          postCaptions[activeTone] || '',
+          activeTone,
+          JSON.stringify(postCaptions),
+          c.start_seconds, c.end_seconds, 0, 'manual: elegido por el usuario',
+          job.font_hook_default || 'PlayfairDisplay',
+          job.font_caption_default || 'LoraSemiBold',
+          job.font_keyword_default || 'PlayfairDisplayItalic',
+          '#F5F1E8', '#FAFAF7', '#C9A961', '#000000',
+          1, 2, 35,
+          78, 54,
+        ]
+      );
+    }
+    log(jobId, `manual: ${clipsToInsert.length} clip(s) insertados (índices ${startIdx}..${startIdx + clipsToInsert.length - 1})`);
+
+    // 4. Renderizar bases (stages 7-9) — solo los clips que aún no tienen base_video_path.
+    //    Caso "agregar más clips": los clips viejos ya están renderizados, los saltamos.
+    await setStage(jobId, 7);
+    const clipRows = await all(
+      'SELECT * FROM clips WHERE job_id=? AND (base_video_path IS NULL OR base_video_path = ?) ORDER BY clip_index',
+      [jobId, '']
+    );
+    const targetRes = job.default_resolution || '1080';
+    for (let idx = 0; idx < clipRows.length; idx++) {
+      const clip = clipRows[idx];
+      const c = { ...clip, keywords: JSON.parse(clip.keywords || '[]'), aspect_ratio: job.aspect_ratio || '9:16' };
+      const jobDir = path.dirname(job.source_video_path);
+      const basePath = path.join(jobDir, `${c.id}_base_${targetRes}.mp4`);
+      log(jobId, `rendering base ${idx + 1}/${clipRows.length} "${c.title}" @ ${targetRes}p ${c.aspect_ratio}…`);
+      const renderStart = Date.now();
+      await renderClipBase({ sourceVideo: job.source_video_path, clip: c, outputPath: basePath, resolution: targetRes });
+      log(jobId, `base ${idx + 1} rendered in ${((Date.now() - renderStart) / 1000).toFixed(1)}s`);
+      const hash = baseParamsHash(c, targetRes);
+      await run(
+        `UPDATE clips SET base_video_path=?, base_params_hash=?, output_resolution=?, render_mode='overlay', updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+        [basePath, hash, targetRes, c.id]
+      );
+    }
+    await setStage(jobId, 8);
+    await setStage(jobId, 9);
+
+    // total_clips = count actual (incluye viejos + nuevos)
+    const totalNow = await get('SELECT COUNT(*) AS n FROM clips WHERE job_id=?', [jobId]);
+    await run(
+      `UPDATE clip_jobs SET
+         status='done', stage_index=10, total_clips=?,
+         finished_at=CURRENT_TIMESTAMP
+       WHERE id=?`,
+      [totalNow?.n || clipsToInsert.length, jobId]
+    );
+    log(jobId, `manual: job completo · ${clipsToInsert.length} clips · hook cost $${totalHookCost.toFixed(4)} (${elapsed()})`);
+  } catch (err) {
+    console.error(`[clips] resumeManualJob ${jobId} failed:`, err);
+    await run(
+      `UPDATE clip_jobs SET status='error', error_message=?, finished_at=CURRENT_TIMESTAMP WHERE id=?`,
+      [String(err.message || err).slice(0, 500), jobId]
+    );
+  }
+}
+
+// Reabre un job ya terminado (status='done') para que el usuario marque MÁS rangos.
+// Reutiliza el whisper.json y source.mp4 que ya están en disco (no re-transcribe, no re-descarga).
+// Convierte el job a mode='manual' y lo deja en status='awaiting_selection'. Los clips existentes
+// se mantienen intactos; los nuevos rangos se agregarán después de ellos al volver a submitir.
+export async function reopenJobForSelection(jobId, userId) {
+  const job = await get('SELECT * FROM clip_jobs WHERE id=?', [jobId]);
+  if (!job) throw new Error('Job no encontrado');
+  if (job.user_id !== userId) throw new Error('No autorizado');
+  if (job.status !== 'done') throw new Error(`Solo se pueden reabrir jobs completos (status actual: ${job.status})`);
+  if (!job.whisper_json_path || !fs.existsSync(job.whisper_json_path)) {
+    throw new Error('Transcript ya no disponible — el job fue purgado');
+  }
+  if (!job.source_video_path || !fs.existsSync(job.source_video_path)) {
+    throw new Error('Video fuente ya no disponible — el job fue purgado');
+  }
+  await run(
+    `UPDATE clip_jobs SET mode='manual', status='awaiting_selection', stage_index=3, finished_at=NULL WHERE id=?`,
+    [jobId]
+  );
+  log(jobId, `reabierto para selección manual (clips existentes se mantienen)`);
+  return { success: true, jobId };
 }
 
 export async function getJobWithClips(jobId, userId = null) {
