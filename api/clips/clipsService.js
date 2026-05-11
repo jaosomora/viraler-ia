@@ -105,7 +105,9 @@ export async function processJob(jobId) {
         [meta.title, meta.duration, meta.thumbnail, meta.width || null, meta.height || null, jobId]
       );
       log(jobId, `downloading video…`);
-      await downloadVideoToPath(job.source_url, sourcePath);
+      await downloadVideoToPath(job.source_url, sourcePath, ({ pct, size }) => {
+        log(jobId, `download ${pct.toFixed(0)}% of ${size}`);
+      });
       log(jobId, `download complete (${elapsed()})`);
     } else if (job.source_filename) {
       fs.copyFileSync(job.source_filename, sourcePath);
