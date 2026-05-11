@@ -4,7 +4,7 @@ import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
-export function downloadVideoToPath(url, outputPath) {
+export function downloadVideoToPath(url, outputPath, onProgress) {
   return new Promise((resolve, reject) => {
     const ytDlp = process.env.YTDLP_PATH || 'yt-dlp';
     const args = [
@@ -14,12 +14,33 @@ export function downloadVideoToPath(url, outputPath) {
       '--no-warnings',
       '--no-check-certificate',
       '--no-playlist',
+      '--newline', // fuerza una línea por update de progreso (más fácil de parsear)
       url,
     ];
     if (process.env.FFMPEG_PATH) args.splice(args.length - 1, 0, '--ffmpeg-location', process.env.FFMPEG_PATH);
     const p = spawn(ytDlp, args);
     let stderr = '';
-    p.stderr.on('data', d => { stderr += d.toString(); });
+    let lastReportedPct = -10; // reportar cada 10% para no spammear
+
+    const parseProgress = (text) => {
+      // yt-dlp formato: "[download]  23.5% of  150.00MiB at 3.20MiB/s ETA 00:30"
+      const m = text.match(/\[download\]\s+([\d.]+)%\s+of\s+~?\s*([\d.]+\w+)/);
+      if (m && onProgress) {
+        const pct = parseFloat(m[1]);
+        if (pct - lastReportedPct >= 10 || pct >= 99) {
+          lastReportedPct = pct;
+          onProgress({ pct, size: m[2] });
+        }
+      }
+    };
+
+    // yt-dlp puede enviar progreso a stdout o stderr según versión — escuchar ambos
+    p.stdout.on('data', d => parseProgress(d.toString()));
+    p.stderr.on('data', d => {
+      const text = d.toString();
+      stderr += text;
+      parseProgress(text);
+    });
     p.on('close', code => {
       if (code === 0 && fs.existsSync(outputPath)) resolve(outputPath);
       else reject(new Error(`yt-dlp exit ${code}: ${stderr.slice(-500)}`));

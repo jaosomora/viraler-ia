@@ -8,7 +8,11 @@ const MODEL = 'gpt-4o-mini';
 const PRICE_INPUT_PER_1M = 0.15;
 const PRICE_OUTPUT_PER_1M = 0.60;
 
-async function fetchWithTimeout(url, options, timeoutMs = 60_000) {
+const CHUNK_SIZE = 30;          // segmentos por llamada
+const CHUNK_TIMEOUT_MS = 45_000; // por chunk
+const MAX_CONCURRENCY = 4;       // chunks en paralelo
+
+async function fetchWithTimeout(url, options, timeoutMs = CHUNK_TIMEOUT_MS) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try { return await fetch(url, { ...options, signal: ctrl.signal }); }
@@ -18,24 +22,8 @@ async function fetchWithTimeout(url, options, timeoutMs = 60_000) {
   } finally { clearTimeout(t); }
 }
 
-/**
- * Limpia ortografía/puntuación del transcript de Whisper.
- * @param {object} whisperJson — JSON original con words y segments.
- * @returns {Promise<{cleaned, costUsd}>} — cleaned tiene la misma estructura, palabras corregidas.
- */
-export async function cleanupOrthography(whisperJson) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return { cleaned: whisperJson, costUsd: 0 };
-
-  // Procesamos por segmentos para no superar el contexto y mantener la estructura.
-  // Para cada segmento: enviar texto crudo, pedir versión corregida con misma cantidad de palabras.
-  const segments = whisperJson.segments || [];
-  const original = JSON.parse(JSON.stringify(whisperJson));
-  let totalCost = 0;
-
-  // Hacer un solo round-trip con todo el texto para minimizar overhead.
-  // Formato: array de líneas numeradas, devuelve array con la misma cantidad de líneas corregidas.
-  const lines = segments.map((s, i) => `[${i}] ${s.text.trim()}`).join('\n');
+async function cleanChunk(apiKey, chunkSegments, chunkOffset) {
+  const lines = chunkSegments.map((s, i) => `[${i}] ${s.text.trim()}`).join('\n');
   const prompt = `Eres un editor de transcripciones en español. Recibes líneas numeradas de un transcript de Whisper que pueden tener errores de acentos, mayúsculas iniciales y puntuación. Corrige SOLO esos detalles ortográficos.
 
 Reglas estrictas:
@@ -52,41 +40,90 @@ Devuelve JSON: {"lines": [{"i": number, "text": string}]}
 Texto:
 ${lines}`;
 
+  const res = await fetchWithTimeout(OPENAI_CHAT_URL, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: MODEL,
+      messages: [{ role: 'user', content: prompt }],
+      response_format: { type: 'json_object' },
+      temperature: 0,
+    }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const json = await res.json();
+  const out = JSON.parse(json.choices[0].message.content);
+  const cost = +(
+    (json.usage.prompt_tokens * PRICE_INPUT_PER_1M / 1e6) +
+    (json.usage.completion_tokens * PRICE_OUTPUT_PER_1M / 1e6)
+  ).toFixed(6);
+
+  if (!Array.isArray(out.lines) || out.lines.length !== chunkSegments.length) {
+    throw new Error(`line count mismatch: expected ${chunkSegments.length}, got ${out.lines?.length}`);
+  }
+  // Mapear índice local del chunk → índice global
+  const corrections = out.lines.map(l => ({ i: l.i + chunkOffset, text: l.text }));
+  return { corrections, cost };
+}
+
+// Pool con concurrencia limitada
+async function runWithConcurrency(tasks, limit) {
+  const results = new Array(tasks.length);
+  let nextIdx = 0;
+  const workers = Array.from({ length: Math.min(limit, tasks.length) }, async () => {
+    while (true) {
+      const i = nextIdx++;
+      if (i >= tasks.length) return;
+      results[i] = await tasks[i]().catch(err => ({ __error: err }));
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
+/**
+ * Limpia ortografía/puntuación del transcript de Whisper.
+ * @param {object} whisperJson — JSON original con words y segments.
+ * @returns {Promise<{cleaned, costUsd}>} — cleaned tiene la misma estructura, palabras corregidas.
+ */
+export async function cleanupOrthography(whisperJson) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) return { cleaned: whisperJson, costUsd: 0 };
+
+  const segments = whisperJson.segments || [];
+  if (segments.length === 0) return { cleaned: whisperJson, costUsd: 0 };
+
+  const original = JSON.parse(JSON.stringify(whisperJson));
+  let totalCost = 0;
+
+  // Dividir en chunks de CHUNK_SIZE segmentos
+  const chunks = [];
+  for (let i = 0; i < segments.length; i += CHUNK_SIZE) {
+    chunks.push({ offset: i, segs: segments.slice(i, i + CHUNK_SIZE) });
+  }
+
   try {
-    const res = await fetchWithTimeout(OPENAI_CHAT_URL, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [{ role: 'user', content: prompt }],
-        response_format: { type: 'json_object' },
-        temperature: 0,
-      }),
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
-    const out = JSON.parse(json.choices[0].message.content);
-    totalCost = +(
-      (json.usage.prompt_tokens * PRICE_INPUT_PER_1M / 1e6) +
-      (json.usage.completion_tokens * PRICE_OUTPUT_PER_1M / 1e6)
-    ).toFixed(6);
+    const tasks = chunks.map(c => () => cleanChunk(apiKey, c.segs, c.offset));
+    const results = await runWithConcurrency(tasks, MAX_CONCURRENCY);
 
-    if (!Array.isArray(out.lines) || out.lines.length !== segments.length) {
-      console.warn('[cleanup] line count mismatch, using original');
-      return { cleaned: original, costUsd: totalCost };
+    // Si CUALQUIER chunk falló, fallback a original (preserva integridad word↔text)
+    const firstError = results.find(r => r && r.__error);
+    if (firstError) {
+      console.warn('[cleanup] chunk failed, using original:', firstError.__error.message);
+      return { cleaned: whisperJson, costUsd: 0 };
     }
 
-    // Aplicar texto corregido a cada segmento
-    for (let i = 0; i < segments.length; i++) {
-      const correction = out.lines.find(l => l.i === i) || out.lines[i];
-      if (correction && correction.text) original.segments[i].text = correction.text;
+    // Aplicar correcciones a segmentos
+    for (const r of results) {
+      totalCost += r.cost;
+      for (const c of r.corrections) {
+        if (original.segments[c.i] && c.text) original.segments[c.i].text = c.text;
+      }
     }
+    totalCost = +totalCost.toFixed(6);
 
-    // No tocamos words[] (mantenemos el texto original ahí para sync exacto).
-    // Los subs en el video usan palabras crudas para timing pero podemos reemplazar texto
-    // con un "alineamiento" simple: para cada word, ver si su texto sigue presente en el segmento limpio.
-    // Si fallamos en alinear, dejamos el word original (no rompe nada).
-    // Estrategia: re-tokenizar el segmento limpio y mapear posicionalmente word-a-word.
+    // Re-tokenizar segmentos limpios y mapear word-a-word por posición.
+    // Si una palabra no se puede alinear, se conserva la original (no rompe nada).
     let segIdx = 0;
     let segTokens = [];
     let segTokenIdx = 0;
@@ -95,7 +132,6 @@ ${lines}`;
       segTokens = tokenize(original.segments[0].text);
     }
     const newWords = (whisperJson.words || []).map(w => {
-      // Avanzar al segmento que contiene este word (por timestamp)
       while (segIdx < segments.length && w.start >= segments[segIdx].end) {
         segIdx += 1;
         segTokens = segIdx < segments.length ? tokenize(original.segments[segIdx].text) : [];
