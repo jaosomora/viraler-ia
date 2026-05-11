@@ -42,9 +42,10 @@ import {
   submitRangesHandler as clipsSubmitRanges,
   getTranscriptHandler as clipsGetTranscript,
   reopenForSelectionHandler as clipsReopen,
+  getSourceVideoHandler as clipsGetSourceVideo,
 } from './api/clips/routes.js';
 import { recoverZombieJobs } from './api/clips/clipsService.js';
-import { authMiddleware, ownerOnly, registerUser, loginUser, listUsers, adminResetPassword, generateTempPassword, requestMagicLink, verifyMagicLink, setUserAccessExpiry } from './api/auth.js';
+import { authMiddleware, authMiddlewareMedia, ownerOnly, registerUser, loginUser, listUsers, adminResetPassword, generateTempPassword, requestMagicLink, verifyMagicLink, setUserAccessExpiry } from './api/auth.js';
 import {
   generateUsageReport,
   resetUsageData,
@@ -198,6 +199,7 @@ app.get('/api/clips/jobs', authMiddleware, clipsListJobs);
 app.get('/api/clips/jobs/:id', authMiddleware, clipsGetJob);
 app.delete('/api/clips/jobs/:id', authMiddleware, clipsDeleteJob);
 app.get('/api/clips/jobs/:id/transcript', authMiddleware, clipsGetTranscript);
+app.get('/api/clips/jobs/:id/source-video', authMiddlewareMedia, clipsGetSourceVideo);
 app.post('/api/clips/jobs/:id/submit-ranges', authMiddleware, clipsSubmitRanges);
 app.post('/api/clips/jobs/:id/reopen-for-selection', authMiddleware, clipsReopen);
 app.patch('/api/clips/:id', authMiddleware, clipsUpdateClip);
