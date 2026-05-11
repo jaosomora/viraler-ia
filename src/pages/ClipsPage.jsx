@@ -4,6 +4,7 @@ import ClipsForm from '../components/ClipsForm';
 import ClipCard from '../components/ClipCard';
 import ClipEditor from '../components/ClipEditor';
 import JobProgress from '../components/JobProgress';
+import ManualClipSelection from '../components/ManualClipSelection';
 
 // Importar Google Fonts una sola vez para preview en cards y editor
 const FONTS_LINK_ID = 'as-clips-fonts';
@@ -17,7 +18,7 @@ const ensureFonts = () => {
 };
 
 const ClipsPage = () => {
-  const { jobs, activeJob, activeJobId, setActiveJobId, loadJobs, loadJob, downloadClip } = useClips();
+  const { jobs, activeJob, activeJobId, setActiveJobId, loadJobs, loadJob, downloadClip, reopenForSelection } = useClips();
   const [editingClip, setEditingClip] = useState(null);
   const [hookBannerDismissed, setHookBannerDismissed] = useState(false);
 
@@ -49,6 +50,14 @@ const ClipsPage = () => {
     }
   };
 
+  const handleReopenForSelection = async (jobId) => {
+    try {
+      await reopenForSelection(jobId);
+    } catch (e) {
+      alert(e.message);
+    }
+  };
+
   const inProgress = jobs.filter(j => j.status !== 'done' && j.status !== 'error');
   const finished = jobs.filter(j => j.status === 'done');
 
@@ -68,11 +77,23 @@ const ClipsPage = () => {
       <div className="max-w-7xl mx-auto w-full space-y-6">
         <ClipsForm />
 
-        {inProgress.map(j => (
-          <div key={j.id} onClick={() => setActiveJobId(j.id)} className="cursor-pointer">
-            <JobProgress job={displayedJob && displayedJob.id === j.id ? displayedJob : j} />
-          </div>
-        ))}
+        {inProgress.map(j => {
+          // En modo manual, cuando el job está esperando que el usuario marque rangos,
+          // mostramos la pantalla de selección en vez de la barra de progreso.
+          const liveJob = displayedJob && displayedJob.id === j.id ? displayedJob : j;
+          if (liveJob.status === 'awaiting_selection') {
+            return (
+              <div key={j.id} onClick={() => setActiveJobId(j.id)}>
+                <ManualClipSelection job={liveJob} />
+              </div>
+            );
+          }
+          return (
+            <div key={j.id} onClick={() => setActiveJobId(j.id)} className="cursor-pointer">
+              <JobProgress job={liveJob} />
+            </div>
+          );
+        })}
 
         {displayedJob && displayedJob.status === 'done' && displayedJob.clips?.length > 0 && (() => {
           const totalClips = displayedJob.clips.length;
@@ -125,10 +146,17 @@ const ClipsPage = () => {
                   Costo: ${displayedJob.total_cost_usd.toFixed(4)} · {Math.round(displayedJob.duration_seconds / 60)}min de fuente
                 </p>
               </div>
-              <button onClick={() => downloadAll(displayedJob.clips)}
-                className="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg text-sm font-medium">
-                Descargar todos
-              </button>
+              <div className="flex gap-2">
+                <button onClick={() => handleReopenForSelection(displayedJob.id)}
+                  title="Vuelve a la pantalla de selección manual con la misma transcripción para agregar más fragmentos sin re-transcribir."
+                  className="px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700/50 hover:bg-amber-100 dark:hover:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-lg text-sm font-medium">
+                  ✂️ Agregar más clips
+                </button>
+                <button onClick={() => downloadAll(displayedJob.clips)}
+                  className="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg text-sm font-medium">
+                  Descargar todos
+                </button>
+              </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {displayedJob.clips.map(c => (

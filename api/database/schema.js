@@ -178,6 +178,50 @@ db.serialize(() => {
   db.run(`ALTER TABLE clip_jobs ADD COLUMN font_keyword_default TEXT DEFAULT 'MontserratBold'`, () => {});
   db.run(`ALTER TABLE clip_jobs ADD COLUMN source_width INTEGER`, () => {});
   db.run(`ALTER TABLE clip_jobs ADD COLUMN source_height INTEGER`, () => {});
+  // Modo de selección de clips:
+  //   'auto'   — IA segmenta capítulos + elige highlights (comportamiento por defecto, idéntico al anterior).
+  //   'manual' — tras transcribir, el job pausa en status='awaiting_selection' esperando que el usuario
+  //              envíe los rangos vía POST /api/clips/jobs/:id/submit-ranges.
+  db.run(`ALTER TABLE clip_jobs ADD COLUMN mode TEXT DEFAULT 'auto'`, () => {});
+  // Rangos elegidos por el usuario en modo manual (JSON: [{start,end}]). Guardados para auditoría / debug.
+  db.run(`ALTER TABLE clip_jobs ADD COLUMN manual_ranges TEXT`, () => {});
+  // Si en modo manual el usuario quiere que la IA genere hook + caption + post_captions (gpt-4o-mini) por clip.
+  // 1 = sí (default), 0 = no (clip queda con strings vacíos, el usuario los rellena en el editor).
+  db.run(`ALTER TABLE clip_jobs ADD COLUMN hook_auto_enabled INTEGER DEFAULT 1`, () => {});
+
+  // CREATE TABLE clips DEBE ir ANTES de los ALTER TABLE clips siguientes, sino en una DB fresca
+  // las migraciones fallan silenciosamente y la tabla nace incompleta. Bug latente histórico:
+  // este orden parecía funcionar en la DB de producción porque clips ya existía con todas las
+  // columnas; pero en cualquier máquina nueva (clone limpio, nuevo worktree, CI) la tabla salía
+  // sin post_captions_cache, render_mode, hook_color, etc. y los INSERTs explotaban.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS clips (
+      id TEXT PRIMARY KEY,
+      job_id TEXT NOT NULL REFERENCES clip_jobs(id) ON DELETE CASCADE,
+      clip_index INTEGER NOT NULL,
+      title TEXT,
+      hook TEXT,
+      caption TEXT,
+      keywords TEXT,
+      post_caption TEXT,
+      post_caption_tone TEXT DEFAULT 'pregunta',
+      start_seconds REAL NOT NULL,
+      end_seconds REAL NOT NULL,
+      virality_score INTEGER,
+      reasoning TEXT,
+      font_hook TEXT DEFAULT 'Anton',
+      font_caption TEXT DEFAULT 'Inter SemiBold',
+      font_keyword TEXT DEFAULT 'Montserrat Bold',
+      keyword_color TEXT DEFAULT '#FDE047',
+      camera_motion TEXT DEFAULT 'zoom-in',
+      sub_position INTEGER DEFAULT 68,
+      output_path TEXT,
+      output_resolution TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   // Migrations: aspect_ratio per-clip (override del job-level si el editor lo cambia)
   db.run(`ALTER TABLE clips ADD COLUMN aspect_ratio TEXT DEFAULT '9:16'`, () => {});
   // Cache de las 3 versiones del post_caption por tono (JSON: {pregunta, storytelling, insight})
@@ -231,36 +275,6 @@ db.serialize(() => {
       name TEXT NOT NULL,
       params TEXT NOT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-
-  // Clips individuales generados por un job. Cada clip tiene parámetros editables
-  // (texto, fuentes, keywords, etc.) que se aplican al regenerar el MP4 al descargar.
-  db.run(`
-    CREATE TABLE IF NOT EXISTS clips (
-      id TEXT PRIMARY KEY,
-      job_id TEXT NOT NULL REFERENCES clip_jobs(id) ON DELETE CASCADE,
-      clip_index INTEGER NOT NULL,
-      title TEXT,
-      hook TEXT,
-      caption TEXT,
-      keywords TEXT,
-      post_caption TEXT,
-      post_caption_tone TEXT DEFAULT 'pregunta',
-      start_seconds REAL NOT NULL,
-      end_seconds REAL NOT NULL,
-      virality_score INTEGER,
-      reasoning TEXT,
-      font_hook TEXT DEFAULT 'Anton',
-      font_caption TEXT DEFAULT 'Inter SemiBold',
-      font_keyword TEXT DEFAULT 'Montserrat Bold',
-      keyword_color TEXT DEFAULT '#FDE047',
-      camera_motion TEXT DEFAULT 'zoom-in',
-      sub_position INTEGER DEFAULT 68,
-      output_path TEXT,
-      output_resolution TEXT,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
 

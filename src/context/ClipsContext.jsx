@@ -237,6 +237,53 @@ export const ClipsProvider = ({ children }) => {
     return data;
   }, [activeJobId, loadJob]);
 
+  // Modo manual: descarga el transcript completo (segments + words con timestamps)
+  // del job para que el usuario marque rangos en la UI.
+  const fetchTranscript = useCallback(async (jobId) => {
+    const res = await authFetch(`${API_BASE}/clips/jobs/${jobId}/transcript`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Error cargando transcripción');
+    }
+    return await res.json();
+  }, []);
+
+  // Reabre un job done para agregar más clips manuales sin re-transcribir.
+  // Cambia el status a 'awaiting_selection' y el polling activa la pantalla de selección.
+  // Importante: si el job ya era el active y su polling se detuvo (porque llegó a 'done'),
+  // necesitamos reiniciar el useEffect del polling. Truco: setActiveJobId(null) → setActiveJobId(jobId)
+  // fuerza la re-evaluación del effect aunque el id sea el mismo.
+  const reopenForSelection = useCallback(async (jobId) => {
+    const res = await authFetch(`${API_BASE}/clips/jobs/${jobId}/reopen-for-selection`, {
+      method: 'POST',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Error reabriendo el job');
+    }
+    setActiveJobId(null);              // hack: forzar re-render del polling effect
+    await loadJobs();
+    await loadJob(jobId);              // refresca activeJob inmediatamente con status='awaiting_selection'
+    setActiveJobId(jobId);             // dispara el useEffect de polling de nuevo
+    return await res.json();
+  }, [loadJobs, loadJob]);
+
+  // Modo manual: envía los rangos elegidos por el usuario para resumir el job.
+  // Backend disparará el render de bases tras procesarlos.
+  const submitRanges = useCallback(async (jobId, ranges) => {
+    const res = await authFetch(`${API_BASE}/clips/jobs/${jobId}/submit-ranges`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ranges }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Error enviando rangos');
+    }
+    if (activeJobId === jobId) await loadJob(activeJobId);
+    return await res.json();
+  }, [activeJobId, loadJob]);
+
   const deleteJob = useCallback(async (jobId) => {
     const res = await authFetch(`${API_BASE}/clips/jobs/${jobId}`, { method: 'DELETE' });
     if (!res.ok) throw new Error('Error eliminando');
@@ -254,6 +301,7 @@ export const ClipsProvider = ({ children }) => {
       loadBaseVideoBlob, loadCaptions, exportClip,
       applyStyleToAll,
       userTemplates, loadUserTemplates, saveUserTemplate, deleteUserTemplate,
+      fetchTranscript, submitRanges, reopenForSelection,
     }}>
       {children}
     </ClipsContext.Provider>

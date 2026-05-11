@@ -14,6 +14,8 @@ const ClipsForm = () => {
   const [url, setUrl] = useState('');
   const [file, setFile] = useState(null);
 
+  const [selectionMode, setSelectionMode] = useState('auto'); // 'auto' | 'manual'
+  const [hookAutoEnabled, setHookAutoEnabled] = useState(true);
   const [clipCount, setClipCount] = useState('auto');
   const [defaultResolution, setDefaultResolution] = useState('1080');
   const [aspectRatio, setAspectRatio] = useState('9:16');
@@ -35,7 +37,9 @@ const ClipsForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const options = {
-      clipCount: clipCount === 'auto' ? null : parseInt(clipCount, 10),
+      mode: selectionMode,
+      hookAutoEnabled: hookAutoEnabled ? 1 : 0,
+      clipCount: selectionMode === 'manual' ? null : (clipCount === 'auto' ? null : parseInt(clipCount, 10)),
       defaultResolution,
       aspectRatio,
       fontPresetMode,
@@ -75,6 +79,30 @@ const ClipsForm = () => {
       <form onSubmit={handleSubmit} className="p-6 border-t border-gray-200 dark:border-gray-700 grid lg:grid-cols-3 gap-6">
         {/* Columna izquierda: fuente + dropdowns (2/3) */}
         <div className="lg:col-span-2 space-y-4">
+          {/* Modo de selección: Auto (IA) vs Manual (yo elijo) */}
+          <div>
+            <label className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2 block font-semibold">¿Quién elige qué va en los clips?</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => setSelectionMode('auto')}
+                className={`text-left border rounded-lg px-3 py-2.5 transition ${selectionMode === 'auto' ? 'border-purple-500 bg-purple-500/10' : 'border-gray-300 dark:border-gray-700 hover:border-gray-400'}`}>
+                <div className="text-sm font-medium text-gray-900 dark:text-white">✨ Automático <span className="text-[10px] uppercase tracking-wide text-purple-600 dark:text-purple-400 ml-1">IA</span></div>
+                <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">La IA segmenta por capítulos y elige los mejores momentos.</div>
+              </button>
+              <button type="button" onClick={() => setSelectionMode('manual')}
+                className={`text-left border rounded-lg px-3 py-2.5 transition ${selectionMode === 'manual' ? 'border-purple-500 bg-purple-500/10' : 'border-gray-300 dark:border-gray-700 hover:border-gray-400'}`}>
+                <div className="text-sm font-medium text-gray-900 dark:text-white">✂️ Yo elijo</div>
+                <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Te muestro el transcript y marcas los rangos que quieres como clips.</div>
+              </button>
+            </div>
+            {selectionMode === 'manual' && (
+              <label className="flex items-center gap-2 mt-2 cursor-pointer text-xs text-gray-700 dark:text-gray-300">
+                <input type="checkbox" checked={hookAutoEnabled} onChange={e => setHookAutoEnabled(e.target.checked)}
+                  className="accent-purple-500" />
+                <span>Que la IA genere hook + caption + hashtags para cada fragmento <span className="text-gray-500">(~$0.001 por clip)</span></span>
+              </label>
+            )}
+          </div>
+
           <div>
             <label className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2 block font-semibold">Fuente del video</label>
             <div className="flex gap-2 mb-3">
@@ -106,17 +134,19 @@ const ClipsForm = () => {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2 block font-semibold">Cantidad de clips</label>
-              <select value={clipCount} onChange={e => setClipCount(e.target.value)}
-                className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-100">
-                <option value="auto">Auto (LLM decide)</option>
-                <option value="3">3 clips</option>
-                <option value="5">5 clips</option>
-                <option value="10">10 clips</option>
-              </select>
-            </div>
+          <div className={`grid gap-4 ${selectionMode === 'auto' ? 'grid-cols-2' : 'grid-cols-1'}`}>
+            {selectionMode === 'auto' && (
+              <div>
+                <label className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2 block font-semibold">Cantidad de clips</label>
+                <select value={clipCount} onChange={e => setClipCount(e.target.value)}
+                  className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-100">
+                  <option value="auto">Auto (LLM decide)</option>
+                  <option value="3">3 clips</option>
+                  <option value="5">5 clips</option>
+                  <option value="10">10 clips</option>
+                </select>
+              </div>
+            )}
             <div>
               <label className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2 block font-semibold">Resolución de salida</label>
               <select value={defaultResolution} onChange={e => setDefaultResolution(e.target.value)}

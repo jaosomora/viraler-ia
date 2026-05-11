@@ -39,6 +39,9 @@ import {
   listTemplatesHandler as clipsListTemplates,
   createTemplateHandler as clipsCreateTemplate,
   deleteTemplateHandler as clipsDeleteTemplate,
+  submitRangesHandler as clipsSubmitRanges,
+  getTranscriptHandler as clipsGetTranscript,
+  reopenForSelectionHandler as clipsReopen,
 } from './api/clips/routes.js';
 import { recoverZombieJobs } from './api/clips/clipsService.js';
 import { authMiddleware, ownerOnly, registerUser, loginUser, listUsers, adminResetPassword, generateTempPassword, requestMagicLink, verifyMagicLink, setUserAccessExpiry } from './api/auth.js';
@@ -194,6 +197,9 @@ app.post('/api/clips/generate', authMiddleware, clipsUpload.single('video'), cli
 app.get('/api/clips/jobs', authMiddleware, clipsListJobs);
 app.get('/api/clips/jobs/:id', authMiddleware, clipsGetJob);
 app.delete('/api/clips/jobs/:id', authMiddleware, clipsDeleteJob);
+app.get('/api/clips/jobs/:id/transcript', authMiddleware, clipsGetTranscript);
+app.post('/api/clips/jobs/:id/submit-ranges', authMiddleware, clipsSubmitRanges);
+app.post('/api/clips/jobs/:id/reopen-for-selection', authMiddleware, clipsReopen);
 app.patch('/api/clips/:id', authMiddleware, clipsUpdateClip);
 app.get('/api/clips/:id/download', authMiddleware, clipsDownload);
 app.get('/api/clips/:id/captions', authMiddleware, clipsCaptions);
