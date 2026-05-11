@@ -319,6 +319,147 @@ export async function generateHighlights(whisperJson, opts = {}) {
   };
 }
 
+// =============================================================================
+// MODO MANUAL — el usuario eligió los rangos. Necesitamos:
+// 1) Snap a fronteras de segmento Whisper (evita cortes a media palabra)
+// 2) Retroceder end si el último segmento empieza con conector de continuación
+// 3) Generar hook + caption + keywords + post_captions con gpt-4o-mini (barato)
+// =============================================================================
+
+// Re-exportamos lógica de snap/retreat para que clipsService la use en modo manual.
+// Mismo conjunto de conectores que el pipeline auto.
+const MANUAL_CONTINUATION_STARTS = /^(entonces|y entonces|pues|y pues|bueno|ahora|así que|por eso|partiendo de eso|y luego|y después|por tanto)\b/i;
+
+export function snapRangeToSegments(whisperJson, startSec, endSec) {
+  const segments = whisperJson.segments || [];
+  if (segments.length === 0) return { start_seconds: startSec, end_seconds: endSec };
+  const findClosest = (target, key) => {
+    let best = segments[0][key], bestDiff = Math.abs(best - target);
+    for (const s of segments) {
+      const d = Math.abs(s[key] - target);
+      if (d < bestDiff) { best = s[key]; bestDiff = d; }
+    }
+    return best;
+  };
+  let start = findClosest(startSec, 'start');
+  let end = findClosest(endSec, 'end');
+
+  // Retreat end si el último segmento empieza con conector
+  let endIdx = segments.findIndex(s => Math.abs(s.end - end) < 0.01);
+  if (endIdx >= 0) {
+    let attempts = 0;
+    while (attempts < 3 && endIdx > 0) {
+      const lastSeg = segments[endIdx];
+      if (!MANUAL_CONTINUATION_STARTS.test(lastSeg.text.trim())) break;
+      endIdx -= 1;
+      attempts += 1;
+    }
+    end = segments[endIdx].end;
+  }
+  return { start_seconds: start, end_seconds: end };
+}
+
+const HOOK_FOR_RANGE_PROMPT = `Eres un editor de copy para clips verticales de Instagram/TikTok. Recibes el TEXTO de un fragmento que YA fue elegido por un humano. NO debes evaluar si sirve como clip — confía en el criterio del editor. Tu única tarea: generar el copy editorial alrededor del fragmento.
+
+TONO ALGO SENTIDO:
+Editorial, reflexivo, adulto. Contenido conversacional sobre propósito, vida interior, decisiones humanas. PROHIBIDO:
+- Emojis salvo que el speaker los diga literalmente
+- Mayúsculas dramáticas, !!!, ???
+- Clichés de coach ("lo que nadie te dice", "el secreto", "mindset", "high-value")
+- CTAs de venta ("comenta abajo", "guarda este post", "sígueme")
+
+Devuelve JSON estricto:
+{
+  "title": "título interno corto (máx 60 chars, no se publica)",
+  "hook": "frase on-screen los primeros segundos. Idealmente LITERAL de los primeros 3s del fragmento. 6-12 palabras. Sustancia, no anzuelo.",
+  "caption": "amplía o aterriza el hook sin repetirlo. 5-10 palabras.",
+  "keywords": ["1-3 sustantivos o frases cortas con peso, presentes en el caption. Conceptos específicos, NO verbos genéricos."],
+  "post_captions": {
+    "pregunta": "150-220 chars + 3-4 hashtags. Abre con una pregunta real que el lector se haga. Saltos de línea para respirar.",
+    "storytelling": "150-220 chars + 3-4 hashtags. Observación en primera persona del hablante (o tercera reflexiva si no se identifica).",
+    "insight": "150-220 chars + 3-4 hashtags. Afirmación con peso + cierre que invite a pensar (no a comprar/comentar/seguir)."
+  }
+}
+
+Hashtags: específicos al tema (#paternidad #duelo #vocación), nada de #motivación #mindset #éxito.`;
+
+// Genera hook + caption + keywords + post_captions para un fragmento elegido manualmente.
+// Usa gpt-4o-mini (barato: ~$0.001/clip). Si OPENAI_API_KEY falta o falla, devuelve estructura vacía
+// para que el clip se cree igual y el usuario rellene en el editor.
+export async function generateHookForRange(whisperJson, startSec, endSec) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    return emptyRangeCopy(0);
+  }
+
+  // Construir el texto del fragmento (segmentos cuyo centro cae dentro del rango)
+  const segments = whisperJson.segments || [];
+  const fragmentText = segments
+    .filter(s => {
+      const mid = (s.start + s.end) / 2;
+      return mid >= startSec && mid <= endSec;
+    })
+    .map(s => s.text.trim())
+    .join(' ')
+    .trim();
+
+  if (!fragmentText) return emptyRangeCopy(0);
+
+  const userPrompt = `Fragmento del video (segundos ${startSec.toFixed(1)}-${endSec.toFixed(1)}):\n\n"${fragmentText}"\n\nGenera el copy.`;
+
+  try {
+    const res = await fetchWithTimeout(OPENAI_CHAT_URL, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: MODEL_CHAPTERS, // gpt-4o-mini
+        messages: [
+          { role: 'system', content: HOOK_FOR_RANGE_PROMPT },
+          { role: 'user', content: userPrompt },
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.5,
+      }),
+    }, 45_000);
+
+    if (!res.ok) {
+      const err = await res.text();
+      console.warn(`[hookForRange] LLM ${res.status}: ${err.slice(0, 200)}`);
+      return emptyRangeCopy(0);
+    }
+
+    const json = await res.json();
+    const out = JSON.parse(json.choices[0].message.content);
+    const cost = +(
+      (json.usage.prompt_tokens * PRICE_INPUT_MINI_PER_1M / 1e6) +
+      (json.usage.completion_tokens * PRICE_OUTPUT_MINI_PER_1M / 1e6)
+    ).toFixed(6);
+
+    return {
+      title: (out.title || '').slice(0, 80),
+      hook: out.hook || '',
+      caption: out.caption || '',
+      keywords: Array.isArray(out.keywords) ? out.keywords : [],
+      post_captions: out.post_captions || { pregunta: '', storytelling: '', insight: '' },
+      costUsd: cost,
+    };
+  } catch (e) {
+    console.warn(`[hookForRange] error: ${e.message}`);
+    return emptyRangeCopy(0);
+  }
+}
+
+function emptyRangeCopy(costUsd) {
+  return {
+    title: 'Mi fragmento',
+    hook: '',
+    caption: '',
+    keywords: [],
+    post_captions: { pregunta: '', storytelling: '', insight: '' },
+    costUsd,
+  };
+}
+
 // Regenera solo el post_caption de un clip con tono específico (para botón "Regenerar" del editor).
 export async function regeneratePostCaption(clip, tone = 'pregunta') {
   const apiKey = process.env.OPENAI_API_KEY;

@@ -3,7 +3,8 @@
 import fs from 'fs';
 import path from 'path';
 import {
-  createJob, processJob, getJobWithClips, listUserJobs, listAllJobs,
+  createJob, processJob, resumeManualJob, reopenJobForSelection,
+  getJobWithClips, listUserJobs, listAllJobs,
   updateClip, regenerateClipMp4, exportClipMp4, ensureClipBase,
   deleteJob, addCostToJob, STAGES,
 } from './clipsService.js';
@@ -49,6 +50,45 @@ export async function generateHandler(req, res) {
   }
 }
 
+// POST /api/clips/jobs/:id/submit-ranges
+// Body: { ranges: [{start: number, end: number}] }
+// El job debe estar en status='awaiting_selection' (modo manual). Dispara resumeManualJob async.
+export async function submitRangesHandler(req, res) {
+  try {
+    const jobId = req.params.id;
+    const { ranges } = req.body || {};
+
+    const job = await get(
+      'SELECT id, user_id, status, mode FROM clip_jobs WHERE id=?',
+      [jobId]
+    );
+    if (!job) return res.status(404).json({ error: 'Job no encontrado' });
+    if (job.user_id !== req.user.id && req.user.role !== 'owner') {
+      return res.status(403).json({ error: 'No autorizado' });
+    }
+    if (job.mode !== 'manual') {
+      return res.status(400).json({ error: 'Este job no es de modo manual' });
+    }
+    if (job.status !== 'awaiting_selection') {
+      return res.status(409).json({ error: `Job no está esperando selección (status=${job.status})` });
+    }
+    if (!Array.isArray(ranges) || ranges.length === 0) {
+      return res.status(400).json({ error: 'ranges requerido (array no vacío de {start,end})' });
+    }
+    if (ranges.length > 20) {
+      return res.status(400).json({ error: 'Máximo 20 rangos por job' });
+    }
+
+    res.json({ success: true, jobId, received: ranges.length });
+
+    // Dispara el resume async (no bloquea la respuesta)
+    setImmediate(() => resumeManualJob(jobId, ranges));
+  } catch (err) {
+    console.error('[clips] submitRanges error:', err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
 // GET /api/clips/jobs/:id — status + clips
 export async function getJobHandler(req, res) {
   try {
@@ -66,6 +106,51 @@ export async function listJobsHandler(req, res) {
     const jobs = await listUserJobs(req.user.id);
     res.json(jobs);
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+// POST /api/clips/jobs/:id/reopen-for-selection
+// Reabre un job done para que el usuario agregue más fragmentos manuales.
+// Reutiliza whisper.json + source.mp4 — no re-transcribe ni re-descarga.
+export async function reopenForSelectionHandler(req, res) {
+  try {
+    const jobId = req.params.id;
+    const result = await reopenJobForSelection(jobId, req.user.id);
+    res.json(result);
+  } catch (err) {
+    console.error('[clips] reopenForSelection error:', err);
+    res.status(400).json({ error: err.message });
+  }
+}
+
+// GET /api/clips/jobs/:id/transcript — devuelve whisper.json completo (segments + words con timestamps).
+// Solo aplicable cuando el job ya transcribió (status >= awaiting_selection o done).
+// Lo usa el frontend en la pantalla de selección manual para que el usuario marque rangos.
+export async function getTranscriptHandler(req, res) {
+  try {
+    const jobId = req.params.id;
+    const job = await get(
+      'SELECT id, user_id, status, whisper_json_path, title, duration_seconds, thumbnail FROM clip_jobs WHERE id=?',
+      [jobId]
+    );
+    if (!job) return res.status(404).json({ error: 'Job no encontrado' });
+    if (job.user_id !== req.user.id && req.user.role !== 'owner') {
+      return res.status(403).json({ error: 'No autorizado' });
+    }
+    if (!job.whisper_json_path || !fs.existsSync(job.whisper_json_path)) {
+      return res.status(404).json({ error: 'Transcript no disponible aún' });
+    }
+    const whisper = JSON.parse(fs.readFileSync(job.whisper_json_path, 'utf8'));
+    res.json({
+      title: job.title,
+      duration: job.duration_seconds,
+      thumbnail: job.thumbnail,
+      segments: whisper.segments || [],
+      words: whisper.words || [],
+    });
+  } catch (err) {
+    console.error('[clips] getTranscript error:', err);
     res.status(500).json({ error: err.message });
   }
 }
