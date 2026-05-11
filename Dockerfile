@@ -6,9 +6,15 @@ WORKDIR /app
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ffmpeg python3 python3-venv python3-dev python3-setuptools python3-wheel python3-pip curl ca-certificates build-essential && \
     pip3 install --no-cache-dir --break-system-packages pip setuptools wheel && \
-    pip3 install --no-cache-dir --break-system-packages yt-dlp 'markitdown[all]' pymupdf4llm && \
+    pip3 install --no-cache-dir --break-system-packages --upgrade yt-dlp 'markitdown[all]' pymupdf4llm && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
+
+# yt-dlp tiene releases muy frecuentes (semanales/diarias) por cambios constantes en YouTube/Facebook/Instagram/TikTok.
+# Esta línea fuerza re-upgrade en cada build con --break-system-packages (separada de la layer anterior para
+# que Docker la re-ejecute aunque la primera esté cacheada). Cambiar este ARG fuerza cache miss del upgrade.
+ARG YT_DLP_CACHE_BUST=2026-05-11
+RUN pip3 install --no-cache-dir --break-system-packages --upgrade yt-dlp
 
 # Verificar instalaciones
 RUN yt-dlp --version && markitdown --help > /dev/null 2>&1 && python3 -c "import pymupdf4llm"
