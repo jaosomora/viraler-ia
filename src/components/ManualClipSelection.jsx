@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useClips } from '../context/ClipsContext';
 
 // Componente de selección manual de rangos para un job en status='awaiting_selection'.
@@ -33,6 +33,39 @@ const ManualClipSelection = ({ job }) => {
   const [ranges, setRanges] = useState([]); // [{start_seconds, end_seconds, previewText}]
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [autoFollow, setAutoFollow] = useState(true);
+  const videoRef = useRef(null);
+  const transcriptScrollRef = useRef(null);
+  const isProgrammaticScroll = useRef(false);
+  const lastFollowedWordIdx = useRef(-1);
+
+  // URL del video fuente con token en query (el <video> tag no manda Authorization headers).
+  // El endpoint /source-video usa authMiddlewareMedia que acepta ?token=. Mientras tengamos
+  // sesión, podemos servir el video con Range requests para seek instantáneo.
+  const sourceVideoUrl = useMemo(() => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!token) return null;
+    return `/api/clips/jobs/${job.id}/source-video?token=${encodeURIComponent(token)}`;
+  }, [job.id]);
+
+  const seekTo = (seconds) => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = seconds;
+      // Si el usuario está marcando rangos, mostramos el contexto reproduciendo,
+      // pero no auto-play para no asustarlo en mobile o si hay autoplay block.
+    }
+  };
+
+  // Si el usuario scrollea manualmente, apaga el auto-follow (no se quiere pelear contigo).
+  // El botón "Volver al momento del video" lo reactiva.
+  const handleTranscriptScroll = () => {
+    if (isProgrammaticScroll.current) return;
+    if (autoFollow) setAutoFollow(false);
+  };
+
+  // NOTA: scrollToActiveWord, el useEffect de auto-follow y resumeAutoFollow viven más abajo,
+  // después de la definición de wordTokens (useMemo) para evitar temporal dead zone.
 
   useEffect(() => {
     let alive = true;
@@ -86,6 +119,44 @@ const ManualClipSelection = ({ job }) => {
     return tokens;
   }, [transcript]);
 
+  // Scrollea el transcript a la palabra que se está diciendo ahora en el video.
+  // Marca el scroll como "programático" para que el listener no apague el auto-follow.
+  const scrollToActiveWord = (smooth = true) => {
+    const t = currentTime;
+    const active = wordTokens.find(w => t >= w.start && t < w.end) || wordTokens.find(w => w.start >= t);
+    if (!active) return;
+    const el = transcriptScrollRef.current?.querySelector(`[data-word-idx="${active.idx}"]`);
+    if (el) {
+      isProgrammaticScroll.current = true;
+      el.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'center' });
+      setTimeout(() => { isProgrammaticScroll.current = false; }, 800);
+    }
+  };
+
+  // Auto-follow: cuando avanza la palabra activa, scrollear suave para mantenerla centrada.
+  // Usamos 'center' (no 'nearest') para que el follow sea continuo y la palabra activa quede
+  // siempre cerca del centro del viewport, no pegada al borde inferior. Throttle por palabra.
+  useEffect(() => {
+    if (!autoFollow) return;
+    const t = currentTime;
+    const active = wordTokens.find(w => t >= w.start && t < w.end);
+    if (!active) return;
+    if (active.idx === lastFollowedWordIdx.current) return;
+    lastFollowedWordIdx.current = active.idx;
+    const el = transcriptScrollRef.current?.querySelector(`[data-word-idx="${active.idx}"]`);
+    if (el) {
+      isProgrammaticScroll.current = true;
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => { isProgrammaticScroll.current = false; }, 800);
+    }
+  }, [currentTime, autoFollow, wordTokens]);
+
+  const resumeAutoFollow = () => {
+    setAutoFollow(true);
+    lastFollowedWordIdx.current = -1;
+    scrollToActiveWord(true);
+  };
+
   // Mapa idx → en qué rango guardado cae (para subrayar). Solo el primero que lo contiene.
   const wordInSavedRange = useMemo(() => {
     const map = new Map();
@@ -111,6 +182,9 @@ const ManualClipSelection = ({ job }) => {
   }, [pendingStartWord, wordTokens]);
 
   const handleWordClick = (token) => {
+    // Click siempre seekea el video al momento de esa palabra — así el usuario
+    // escucha exactamente cómo se dijo antes de decidir.
+    seekTo(token.start);
     if (!pendingStartWord) {
       setPendingStartWord({ idx: token.idx, time: token.start });
       return;
@@ -193,8 +267,48 @@ const ManualClipSelection = ({ job }) => {
       </div>
 
       <div className="grid lg:grid-cols-[1fr_360px] gap-0">
-        {/* LEFT: transcript */}
-        <div className="p-5 max-h-[600px] overflow-y-auto border-r border-gray-200 dark:border-gray-700">
+        {/* LEFT: video sticky + transcript */}
+        <div
+          ref={transcriptScrollRef}
+          onScroll={handleTranscriptScroll}
+          className="p-5 max-h-[80vh] overflow-y-auto border-r border-gray-200 dark:border-gray-700">
+          {sourceVideoUrl && (
+            <div className="sticky top-0 z-10 -mx-5 -mt-5 mb-4 px-5 pt-5 pb-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+              <video
+                ref={videoRef}
+                src={sourceVideoUrl}
+                controls
+                preload="metadata"
+                onTimeUpdate={(e) => setCurrentTime(e.target.currentTime)}
+                className="w-full max-h-[300px] rounded-lg bg-black"
+              >
+                Tu navegador no soporta el tag video.
+              </video>
+              <div className="mt-1.5 flex items-center justify-between gap-2">
+                <div className="text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-1.5 flex-1 min-w-0">
+                  {autoFollow ? (
+                    <>
+                      <span className="text-purple-600 dark:text-purple-400">●</span>
+                      <span className="truncate">Auto-sync activo · el texto avanza con el video. Scrollea manual para pausarlo.</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>💡</span>
+                      <span className="truncate">Click en palabra → video salta. El auto-sync se pausó (scrolleaste manualmente).</span>
+                    </>
+                  )}
+                </div>
+                {!autoFollow && (
+                  <button
+                    type="button"
+                    onClick={resumeAutoFollow}
+                    className="shrink-0 text-[11px] px-2 py-1 bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-700/50 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/50 rounded">
+                    ↩ Volver al momento del video
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
           {pendingStartWord && (
             <div className="mb-3 px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-lg text-xs text-amber-800 dark:text-amber-200 flex items-center justify-between">
               <span>▶ Inicio marcado en <b>{formatTime(pendingStartWord.time)}</b>. Click en la palabra de fin para cerrar.</span>
@@ -209,13 +323,16 @@ const ManualClipSelection = ({ job }) => {
                   const inSaved = wordInSavedRange.has(t.idx);
                   const isPending = pendingStartWord?.idx === t.idx;
                   const inPending = !inSaved && pendingStartWord && wordInPendingRange.has(t.idx);
+                  // Palabra siendo "dicha" ahora en el video (highlight activo)
+                  const isActive = currentTime >= t.start && currentTime < t.end;
                   let cls = 'cursor-pointer rounded px-[1px] transition-colors hover:bg-gray-100 dark:hover:bg-gray-700';
                   if (isPending) cls += ' bg-amber-500 text-white px-1';
+                  else if (isActive && !inSaved) cls += ' bg-purple-200 dark:bg-purple-700/50 text-purple-900 dark:text-purple-100';
                   else if (inSaved) cls += ' bg-amber-200/40 dark:bg-amber-700/30 border-b border-amber-500 dark:border-amber-400';
                   else if (inPending) cls += ' bg-amber-200/50 dark:bg-amber-700/40';
                   return (
                     <span key={i}>
-                      <span className={cls} onClick={() => handleWordClick(t)}>{t.text}</span>
+                      <span className={cls} data-word-idx={t.idx} onClick={() => handleWordClick(t)}>{t.text}</span>
                       {' '}
                     </span>
                   );

@@ -8,6 +8,7 @@ AS Tools (Algo Sentido Tools) is a full-stack web app with multiple internal too
 4. **AS Clips** — Convierte videos largos en clips verticales con subs estilo Instagram. **Dos modos de selección**:
    - **Automático**: pipeline de 2 pases (segmentChapters + generateHighlights) elige los mejores momentos por el usuario.
    - **Manual** ("Yo elijo"): tras transcribir, el job pausa en `status='awaiting_selection'`; el usuario marca rangos en el transcript con click-click (1er click=inicio, 2do=fin), backend snap a fronteras de palabra + retreat de cierres con conectores, filtro duro 10-120s, hook+caption+post_captions opcional con gpt-4o-mini ($0.001/clip). Soft warning si rango fuera de 30-90s pero permite generar igual. Botón "✂️ Agregar más clips" en jobs done reabre el job sin re-transcribir.
+   - **Player + auto-sync en selección manual**: la pantalla incluye reproductor del video fuente sticky (endpoint `/source-video` con Range requests vía `authMiddlewareMedia` que acepta token en query). Click en palabra → seek instantáneo. Mientras reproduce: palabra activa se ilumina morada y el transcript scrollea solo manteniéndola centrada. Scroll manual pausa el auto-sync (no se pelea con el usuario) y aparece botón "Volver al momento del video" para reactivar.
 
 Auth: email+password (bcrypt+JWT) plus magic link login by email (Resend, 15min single-use). First registered user becomes `owner`.
 

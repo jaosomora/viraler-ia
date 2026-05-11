@@ -110,6 +110,64 @@ export async function listJobsHandler(req, res) {
   }
 }
 
+// GET /api/clips/jobs/:id/source-video
+// Sirve el source.mp4 completo del job con soporte de Range requests (HTTP 206).
+// Crítico para que el <video> tag pueda hacer seek sin bajar el archivo entero.
+// Lo usa la pantalla de selección manual para que el usuario reproduzca y escuche
+// el video mientras marca fragmentos en el transcript.
+export async function getSourceVideoHandler(req, res) {
+  try {
+    const jobId = req.params.id;
+    const job = await get(
+      'SELECT id, user_id, source_video_path FROM clip_jobs WHERE id=?',
+      [jobId]
+    );
+    if (!job) return res.status(404).json({ error: 'Job no encontrado' });
+    if (job.user_id !== req.user.id && req.user.role !== 'owner') {
+      return res.status(403).json({ error: 'No autorizado' });
+    }
+    if (!job.source_video_path || !fs.existsSync(job.source_video_path)) {
+      return res.status(404).json({ error: 'Video fuente no disponible' });
+    }
+
+    const stat = fs.statSync(job.source_video_path);
+    const fileSize = stat.size;
+    const range = req.headers.range;
+
+    if (range) {
+      // Parse: "bytes=0-1023" o "bytes=1024-"
+      const parts = range.replace(/bytes=/, '').split('-');
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+      if (start >= fileSize || end >= fileSize) {
+        res.status(416).setHeader('Content-Range', `bytes */${fileSize}`);
+        return res.end();
+      }
+      const chunkSize = end - start + 1;
+      res.writeHead(206, {
+        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': chunkSize,
+        'Content-Type': 'video/mp4',
+        'Cache-Control': 'private, max-age=3600',
+      });
+      fs.createReadStream(job.source_video_path, { start, end }).pipe(res);
+    } else {
+      // Petición sin Range: stream completo (con Accept-Ranges para que el browser pida Range después)
+      res.writeHead(200, {
+        'Content-Length': fileSize,
+        'Content-Type': 'video/mp4',
+        'Accept-Ranges': 'bytes',
+        'Cache-Control': 'private, max-age=3600',
+      });
+      fs.createReadStream(job.source_video_path).pipe(res);
+    }
+  } catch (err) {
+    console.error('[clips] getSourceVideo error:', err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
 // POST /api/clips/jobs/:id/reopen-for-selection
 // Reabre un job done para que el usuario agregue más fragmentos manuales.
 // Reutiliza whisper.json + source.mp4 — no re-transcribe ni re-descarga.
