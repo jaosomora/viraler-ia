@@ -65,6 +65,34 @@ export function authMiddleware(req, res, next) {
   }
 }
 
+// Middleware específico para endpoints de streaming media (<video> tags) que no pueden
+// enviar headers Authorization en peticiones GET con Range. Acepta token también via
+// ?token=... query param. Solo usar en endpoints de lectura de media (NUNCA en mutaciones).
+export function authMiddlewareMedia(req, res, next) {
+  const header = req.headers.authorization;
+  const queryToken = req.query?.token;
+  let token = null;
+  if (header && header.startsWith('Bearer ')) token = header.split(' ')[1];
+  else if (queryToken) token = queryToken;
+  if (!token) return res.status(401).json({ error: 'Token no proporcionado' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.role === 'owner') { req.user = decoded; return next(); }
+    db.get('SELECT access_expires_at FROM users WHERE id = ?', [decoded.id], (err, row) => {
+      if (err) return res.status(500).json({ error: 'Error de autenticación' });
+      if (!row) return res.status(401).json({ error: 'Usuario no encontrado' });
+      if (isAccessExpired(row.access_expires_at)) {
+        return res.status(403).json({ error: 'Acceso expirado', code: 'ACCESS_EXPIRED' });
+      }
+      req.user = decoded;
+      next();
+    });
+  } catch {
+    return res.status(401).json({ error: 'Token inválido o expirado' });
+  }
+}
+
 export function ownerOnly(req, res, next) {
   if (req.user.role !== 'owner') {
     return res.status(403).json({ error: 'Acceso solo para administradores' });
