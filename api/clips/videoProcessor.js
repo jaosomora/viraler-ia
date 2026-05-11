@@ -7,8 +7,13 @@ import path from 'path';
 export function downloadVideoToPath(url, outputPath, onProgress) {
   return new Promise((resolve, reject) => {
     const ytDlp = process.env.YTDLP_PATH || 'yt-dlp';
+    // Format selector con fallback chain:
+    // 1) Stream de video ≤1080p + mejor audio
+    // 2) Mejor combinado ≤1080p
+    // 3) "best" sin filtros (último recurso para extractores que no exponen height/formato esperado,
+    //    p.ej. algunos videos de Facebook con "Cannot parse data" en yt-dlp).
     const args = [
-      '-f', 'bv*[height<=1080]+ba/b[height<=1080]',
+      '-f', 'bv*[height<=1080]+ba/b[height<=1080]/best',
       '--merge-output-format', 'mp4',
       '-o', outputPath,
       '--no-warnings',
