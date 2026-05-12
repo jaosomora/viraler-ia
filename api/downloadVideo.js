@@ -1,6 +1,7 @@
 // api/downloadVideo.js
 import { spawn } from 'child_process';
 import { detectPlatform } from './utils/platformDetector.js';
+import { facebookCookiesArgs } from './utils/ytdlpCookies.js';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -42,6 +43,9 @@ const getVideoInfo = (url, platform) => new Promise((resolve, reject) => {
   if (platform === 'instagram') {
     const cookieArgs = getCookieArgs();
     if (cookieArgs.length > 0) args.push(...cookieArgs);
+  }
+  if (platform === 'facebook') {
+    args.push(...facebookCookiesArgs(url));
   }
   args.push(
     '--user-agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
@@ -109,6 +113,9 @@ export default async function downloadVideo(req, res) {
     if (platform === 'instagram') {
       const cookieArgs = getCookieArgs();
       if (cookieArgs.length > 0) args.push(...cookieArgs);
+    }
+    if (platform === 'facebook') {
+      args.push(...facebookCookiesArgs(url));
     }
 
     args.push(
