@@ -76,6 +76,14 @@ export const getAdminClips = async () => {
   return await response.json();
 };
 
+export const getAdminReels = async () => {
+  const response = await fetch(`${API_BASE_URL}/admin/reels`, {
+    headers: getAuthHeaders()
+  });
+  if (!response.ok) throw new Error('Error al obtener reels');
+  return await response.json();
+};
+
 export const setUserAccess = async (userId, expiresAt) => {
   const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/access`, {
     method: 'PATCH',

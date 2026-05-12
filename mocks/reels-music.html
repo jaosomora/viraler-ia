@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<title>AS Reels Cleaner — Paso 3 Música · Mockup</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: 'Inter', system-ui, sans-serif; }
+  .video-placeholder {
+    aspect-ratio: 9/16;
+    background: linear-gradient(135deg, #1c1917 0%, #292524 100%);
+  }
+  .track-row { transition: background 0.12s; cursor: pointer; }
+  .track-row:hover { background: rgba(245, 158, 11, 0.05); }
+  .track-row.selected { background: rgba(245, 158, 11, 0.12); border-left: 3px solid #d97706; }
+  .waveform {
+    height: 28px;
+    background-image: linear-gradient(90deg,
+      #d6d3d1 0%, #d6d3d1 20%, transparent 20%, transparent 25%,
+      #d6d3d1 25%, #d6d3d1 45%, transparent 45%, transparent 50%,
+      #d6d3d1 50%, #d6d3d1 70%, transparent 70%, transparent 75%,
+      #d6d3d1 75%, #d6d3d1 100%);
+    background-size: 4px 100%;
+    background-repeat: repeat-x;
+  }
+  .mood-chip { transition: all 0.12s; }
+  .mood-chip.active { background: #1c1917; color: white; border-color: #1c1917; }
+  .play-btn {
+    width: 32px; height: 32px; border-radius: 999px; display: inline-flex;
+    align-items: center; justify-content: center; background: #1c1917; color: white;
+    transition: transform 0.1s;
+  }
+  .play-btn:hover { transform: scale(1.08); }
+</style>
+</head>
+<body class="bg-stone-50 text-stone-900 min-h-screen">
+
+<header class="border-b border-stone-200 bg-white">
+  <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+    <div>
+      <div class="text-xs uppercase tracking-widest text-stone-500">AS Tools · Reels Cleaner</div>
+      <h1 class="text-xl font-serif text-stone-900">Paso 3 · Música de fondo</h1>
+    </div>
+    <div class="text-sm text-stone-500">
+      Encuentra la pieza correcta, mezcla bajo la voz, y exporta.
+    </div>
+  </div>
+</header>
+
+<main class="max-w-7xl mx-auto px-6 py-8">
+
+  <!-- Stepper -->
+  <div class="flex items-center gap-3 mb-8 text-sm">
+    <span class="px-3 py-1 rounded-full bg-stone-200 text-stone-500">1. Silencios ✓</span>
+    <span class="text-stone-400">→</span>
+    <span class="px-3 py-1 rounded-full bg-stone-200 text-stone-500">2. Estilo de subs ✓</span>
+    <span class="text-stone-400">→</span>
+    <span class="px-3 py-1 rounded-full bg-stone-900 text-white">3. Música</span>
+    <span class="text-stone-400">→</span>
+    <span class="px-3 py-1 rounded-full bg-stone-200 text-stone-500">4. Exportar</span>
+  </div>
+
+  <!-- Top bar: CTAs -->
+  <div class="bg-white border border-stone-200 rounded-lg p-5 mb-6 flex items-center justify-between gap-4 flex-wrap">
+    <div>
+      <h2 class="text-lg font-semibold text-stone-900">Música de fondo (opcional)</h2>
+      <p class="text-xs text-stone-500 mt-1">
+        Tu reel dura <span class="font-mono">1:12</span> · si no quieres música, salta este paso.
+      </p>
+    </div>
+    <div class="flex gap-2 flex-wrap">
+      <button class="px-3 py-2 text-sm text-stone-600 hover:bg-stone-100 rounded-lg border border-stone-300">
+        ← Volver a subs
+      </button>
+      <button class="px-3 py-2 text-sm text-stone-600 hover:bg-stone-100 rounded-lg">
+        Saltar música →
+      </button>
+      <button class="px-4 py-2 text-sm bg-stone-900 hover:bg-stone-800 text-white rounded-lg font-medium">
+        Exportar reel con música →
+      </button>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-12 gap-6">
+
+    <!-- LEFT: video preview sticky -->
+    <div class="col-span-5">
+      <div class="sticky top-6">
+        <div class="bg-white border border-stone-200 rounded-lg overflow-hidden">
+          <div class="video-placeholder relative flex items-center justify-center">
+            <div class="text-stone-500 text-center">
+              <div class="text-5xl mb-2 opacity-40">▶</div>
+              <div class="text-xs uppercase tracking-widest opacity-60">Preview con música</div>
+            </div>
+            <!-- Subtítulo de muestra -->
+            <div class="absolute bottom-10 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-black/85 rounded">
+              <span class="text-white text-sm font-bold">la marca personal</span>
+            </div>
+            <!-- Indicador de música -->
+            <div class="absolute top-4 right-4 px-2 py-1 rounded-full bg-black/60 text-white text-[10px] flex items-center gap-1">
+              🎵 Editorial Sunrise · -16dB
+            </div>
+          </div>
+
+          <!-- Status del preview -->
+          <div class="p-3 border-t border-stone-200 text-xs text-amber-700 bg-amber-50">
+            ⚠ Preview sin música aún · pulsa "Mezclar preview" para escuchar
+          </div>
+        </div>
+
+        <button class="w-full mt-3 px-4 py-2.5 bg-stone-900 hover:bg-stone-800 text-white rounded-lg font-medium text-sm">
+          Mezclar preview con esta música
+        </button>
+        <p class="text-xs text-stone-500 text-center mt-2">
+          ~20s · re-mezcla audio sin re-cortar video
+        </p>
+      </div>
+    </div>
+
+    <!-- RIGHT: catálogo + controles -->
+    <div class="col-span-7 space-y-5">
+
+      <!-- BUSCADOR + FILTROS -->
+      <div class="bg-white border border-stone-200 rounded-lg p-5">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="relative flex-1">
+            <input
+              type="text"
+              placeholder="Buscar por nombre, autor, mood…"
+              value="editorial"
+              class="w-full pl-9 pr-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+            />
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400">🔍</span>
+          </div>
+          <button class="px-3 py-2 text-sm bg-stone-100 hover:bg-stone-200 rounded-lg flex items-center gap-1.5">
+            ⬆ Subir track
+          </button>
+        </div>
+
+        <!-- Mood chips -->
+        <div class="flex flex-wrap gap-2 mb-1">
+          <button class="mood-chip active px-3 py-1 rounded-full text-xs border border-stone-300">Todos</button>
+          <button class="mood-chip px-3 py-1 rounded-full text-xs border border-stone-300 bg-white text-stone-700">🌅 Editorial calmo</button>
+          <button class="mood-chip px-3 py-1 rounded-full text-xs border border-stone-300 bg-white text-stone-700">⚡ Energético</button>
+          <button class="mood-chip px-3 py-1 rounded-full text-xs border border-stone-300 bg-white text-stone-700">🎬 Cinemático</button>
+          <button class="mood-chip px-3 py-1 rounded-full text-xs border border-stone-300 bg-white text-stone-700">🪶 Minimalista</button>
+          <button class="mood-chip px-3 py-1 rounded-full text-xs border border-stone-300 bg-white text-stone-700">📖 Narrativo</button>
+          <button class="mood-chip px-3 py-1 rounded-full text-xs border border-stone-300 bg-white text-stone-700">🎉 Uplifting</button>
+        </div>
+      </div>
+
+      <!-- LISTA DE TRACKS -->
+      <div class="bg-white border border-stone-200 rounded-lg overflow-hidden">
+        <div class="px-4 py-2.5 border-b border-stone-200 text-xs uppercase tracking-wider text-stone-500 flex justify-between">
+          <span>23 tracks en tu biblioteca</span>
+          <button class="hover:text-stone-800">Ordenar: relevancia ↓</button>
+        </div>
+
+        <!-- Track seleccionado -->
+        <div class="track-row selected px-4 py-3 border-b border-stone-100 flex items-center gap-3">
+          <button class="play-btn">⏸</button>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="font-medium text-sm text-stone-900 truncate">Editorial Sunrise</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-stone-100 text-stone-600">🌅 Editorial calmo</span>
+            </div>
+            <div class="text-[11px] text-stone-500 mt-0.5">
+              Pixabay · 92 BPM · 2:34 · royalty-free comercial
+            </div>
+            <div class="waveform mt-1.5 rounded-sm"></div>
+          </div>
+          <span class="text-[11px] font-mono text-emerald-700">✓ seleccionado</span>
+        </div>
+
+        <!-- Tracks alternativos -->
+        <div class="track-row px-4 py-3 border-b border-stone-100 flex items-center gap-3">
+          <button class="play-btn" style="background:#a8a29e">▶</button>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="font-medium text-sm text-stone-900 truncate">Soft Editorial Beat</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-stone-100 text-stone-600">🌅 Editorial calmo</span>
+            </div>
+            <div class="text-[11px] text-stone-500 mt-0.5">
+              Pixabay · 75 BPM · 1:48 · royalty-free comercial
+            </div>
+            <div class="waveform mt-1.5 rounded-sm opacity-50"></div>
+          </div>
+        </div>
+
+        <div class="track-row px-4 py-3 border-b border-stone-100 flex items-center gap-3">
+          <button class="play-btn" style="background:#a8a29e">▶</button>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="font-medium text-sm text-stone-900 truncate">Minimal Editorial Pads</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-stone-100 text-stone-600">🪶 Minimalista</span>
+            </div>
+            <div class="text-[11px] text-stone-500 mt-0.5">
+              Tu biblioteca · 60 BPM · 3:12 · subido por ti
+            </div>
+            <div class="waveform mt-1.5 rounded-sm opacity-50"></div>
+          </div>
+        </div>
+
+        <div class="track-row px-4 py-3 border-b border-stone-100 flex items-center gap-3">
+          <button class="play-btn" style="background:#a8a29e">▶</button>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="font-medium text-sm text-stone-900 truncate">Editorial Pulse</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-stone-100 text-stone-600">📖 Narrativo</span>
+            </div>
+            <div class="text-[11px] text-stone-500 mt-0.5">
+              YouTube Audio Library · 80 BPM · 2:18 · sin atribución
+            </div>
+            <div class="waveform mt-1.5 rounded-sm opacity-50"></div>
+          </div>
+        </div>
+
+        <div class="px-4 py-2.5 bg-stone-50 text-center text-xs text-stone-500 border-t border-stone-200">
+          + 19 tracks más · <a href="#" class="text-amber-700 hover:underline">ver todos</a>
+        </div>
+      </div>
+
+      <!-- CONTROLES DEL TRACK SELECCIONADO -->
+      <div class="bg-white border border-stone-200 rounded-lg p-5">
+        <h3 class="font-semibold text-sm uppercase tracking-wide text-stone-500 mb-4">
+          Mezcla de "Editorial Sunrise"
+        </h3>
+
+        <div class="space-y-5">
+          <!-- Volumen -->
+          <div>
+            <div class="flex items-baseline justify-between mb-1">
+              <label class="text-sm text-stone-700">Volumen de la música</label>
+              <span class="text-sm font-mono font-semibold text-stone-900">-16dB</span>
+            </div>
+            <input type="range" min="-30" max="0" value="-16" class="w-full accent-stone-900" />
+            <div class="flex justify-between text-[10px] text-stone-400 mt-0.5">
+              <span>← muy suave (-30dB)</span>
+              <span>volumen pleno (0dB) →</span>
+            </div>
+          </div>
+
+          <!-- Auto-ducking -->
+          <div class="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+            <input type="checkbox" checked class="mt-1 accent-amber-600" />
+            <div class="flex-1">
+              <div class="text-sm font-medium text-stone-900">Bajar música automáticamente cuando hablas</div>
+              <p class="text-xs text-stone-600 mt-0.5">
+                La música se atenúa -10dB extra cuando hay voz y vuelve a su nivel en las pausas.
+                Recomendado para que tu mensaje siempre se escuche claro.
+              </p>
+            </div>
+          </div>
+
+          <!-- Fade in/out -->
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs text-stone-500 mb-1">Fade in (entrada)</label>
+              <select class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm bg-white">
+                <option>0.5s suave</option>
+                <option selected>1s natural</option>
+                <option>2s gradual</option>
+                <option>Sin fade</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs text-stone-500 mb-1">Fade out (salida)</label>
+              <select class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm bg-white">
+                <option>0.5s suave</option>
+                <option selected>1.5s natural</option>
+                <option>3s largo</option>
+                <option>Sin fade</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- In point (cuándo arranca la música del track) -->
+          <div>
+            <div class="flex items-baseline justify-between mb-1">
+              <label class="text-sm text-stone-700">Empezar el track desde</label>
+              <span class="text-xs font-mono text-stone-500">0:12 (suele saltarse intros)</span>
+            </div>
+            <input type="range" min="0" max="120" value="12" class="w-full accent-stone-900" />
+            <div class="text-[10px] text-stone-400 mt-0.5">
+              Si el track empieza con silencio o intro pesada, salta unos segundos.
+            </div>
+          </div>
+
+          <!-- Loop info -->
+          <div class="text-xs text-stone-500 bg-stone-50 rounded p-3 border border-stone-200">
+            💡 El track dura 2:34 y tu reel 1:12 → la música se recorta automáticamente con fade-out.
+            Si tu reel fuera más largo que la música, daría loop con crossfade.
+          </div>
+        </div>
+      </div>
+
+      <!-- Sugerencia LLM (fase 2 — placeholder) -->
+      <div class="bg-gradient-to-r from-amber-50 to-rose-50 border border-amber-200 rounded-lg p-4 text-sm">
+        <div class="flex items-center justify-between">
+          <div>
+            <strong class="font-medium text-stone-900">✨ ¿No sabes cuál escoger?</strong>
+            <p class="text-xs text-stone-600 mt-0.5">
+              Que la IA lea tu transcript y te sugiera las 3 mejores opciones de tu catálogo.
+            </p>
+          </div>
+          <button class="px-3 py-2 text-sm bg-white border border-amber-300 hover:bg-amber-100 rounded-lg shrink-0">
+            Sugerir música
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</main>
+
+<script>
+  document.querySelectorAll('.mood-chip').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.mood-chip').forEach(c => c.classList.remove('active'));
+      b.classList.add('active');
+    });
+  });
+  document.querySelectorAll('.track-row').forEach(row => {
+    row.addEventListener('click', () => {
+      document.querySelectorAll('.track-row').forEach(r => r.classList.remove('selected'));
+      row.classList.add('selected');
+    });
+  });
+</script>
+
+</body>
+</html>

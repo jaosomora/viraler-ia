@@ -6,4 +6,5 @@
 - [Estética AS Clips](feedback_clips_aesthetic.md) — Editorial elegante, NO Opus Clip neón. Filtro para templates/colores/fuentes
 - [Estado AS Transcribe v2.1](project_viralai_state.md) — React+Express+SQLite, auth JWT, deploy en Render
 - [AS Clips - Estado y pendientes](project_clips_pending.md) — Lo que ya está hecho (no proponer de nuevo) + pendientes priorizados
+- [AS Reels Cleaner - Estado](project_reels_cleaner.md) — Pipeline 3 pasos completo, integración paneles, decisiones de scope
 - [Render deploy](reference_render_deploy.md) — Docker, /opt/data, env vars necesarias

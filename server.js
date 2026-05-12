@@ -45,6 +45,41 @@ import {
   getSourceVideoHandler as clipsGetSourceVideo,
 } from './api/clips/routes.js';
 import { recoverZombieJobs } from './api/clips/clipsService.js';
+import {
+  uploadHandler as reelsUpload,
+  listJobsHandler as reelsList,
+  adminListJobsHandler as reelsAdminList,
+  getJobHandler as reelsGet,
+  applyCutsHandler as reelsApplyCuts,
+  updateStyleHandler as reelsUpdateStyle,
+  updateTitleHandler as reelsUpdateTitle,
+  renderPreviewHandler as reelsRenderPreview,
+  finalizeHandler as reelsFinalize,
+  reopenSilencesHandler as reelsReopenSilences,
+  continueToMusicHandler as reelsContinueToMusic,
+  reopenStyleHandler as reelsReopenStyle,
+  updateMusicHandler as reelsUpdateMusic,
+  mixMusicHandler as reelsMixMusic,
+  suggestMusicHandler as reelsSuggestMusic,
+  outputWithMusicHandler as reelsOutputWithMusic,
+  sourceVideoHandler as reelsSourceVideo,
+  baseVideoHandler as reelsBaseVideo,
+  outputVideoHandler as reelsOutputVideo,
+  downloadHandler as reelsDownload,
+  deleteJobHandler as reelsDelete,
+} from './api/reels/routes.js';
+import {
+  uploadHandler as musicUpload,
+  listHandler as musicList,
+  getHandler as musicGet,
+  deleteHandler as musicDelete,
+  updateHandler as musicUpdate,
+  tagsHandler as musicTags,
+  streamHandler as musicStream,
+  curateHandler as musicCurate,
+  providersHandler as musicProviders,
+} from './api/reels/musicRoutes.js';
+import { recoverZombieReels } from './api/reels/reelsService.js';
 import { authMiddleware, authMiddlewareMedia, ownerOnly, registerUser, loginUser, listUsers, adminResetPassword, generateTempPassword, requestMagicLink, verifyMagicLink, setUserAccessExpiry } from './api/auth.js';
 import {
   generateUsageReport,
@@ -225,6 +260,58 @@ app.post('/api/clips/templates', authMiddleware, clipsCreateTemplate);
 app.delete('/api/clips/templates/:id', authMiddleware, clipsDeleteTemplate);
 app.post('/api/clips/jobs/:id/disable-hooks', authMiddleware, clipsDisableHooks);
 app.get('/api/admin/clips', authMiddleware, ownerOnly, clipsAdminList);
+app.get('/api/admin/reels', authMiddleware, ownerOnly, reelsAdminList);
+
+// --- AS Reels Cleaner ---
+const reelsUploadMulter = multer({
+  dest: os.tmpdir(),
+  limits: { fileSize: 500 * 1024 * 1024 }, // 500MB (reels son cortos)
+  fileFilter: (req, file, cb) => {
+    const allowed = /\.(mp4|mov|avi|mkv|webm|m4v)$/i;
+    if (allowed.test(file.originalname)) cb(null, true);
+    else cb(new Error('Formato no soportado. Usa MP4, MOV, MKV, WEBM, M4V.'));
+  },
+});
+app.post('/api/reels/upload', authMiddleware, reelsUploadMulter.single('video'), reelsUpload);
+app.get('/api/reels/jobs', authMiddleware, reelsList);
+app.get('/api/reels/jobs/:id', authMiddleware, reelsGet);
+app.post('/api/reels/jobs/:id/apply-cuts', authMiddleware, reelsApplyCuts);
+app.patch('/api/reels/jobs/:id/style', authMiddleware, reelsUpdateStyle);
+app.patch('/api/reels/jobs/:id/title', authMiddleware, reelsUpdateTitle);
+app.post('/api/reels/jobs/:id/render-preview', authMiddleware, reelsRenderPreview);
+app.post('/api/reels/jobs/:id/finalize', authMiddleware, reelsFinalize);
+app.post('/api/reels/jobs/:id/reopen-silences', authMiddleware, reelsReopenSilences);
+app.post('/api/reels/jobs/:id/continue-to-music', authMiddleware, reelsContinueToMusic);
+app.post('/api/reels/jobs/:id/reopen-style', authMiddleware, reelsReopenStyle);
+app.patch('/api/reels/jobs/:id/music', authMiddleware, reelsUpdateMusic);
+app.post('/api/reels/jobs/:id/mix-music', authMiddleware, reelsMixMusic);
+app.post('/api/reels/jobs/:id/suggest-music', authMiddleware, reelsSuggestMusic);
+app.get('/api/reels/jobs/:id/output-with-music', authMiddlewareMedia, reelsOutputWithMusic);
+app.get('/api/reels/jobs/:id/source-video', authMiddlewareMedia, reelsSourceVideo);
+app.get('/api/reels/jobs/:id/base-video', authMiddlewareMedia, reelsBaseVideo);
+app.get('/api/reels/jobs/:id/output', authMiddlewareMedia, reelsOutputVideo);
+
+// --- Catálogo de música ---
+const musicUploadMulter = multer({
+  dest: os.tmpdir(),
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB por track
+  fileFilter: (req, file, cb) => {
+    const allowed = /\.(mp3|wav|m4a|ogg|aac|flac)$/i;
+    if (allowed.test(file.originalname)) cb(null, true);
+    else cb(new Error('Formato no soportado. Usa MP3, WAV, M4A, OGG, AAC, FLAC.'));
+  },
+});
+app.get('/api/music/tags', authMiddleware, musicTags);
+app.get('/api/music/providers', authMiddleware, musicProviders);
+app.post('/api/music/curate', authMiddleware, ownerOnly, musicCurate);
+app.get('/api/music/tracks', authMiddleware, musicList);
+app.post('/api/music/tracks', authMiddleware, musicUploadMulter.single('audio'), musicUpload);
+app.get('/api/music/tracks/:id', authMiddleware, musicGet);
+app.patch('/api/music/tracks/:id', authMiddleware, musicUpdate);
+app.delete('/api/music/tracks/:id', authMiddleware, musicDelete);
+app.get('/api/music/tracks/:id/stream', authMiddlewareMedia, musicStream);
+app.get('/api/reels/jobs/:id/download', authMiddlewareMedia, reelsDownload);
+app.delete('/api/reels/jobs/:id', authMiddleware, reelsDelete);
 
 // Transcripciones del usuario
 app.get('/api/transcriptions', authMiddleware, async (req, res) => {
@@ -400,6 +487,11 @@ app.listen(PORT, async () => {
     const n = await recoverZombieJobs();
     if (n > 0) console.log(`[clips] ${n} job(s) marcados como error tras reinicio (zombies recuperados).`);
   } catch (e) { console.warn('[clips] zombie recovery falló:', e.message); }
+
+  try {
+    const n = await recoverZombieReels();
+    if (n > 0) console.log(`[reels] ${n} job(s) marcados como error tras reinicio.`);
+  } catch (e) { console.warn('[reels] zombie recovery falló:', e.message); }
 
   // Cleanup automático de archivos de clips viejos (evita llenar /opt/data).
   try {

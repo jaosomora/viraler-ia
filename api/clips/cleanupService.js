@@ -15,6 +15,7 @@ import path from 'path';
 import { execSync } from 'child_process';
 
 const CLIPS_DIR = process.env.CLIPS_DIR || '/opt/data/clips';
+const REELS_DIR = process.env.REELS_DIR || '/opt/data/reels';
 const DATA_DIR = process.env.DATA_DIR || '/opt/data';
 const MAX_AGE_HOURS = 24;
 const DISK_PRESSURE_HIGH_PCT = 85;
@@ -33,8 +34,8 @@ function getDiskUsagePct(mountPath) {
   }
 }
 
-function purgeJobFiles(jobId) {
-  const dir = path.join(CLIPS_DIR, jobId);
+function purgeJobFiles(jobId, root = CLIPS_DIR) {
+  const dir = path.join(root, jobId);
   if (!fs.existsSync(dir)) return false;
   try {
     fs.rmSync(dir, { recursive: true, force: true });
@@ -46,11 +47,11 @@ function purgeJobFiles(jobId) {
 }
 
 // Lista jobs done elegibles para purga ordenados por antigüedad (más viejos primero).
-function listPurgeCandidates(db, olderThanHours) {
+function listPurgeCandidates(db, table, olderThanHours) {
   return new Promise((resolve) => {
     const cutoff = new Date(Date.now() - olderThanHours * 3600 * 1000).toISOString();
     db.all(
-      `SELECT id, finished_at FROM clip_jobs
+      `SELECT id, finished_at FROM ${table}
        WHERE status='done' AND files_purged=0 AND finished_at IS NOT NULL AND finished_at < ?
        ORDER BY finished_at ASC`,
       [cutoff],
@@ -61,10 +62,10 @@ function listPurgeCandidates(db, olderThanHours) {
 
 // Lista TODOS los jobs done que aún tienen archivos (sin importar edad), por antigüedad.
 // Usado solo en modo presión de disco.
-function listAllDoneWithFiles(db) {
+function listAllDoneWithFiles(db, table) {
   return new Promise((resolve) => {
     db.all(
-      `SELECT id, finished_at FROM clip_jobs
+      `SELECT id, finished_at FROM ${table}
        WHERE status='done' AND files_purged=0
        ORDER BY finished_at ASC NULLS FIRST`,
       (err, rows) => resolve(err ? [] : (rows || []))
@@ -72,53 +73,63 @@ function listAllDoneWithFiles(db) {
   });
 }
 
-function markPurged(db, jobId) {
+function markPurged(db, table, jobId) {
   return new Promise((resolve) => {
     db.run(
-      `UPDATE clip_jobs SET files_purged=1 WHERE id=?`,
+      `UPDATE ${table} SET files_purged=1 WHERE id=?`,
       [jobId],
       () => resolve()
     );
   });
 }
 
-async function purgeBatch(db, jobs, reason) {
+async function purgeBatch(db, table, root, jobs, reason) {
   let purged = 0;
   for (const j of jobs) {
-    const ok = purgeJobFiles(j.id);
+    const ok = purgeJobFiles(j.id, root);
     if (ok) {
-      await markPurged(db, j.id);
+      await markPurged(db, table, j.id);
       purged += 1;
     }
   }
   if (purged > 0) {
-    console.log(`[cleanup] purged ${purged} job(s) (${reason})`);
+    console.log(`[cleanup] purged ${purged} ${table.replace('_jobs','')} job(s) (${reason})`);
   }
   return purged;
 }
 
+// Configuración por tabla: (tableName, rootDir)
+const TARGETS = [
+  { table: 'clip_jobs', root: CLIPS_DIR },
+  { table: 'reel_jobs', root: REELS_DIR },
+];
+
 export async function runCleanup(db) {
   try {
-    if (!fs.existsSync(CLIPS_DIR)) return;
-
-    // 1) Purga por tiempo: jobs done viejos.
-    const oldJobs = await listPurgeCandidates(db, MAX_AGE_HOURS);
-    if (oldJobs.length) {
-      await purgeBatch(db, oldJobs, `>${MAX_AGE_HOURS}h since finished`);
+    // 1) Purga por tiempo: jobs done viejos en CADA tabla.
+    for (const { table, root } of TARGETS) {
+      if (!fs.existsSync(root)) continue;
+      const oldJobs = await listPurgeCandidates(db, table, MAX_AGE_HOURS);
+      if (oldJobs.length) {
+        await purgeBatch(db, table, root, oldJobs, `>${MAX_AGE_HOURS}h since finished`);
+      }
     }
 
-    // 2) Purga por presión de disco: si seguimos sobre 85%, borrar más jobs (más recientes)
-    //    hasta bajar a 70%. Esto SÍ afecta jobs done de < 24h en casos extremos.
+    // 2) Purga por presión de disco: si seguimos sobre 85%, borrar más jobs
+    //    (más recientes) hasta bajar a 70%. Atraviesa todas las tablas en orden.
     let usagePct = getDiskUsagePct(DATA_DIR);
     if (usagePct >= DISK_PRESSURE_HIGH_PCT) {
-      console.warn(`[cleanup] disk pressure: ${usagePct.toFixed(1)}% used, purging more aggressively`);
-      const candidates = await listAllDoneWithFiles(db);
-      for (const j of candidates) {
+      console.warn(`[cleanup] disk pressure: ${usagePct.toFixed(1)}% used, purging aggressively`);
+      for (const { table, root } of TARGETS) {
         if (usagePct < DISK_PRESSURE_LOW_PCT) break;
-        const ok = purgeJobFiles(j.id);
-        if (ok) {
-          await markPurged(db, j.id);
-          usagePct = getDiskUsagePct(DATA_DIR);
+        const candidates = await listAllDoneWithFiles(db, table);
+        for (const j of candidates) {
+          if (usagePct < DISK_PRESSURE_LOW_PCT) break;
+          const ok = purgeJobFiles(j.id, root);
+          if (ok) {
+            await markPurged(db, table, j.id);
+            usagePct = getDiskUsagePct(DATA_DIR);
+          }
         }
       }
       console.log(`[cleanup] after pressure purge: ${usagePct.toFixed(1)}% used`);

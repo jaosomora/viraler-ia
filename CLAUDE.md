@@ -9,12 +9,19 @@ AS Tools (Algo Sentido Tools) is a full-stack web app with multiple internal too
    - **Automático**: pipeline de 2 pases (segmentChapters + generateHighlights) elige los mejores momentos por el usuario.
    - **Manual** ("Yo elijo"): tras transcribir, el job pausa en `status='awaiting_selection'`; el usuario marca rangos en el transcript con click-click (1er click=inicio, 2do=fin), backend snap a fronteras de palabra + retreat de cierres con conectores, filtro duro 10-120s, hook+caption+post_captions opcional con gpt-4o-mini ($0.001/clip). Soft warning si rango fuera de 30-90s pero permite generar igual. Botón "✂️ Agregar más clips" en jobs done reabre el job sin re-transcribir.
    - **Player + auto-sync en selección manual**: la pantalla incluye reproductor del video fuente sticky (endpoint `/source-video` con Range requests vía `authMiddlewareMedia` que acepta token en query). Click en palabra → seek instantáneo. Mientras reproduce: palabra activa se ilumina morada y el transcript scrollea solo manteniéndola centrada. Scroll manual pausa el auto-sync (no se pelea con el usuario) y aparece botón "Volver al momento del video" para reactivar.
+5. **AS Reels Cleaner** — Toma cruda corta (≤10 min) → reel vertical 9:16 con cortes de silencio + subs IG + música opcional. Flujo de 3 pasos con WYSIWYG en vivo:
+   - **Paso 1 · Silencios**: tras transcribir con Whisper, detecta gaps entre palabras (`api/reels/silenceDetector.js`). Frontend muestra transcript con chips por pausa (✂ Cortar / ⚠ Revisar / Mantener) + slider de umbral global. Botón **"▶ Escuchar cómo queda con los cortes aplicados"** salta cortes en vivo vía `requestAnimationFrame` (~16ms lag) sin render — el usuario audita antes de pagar el cómputo. Padding default 100ms para no comer ataques consonantes ("Nacen", "Por…"). Auto-scroll del transcript siguiendo la palabra activa (zona segura 10–80%).
+   - **Paso 2 · Estilo de subs**: render del `base.mp4` (cuts + concat + crop 9:16 + scale 1080×1920, sin subs) en una sola pasada con ffmpeg `filter_complex` (`trim/atrim → concat → crop`). Frontend muestra base + **overlay HTML WYSIWYG** que renderiza el chunk activo con la fuente/tamaño/color/grosor/posición que estás eligiendo. Cambios instantáneos sin re-render. **Posición** vía 5 presets (Pegado abajo / Bajo / Medio / Alto / Casi mitad) con indicador rojo/ámbar/verde de zona segura IG+TikTok. **Toggle "Zonas IG/TikTok"** overlay el preview con bandas que muestran el UI de cada plataforma. Subtítulos línea por línea editables con timestamps clickeables, ocultable por chunk, **botón "📋 Copiar transcripción"**.
+   - **Paso 3 · Música de fondo (opcional)**: catálogo `music_tracks` con tracks remotos de Jamendo (lazy download al primer uso) o subidos manual. **Sugerencia IA** (GPT-4o-mini con fallback a Claude Sonnet 4.5 si hay `ANTHROPIC_API_KEY`) lee el transcript + catálogo numerado y devuelve 3 sugerencias variadas con razón. Mixer ffmpeg con `sidechaincompress` para auto-ducking (la música baja cuando hablas). Mini-player sticky con progreso/volumen/seek. Curaduría predefinida con `~35 recetas` por mood + paginación automática (cada click trae página siguiente).
+   - **Estados**: `pending → running → awaiting_review → rendering_base → awaiting_style_review → awaiting_music_review → rendering_music_mix → done`. Cleanup automático extendido a `/opt/data/reels/<jobId>` con misma política que clips (24h + 85% pressure → 70%).
+   - **Catálogo de música**: `/opt/data/music/<trackId>.mp3` (permanente, no se purga). 50+ tags agrupados en mood/energía/género (`api/reels/musicTags.js`). Solo tracks instrumentales (filtro `vocalinstrumental=instrumental` en Jamendo).
+   - **Reusos clave**: `whisperService.js`, `extractAudioFromVideo`, `orthographyCleanup.js`, `chunkWordsForClip`, `FONT_CATALOG.caption` de Clips. El modelo de render-en-2-pasos (base + burn-in) también es de Clips.
 
 Auth: email+password (bcrypt+JWT) plus magic link login by email (Resend, 15min single-use). First registered user becomes `owner`.
 
 **Acceso temporal por usuario** (para clientes): el owner asigna `access_expires_at` desde el panel admin (tab Usuarios). El `authMiddleware` valida la expiración contra DB en cada request (owner exento). Login y magic link rechazan usuarios expirados con mensaje claro. NULL = sin límite (uso interno). Endpoint: `PATCH /api/admin/users/:id/access`.
 
-**Panel admin con tabs** (`/admin`): organizado en Resumen / Usuarios / Transcripciones / Conversiones / Secretos. El tab activo se persiste en `localStorage` (clave `admin_active_tab`).
+**Panel admin con tabs** (`/admin`): organizado en Resumen / Usuarios / Transcripciones / Clips / **Reels** / Conversiones / Secretos. El tab activo se persiste en `localStorage` (clave `admin_active_tab`). El **Resumen** integra "Modelos de IA en uso" (Whisper, GPT-4o-mini, Claude Sonnet, Jamendo) y "Historial de uso reciente" con totales agregados por día across todas las herramientas. **Mis Resultados** tiene tabs Transcripciones / Clips / Reels / Conversiones.
 
 Part of the Algo Sentido internal toolset. Designed to scale with more tools over time.
 
@@ -47,6 +54,18 @@ Part of the Algo Sentido internal toolset. Designed to scale with more tools ove
 │   │   ├── emailService.js      # Resend wrapper for magic link emails
 │   │   ├── logService.js        # API logging
 │   │   └── transcriptionService.js
+│   ├── reels/                   # AS Reels Cleaner: cuts + crop 9:16 + subs + música
+│   │   ├── silenceDetector.js   # Gaps desde Whisper words → keep segments + remap
+│   │   ├── reelRenderer.js      # ffmpeg renderReelBase + burnSubsOnBase + probeDuration
+│   │   ├── reelSubtitles.js     # Build ASS + chunks editables (reusa chunkWordsForClip)
+│   │   ├── reelsService.js      # Orquestador máquina de estados + suggestMusic (LLM)
+│   │   ├── routes.js            # Endpoints HTTP de jobs (CRUD + style + music + finalize)
+│   │   ├── musicTags.js         # Catálogo mood/energía/género (50+ tags)
+│   │   ├── musicService.js      # CRUD tracks (local + remote stub)
+│   │   ├── musicMixer.js        # ffmpeg mix con sidechaincompress (auto-ducking)
+│   │   ├── musicRoutes.js       # CRUD HTTP del catálogo + stream + curate
+│   │   ├── jamendoService.js    # Cliente Jamendo API (instrumentales CC)
+│   │   └── curateService.js     # Plan de recetas + ensureLocalFile (lazy download)
 │   ├── controllers/             # Script, client, document, log controllers
 │   ├── routes/                  # Express routes (clients, scripts, logs)
 │   ├── database/
@@ -54,7 +73,7 @@ Part of the Algo Sentido internal toolset. Designed to scale with more tools ove
 │   ├── rag/                     # RAG document processor (TF-IDF with natural)
 │   └── utils/                   # Platform detector, usage tracker
 ├── src/
-│   ├── App.jsx                  # React Router (/, /transcribir, /convertir, /secretos, /secreto/:token, /magic/:token, /mis-resultados, /admin)
+│   ├── App.jsx                  # React Router (/, /transcribir, /convertir, /clips, /reels-cleaner, /secretos, /secreto/:token, /magic/:token, /mis-resultados, /admin)
 │   ├── pages/                   # ToolHub, Home, ConvertPage, SecretsPage, ViewSecretPage, MagicLinkPage, MyResults, AdminPanel, LoginPage, NotFound
 │   ├── components/              # TranscriptionForm, ConvertForm, Header, Footer, etc.
 │   ├── context/                 # AuthContext, TranscriptionContext, ConversionContext
@@ -82,6 +101,7 @@ Required in `.env`:
 - `RESEND_API_KEY` — Resend key for magic link emails. Without it, links go to server console (dev fallback).
 - `MAGIC_LINK_FROM_EMAIL` — Sender address (must be on a verified domain in Resend; `onboarding@resend.dev` for dev).
 - `APP_BASE_URL` — Public URL where the app lives. Used to build magic link URLs. In dev set to `http://localhost:5173`.
+- `JAMENDO_CLIENT_ID` — Para AS Reels Cleaner: poblar catálogo de música con tracks Creative Commons de Jamendo. Registro gratis en devportal.jamendo.com (sin tarjeta). Sin esto, el botón "Ampliar catálogo" muestra error.
 - `LLM_PROVIDER` — Force `anthropic` or `openai` (auto-detects by default)
 - `PORT` — Server port (default 3000)
 - `FFMPEG_PATH` — Custom ffmpeg path (optional)
