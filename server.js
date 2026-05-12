@@ -68,6 +68,15 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+// Fuentes locales para AS Clips: el preview HTML las consume vía @font-face para
+// que browser y libass usen literalmente el mismo TTF (mismas métricas → wrap y
+// espaciado idénticos entre preview y export). Sin esto, browser pide a Google
+// Fonts que sirve WOFF2 cuya versión puede no coincidir con assets/fonts/.
+app.use('/assets/fonts', express.static(path.join(__dirname, 'assets/fonts'), {
+  maxAge: '30d',
+  immutable: true,
+}));
+
 // --- Auth (público) ---
 app.post('/api/auth/register', async (req, res) => {
   try {
