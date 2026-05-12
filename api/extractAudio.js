@@ -1,6 +1,7 @@
 // api/extractAudio.js
 import { spawn } from 'child_process';
 import { detectPlatform } from './utils/platformDetector.js';
+import { facebookCookiesArgs } from './utils/ytdlpCookies.js';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -79,6 +80,15 @@ export async function extractAudio(url) {
           args.push(...cookieArgs);
         } else {
           console.warn('⚠️ No hay cookies de Instagram configuradas. Esto puede causar errores.');
+        }
+      }
+
+      // Agregar cookies para Facebook (si existe el archivo)
+      if (platform === 'facebook') {
+        const fbCookies = facebookCookiesArgs(url);
+        if (fbCookies.length > 0) {
+          args.push(...fbCookies);
+          console.log('Usando cookies de Facebook');
         }
       }
       
@@ -181,7 +191,12 @@ async function getVideoMetadata(url, platform) {
           args.push(...cookieArgs);
         }
       }
-      
+
+      // Agregar cookies para Facebook (si existe el archivo)
+      if (platform === 'facebook') {
+        args.push(...facebookCookiesArgs(url));
+      }
+
       args.push(
         '--user-agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
         url

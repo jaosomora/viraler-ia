@@ -3,6 +3,7 @@
 import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
+import { facebookCookiesArgs } from '../utils/ytdlpCookies.js';
 
 // Una sola corrida de yt-dlp. Resuelve con outputPath o rechaza con el stderr.
 function _downloadOnce(url, outputPath, onProgress) {
@@ -24,6 +25,8 @@ function _downloadOnce(url, outputPath, onProgress) {
       url,
     ];
     if (process.env.FFMPEG_PATH) args.splice(args.length - 1, 0, '--ffmpeg-location', process.env.FFMPEG_PATH);
+    const cookieArgs = facebookCookiesArgs(url);
+    if (cookieArgs.length) args.splice(args.length - 1, 0, ...cookieArgs);
     const p = spawn(ytDlp, args);
     let stderr = '';
     let lastReportedPct = -10; // reportar cada 10% para no spammear
@@ -82,7 +85,8 @@ export async function downloadVideoToPath(url, outputPath, onProgress, opts = {}
 export function getVideoMetadata(url) {
   return new Promise((resolve) => {
     const ytDlp = process.env.YTDLP_PATH || 'yt-dlp';
-    const p = spawn(ytDlp, ['--dump-json', '--no-check-certificate', url]);
+    const metaArgs = ['--dump-json', '--no-check-certificate', ...facebookCookiesArgs(url), url];
+    const p = spawn(ytDlp, metaArgs);
     let out = '';
     p.stdout.on('data', d => { out += d.toString(); });
     p.on('close', () => {
