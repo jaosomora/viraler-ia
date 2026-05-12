@@ -401,6 +401,13 @@ app.listen(PORT, async () => {
     if (n > 0) console.log(`[clips] ${n} job(s) marcados como error tras reinicio (zombies recuperados).`);
   } catch (e) { console.warn('[clips] zombie recovery falló:', e.message); }
 
+  // Cleanup automático de archivos de clips viejos (evita llenar /opt/data).
+  try {
+    const { startCleanupScheduler } = await import('./api/clips/cleanupService.js');
+    const dbMod = await import('./api/database/schema.js');
+    startCleanupScheduler(dbMod.default);
+  } catch (e) { console.warn('[cleanup] scheduler no se pudo iniciar:', e.message); }
+
   if (!process.env.OPENAI_API_KEY) {
     console.warn('\x1b[33m%s\x1b[0m', 'ADVERTENCIA: API Key de OpenAI no configurada.');
   }
