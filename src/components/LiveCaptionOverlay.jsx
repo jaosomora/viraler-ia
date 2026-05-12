@@ -1,4 +1,14 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
+
+// Equivalencias 1:1 con el export:
+// - El frame del export tiene PlayResX=1080 (subtitleGenerator.js).
+// - El overlay del preview ocupa 84% del ancho del frame (left/right 8%).
+//   En unidades del export, eso es 1080 * 0.84 = 907.2 unidades.
+// - Para que el preview muestre EXACTAMENTE la misma proporción que el export,
+//   medimos el ancho real del overlay con ResizeObserver y escalamos linealmente.
+const FRAME_W = 1080;
+const OVERLAY_FRACTION = 0.84;
+const EXPORT_OVERLAY_W = FRAME_W * OVERLAY_FRACTION; // 907.2
 
 // id → CSS font-family. Cada ID fuerza el family name que coincide con el TTF en assets/fonts/
 // (lo que carga libass al hacer burn-in) y lo que entrega Google Fonts en el browser.
@@ -93,6 +103,27 @@ function findActiveChunk(chunks, t) {
  */
 const LiveCaptionOverlay = ({ videoRef, chunks, draft, hookVisible = true }) => {
   const [now, setNow] = useState(0);
+  const overlayRef = useRef(null);
+  const [overlayWidth, setOverlayWidth] = useState(EXPORT_OVERLAY_W);
+
+  // Mide el ancho real del overlay para calibrar font sizes proporcionalmente al export.
+  // Sin esto, el preview muestra el mismo px de fuente sin importar el tamaño del editor →
+  // pantalla pequeña ve la fuente "grande" relativa, pantalla grande la ve "chica" relativa,
+  // y ninguna coincide con la proporción real del export 1080p.
+  useEffect(() => {
+    if (!overlayRef.current || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        const w = entry.contentRect.width;
+        if (w > 0) setOverlayWidth(w);
+      }
+    });
+    ro.observe(overlayRef.current);
+    return () => ro.disconnect();
+  }, []);
+
+  // Factor de escala: 1 unidad en export = (overlayWidth / EXPORT_OVERLAY_W) px en preview.
+  const scale = overlayWidth / EXPORT_OVERLAY_W;
 
   // Polling con rAF: robusto a remounts del <video> (cuando cambian trim/aspect/camera_motion).
   // requestAnimationFrame también da resolución sub-segundo para que el chunk activo
@@ -134,18 +165,21 @@ const LiveCaptionOverlay = ({ videoRef, chunks, draft, hookVisible = true }) => 
     const parts = [];
     const outlineColor = draft?.outline_color || '#000000';
     if (draft?.outline_enabled && draft?.outline_thickness > 0) {
-      const t = Math.round(draft.outline_thickness * 0.7);
+      // outline_thickness está en unidades de PlayResX=1080 (igual que en .ass).
+      // Escalamos al ancho real del preview para que se vea con la misma proporción.
+      const t = Math.max(1, draft.outline_thickness * scale);
       for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
         if (dx === 0 && dy === 0) continue;
-        parts.push(`${dx * t}px ${dy * t}px 0 ${outlineColor}`);
+        parts.push(`${(dx * t).toFixed(2)}px ${(dy * t).toFixed(2)}px 0 ${outlineColor}`);
       }
     }
     if ((draft?.shadow_opacity ?? 0) > 0) {
       const a = (draft.shadow_opacity / 100).toFixed(2);
-      parts.push(`0 2px 6px rgba(0,0,0,${a})`);
+      const sh = Math.max(1, 6 * scale);
+      parts.push(`0 ${(2 * scale).toFixed(2)}px ${sh.toFixed(2)}px rgba(0,0,0,${a})`);
     }
     return parts.join(', ') || 'none';
-  }, [draft?.outline_enabled, draft?.outline_thickness, draft?.shadow_opacity, draft?.outline_color]);
+  }, [draft?.outline_enabled, draft?.outline_thickness, draft?.shadow_opacity, draft?.outline_color, scale]);
 
   const kwBg = draft?.keyword_bg_color
     ? `${draft.keyword_bg_color}${Math.round(((draft.keyword_bg_opacity ?? 100) / 100) * 255).toString(16).padStart(2, '0').toUpperCase()}`
@@ -195,23 +229,32 @@ const LiveCaptionOverlay = ({ videoRef, chunks, draft, hookVisible = true }) => 
     });
   };
 
+  // Tamaños calibrados al export. hook_font_size/caption_font_size están en unidades
+  // de PlayResX=1080 (igual que ASS Fontsize). Convertimos a px de pantalla escalando.
+  const hookPx = ((draft?.hook_font_size || 90) * scale).toFixed(2);
+  const captionPx = ((draft?.caption_font_size || 58) * scale).toFixed(2);
+  // mb-2 entre hook y caption escalado también (16px de Tailwind mb-4 a 1080-scale equivale a ~19 units)
+  const hookMarginBottomPx = (16 * scale).toFixed(2);
+
   return (
     <div
+      ref={overlayRef}
       className="absolute left-[8%] right-[8%] text-center text-white pointer-events-none z-10 transition-all duration-150"
       style={{ bottom: `${subPositionPercent}%` }}
     >
       {showHook && (
         <div
-          className="font-black uppercase mb-2"
+          className="font-black uppercase"
           style={{
             fontFamily: hookFont,
             fontWeight: hookWeight,
             color: draft?.hook_color || '#FFFFFF',
-            fontSize: `${(draft?.hook_font_size || 90) * 0.022}rem`,
+            fontSize: `${hookPx}px`,
             lineHeight: 0.95,
             textShadow: textShadowCSS,
             fontStyle: (draft?.hook_italic || hookFontItalic) ? 'italic' : 'normal',
             textDecoration: draft?.hook_underline ? 'underline' : 'none',
+            marginBottom: `${hookMarginBottomPx}px`,
           }}
         >
           {draft.hook}
@@ -225,7 +268,7 @@ const LiveCaptionOverlay = ({ videoRef, chunks, draft, hookVisible = true }) => 
             fontFamily: captionFont,
             fontWeight: captionWeight,
             color: draft?.caption_color || '#FFFFFF',
-            fontSize: draft?.caption_font_size ? `${draft.caption_font_size * 0.014}rem` : '0.75rem',
+            fontSize: `${captionPx}px`,
             textShadow: textShadowCSS,
             fontStyle: (draft?.caption_italic || captionFontItalic) ? 'italic' : 'normal',
             textDecoration: draft?.caption_underline ? 'underline' : 'none',
