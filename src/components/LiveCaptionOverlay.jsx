@@ -207,7 +207,7 @@ const LiveCaptionOverlay = ({ videoRef, chunks, draft, hookVisible = true }) => 
             fontFamily: hookFont,
             fontWeight: hookWeight,
             color: draft?.hook_color || '#FFFFFF',
-            fontSize: draft?.hook_font_size ? `${draft.hook_font_size * 0.022}rem` : '1.4rem',
+            fontSize: `${(draft?.hook_font_size || 90) * 0.022}rem`,
             lineHeight: 0.95,
             textShadow: textShadowCSS,
             fontStyle: (draft?.hook_italic || hookFontItalic) ? 'italic' : 'normal',
