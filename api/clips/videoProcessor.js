@@ -4,7 +4,8 @@ import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
-export function downloadVideoToPath(url, outputPath, onProgress) {
+// Una sola corrida de yt-dlp. Resuelve con outputPath o rechaza con el stderr.
+function _downloadOnce(url, outputPath, onProgress) {
   return new Promise((resolve, reject) => {
     const ytDlp = process.env.YTDLP_PATH || 'yt-dlp';
     // Format selector con fallback chain:
@@ -52,6 +53,30 @@ export function downloadVideoToPath(url, outputPath, onProgress) {
     });
     p.on('error', reject);
   });
+}
+
+// Descarga con retry automático. Algunos extractores (notable: Facebook) fallan en la
+// primera petición con "Cannot parse data" pero la siguiente petición funciona — patrón
+// reproducible que el usuario verifica empíricamente. Costo bajo (2s extra en peor caso).
+// Si el outputPath quedó parcial tras fallar, se borra antes del retry para evitar conflictos.
+export async function downloadVideoToPath(url, outputPath, onProgress, opts = {}) {
+  const maxAttempts = opts.maxAttempts ?? 3;
+  const retryDelayMs = opts.retryDelayMs ?? 2000;
+  let lastErr;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await _downloadOnce(url, outputPath, onProgress);
+    } catch (err) {
+      lastErr = err;
+      // Limpia archivo parcial si quedó
+      try { if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath); } catch {}
+      if (attempt < maxAttempts) {
+        console.warn(`[videoProcessor] yt-dlp intento ${attempt}/${maxAttempts} falló, reintentando en ${retryDelayMs}ms…`);
+        await new Promise(r => setTimeout(r, retryDelayMs));
+      }
+    }
+  }
+  throw lastErr;
 }
 
 export function getVideoMetadata(url) {
