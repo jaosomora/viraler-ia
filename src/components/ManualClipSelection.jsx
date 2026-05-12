@@ -35,10 +35,35 @@ const ManualClipSelection = ({ job }) => {
   const [submitError, setSubmitError] = useState(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [autoFollow, setAutoFollow] = useState(true);
+  const [copiedFeedback, setCopiedFeedback] = useState(false);
   const videoRef = useRef(null);
   const transcriptScrollRef = useRef(null);
   const isProgrammaticScroll = useRef(false);
   const lastFollowedWordIdx = useRef(-1);
+
+  // Copia toda la transcripción al portapapeles con timestamps por segmento.
+  // Formato: "[mm:ss] texto del segmento" — útil para llevarse a otro chat/LLM
+  // y pedir sugerencias de qué clipar; luego se vuelve acá y se marca manualmente.
+  const handleCopyTranscript = async () => {
+    if (!transcript?.segments) return;
+    const text = transcript.segments
+      .map(s => `[${formatTime(s.start)}] ${s.text.trim()}`)
+      .join('\n');
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedFeedback(true);
+      setTimeout(() => setCopiedFeedback(false), 2000);
+    } catch (err) {
+      // Fallback antiguo (algunos browsers/contexts sin permiso a clipboard API)
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); setCopiedFeedback(true); setTimeout(() => setCopiedFeedback(false), 2000); }
+      catch {}
+      document.body.removeChild(ta);
+    }
+  };
 
   // URL del video fuente con token en query (el <video> tag no manda Authorization headers).
   // El endpoint /source-video usa authMiddlewareMedia que acepta ?token=. Mientras tengamos
@@ -257,13 +282,20 @@ const ManualClipSelection = ({ job }) => {
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center gap-3">
         <span className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-400 flex items-center justify-center font-bold">2</span>
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <div className="font-semibold text-gray-900 dark:text-white">Selecciona tus fragmentos</div>
           <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
             Click en palabra de inicio · click en palabra de fin · se agrega como rango.
             {transcript?.title && <span className="ml-2 text-gray-400">· {transcript.title}</span>}
           </div>
         </div>
+        <button
+          type="button"
+          onClick={handleCopyTranscript}
+          title="Copia toda la transcripción con timestamps. Útil para llevártela a un LLM y pedir sugerencias antes de marcar."
+          className="shrink-0 text-xs px-3 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg font-medium flex items-center gap-1.5">
+          {copiedFeedback ? <>✓ Copiado</> : <>📋 Copiar transcripción</>}
+        </button>
       </div>
 
       <div className="grid lg:grid-cols-[1fr_360px] gap-0">
