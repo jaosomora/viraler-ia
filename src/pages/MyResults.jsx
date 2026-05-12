@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import SavedTranscriptions from '../components/SavedTranscriptions';
 import SavedConversions from '../components/SavedConversions';
 import SavedClips from '../components/SavedClips';
+import SavedReels from '../components/SavedReels';
 
 const TABS = [
   { id: 'transcriptions', label: 'Transcripciones' },
   { id: 'clips', label: 'Clips' },
+  { id: 'reels', label: 'Reels' },
   { id: 'conversions', label: 'Conversiones' },
 ];
 
@@ -40,6 +42,7 @@ const MyResults = () => {
 
       {activeTab === 'transcriptions' && <SavedTranscriptions />}
       {activeTab === 'clips' && <SavedClips />}
+      {activeTab === 'reels' && <SavedReels />}
       {activeTab === 'conversions' && <SavedConversions />}
     </div>
   );

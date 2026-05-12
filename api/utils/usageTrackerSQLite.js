@@ -25,36 +25,46 @@ export const getUsageData = () => {
       history: []
     };
     
-    // Obtener estadísticas totales
+    // Obtener estadísticas totales (incluye reels)
     db.get(
-      `SELECT 
-        SUM(transcriptions) as totalTranscriptions, 
-        SUM(audio_minutes) as totalAudioMinutes, 
-        SUM(cost) as estimatedCost 
+      `SELECT
+        SUM(transcriptions) as totalTranscriptions,
+        SUM(audio_minutes) as totalAudioMinutes,
+        SUM(cost) as estimatedCost,
+        SUM(conversions) as totalConversions,
+        SUM(reels) as totalReels,
+        SUM(reels_minutes) as totalReelsMinutes,
+        SUM(reels_cost) as totalReelsCost
       FROM usage_stats`,
       (err, row) => {
         if (err) {
           console.error('Error al obtener estadísticas totales:', err);
           return reject(err);
         }
-        
+
         if (row) {
           usageData.totalTranscriptions = row.totalTranscriptions || 0;
           usageData.totalAudioMinutes = row.totalAudioMinutes || 0;
           usageData.estimatedCost = row.estimatedCost || 0;
+          usageData.totalConversions = row.totalConversions || 0;
+          usageData.totalReels = row.totalReels || 0;
+          usageData.totalReelsMinutes = row.totalReelsMinutes || 0;
+          usageData.totalReelsCost = row.totalReelsCost || 0;
+          usageData.estimatedCostAll = (row.estimatedCost || 0) + (row.totalReelsCost || 0);
         }
-        
+
         // Obtener historial
         db.all(
-          `SELECT date, transcriptions, audio_minutes as audioMinutes, cost 
-           FROM usage_stats 
+          `SELECT date, transcriptions, audio_minutes as audioMinutes, cost,
+                  conversions, reels, reels_minutes as reelsMinutes, reels_cost as reelsCost
+           FROM usage_stats
            ORDER BY date DESC`,
           (err, rows) => {
             if (err) {
               console.error('Error al obtener historial de uso:', err);
               return reject(err);
             }
-            
+
             usageData.history = rows || [];
             resolve(usageData);
           }
@@ -476,6 +486,33 @@ export const deleteConversion = (id, userId = null) => {
         return resolve({ success: false, message: 'Conversión no encontrada' });
       }
       resolve({ success: true, message: 'Conversión eliminada' });
+    });
+  });
+};
+
+/**
+ * Trackea un reel finalizado en usage_stats (contador + minutos finales + costo agregado).
+ * Se llama una sola vez al transicionar el job a status='done'.
+ */
+export const trackReelUsage = ({ durationMinutes = 0, costUsd = 0 }) => {
+  return new Promise((resolve) => {
+    const today = new Date().toISOString().split('T')[0];
+    db.get(`SELECT id FROM usage_stats WHERE date = ?`, [today], (err, row) => {
+      if (err) { console.error('[usage] reel track err:', err); return resolve(); }
+      if (row) {
+        db.run(
+          `UPDATE usage_stats SET reels = reels + 1, reels_minutes = reels_minutes + ?, reels_cost = reels_cost + ? WHERE id = ?`,
+          [durationMinutes, costUsd, row.id],
+          () => resolve()
+        );
+      } else {
+        db.run(
+          `INSERT INTO usage_stats (date, transcriptions, audio_minutes, cost, conversions, reels, reels_minutes, reels_cost)
+           VALUES (?, 0, 0, 0, 0, 1, ?, ?)`,
+          [today, durationMinutes, costUsd],
+          () => resolve()
+        );
+      }
     });
   });
 };

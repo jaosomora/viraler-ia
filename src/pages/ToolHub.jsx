@@ -27,6 +27,18 @@ const tools = [
     bgHover: 'hover:border-pink-300 dark:hover:border-pink-700',
   },
   {
+    name: 'Reels Cleaner',
+    description: 'Sube una toma vertical corta. Detectamos los silencios, tú validas qué cortar, y entregamos el reel limpio con subtítulos quemados.',
+    path: '/reels-cleaner',
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm0-5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243z" />
+      </svg>
+    ),
+    color: 'from-amber-500 to-rose-500',
+    bgHover: 'hover:border-amber-300 dark:hover:border-amber-700',
+  },
+  {
     name: 'Convertir Documento',
     description: 'Convierte documentos PDF, DOCX, PPTX, XLSX y EPUB a Markdown o HTML listo para usar.',
     path: '/convertir',

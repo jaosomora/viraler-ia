@@ -8,6 +8,16 @@ services:
         value: production
       - key: OPENAI_API_KEY
         sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false      # opcional: si está, Reels Cleaner usa Claude para sugerencias musicales (mejor calidad)
+      - key: JAMENDO_CLIENT_ID
+        sync: false      # opcional: catálogo de música gratis para Reels Cleaner (registro gratis en devportal.jamendo.com)
+      - key: RESEND_API_KEY
+        sync: false      # opcional: magic link emails. Sin esto, links van a stdout (no producción)
+      - key: MAGIC_LINK_FROM_EMAIL
+        sync: false
+      - key: APP_BASE_URL
+        sync: false      # ej: https://as-transcribe.onrender.com — necesario para magic links en prod
       - key: FFMPEG_PATH
         value: /usr/bin/ffmpeg
     disk:

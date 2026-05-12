@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { getUsageStats, resetUsageStats, deleteHistoryEntry, getAdminTranscriptions, getAdminConversions, getAdminUsers, getAdminClips, resetUserPassword, setUserAccess } from '../services/usageStats';
+import { getUsageStats, resetUsageStats, deleteHistoryEntry, getAdminTranscriptions, getAdminConversions, getAdminUsers, getAdminClips, getAdminReels, resetUserPassword, setUserAccess } from '../services/usageStats';
 import Spinner from '../components/Spinner';
 import SecretsAdmin from '../components/SecretsAdmin';
 import ClipsAdmin from '../components/ClipsAdmin';
+import ReelsAdmin from '../components/ReelsAdmin';
 
 const AdminPanel = () => {
   const [usageData, setUsageData] = useState(null);
   const [transcriptions, setTranscriptions] = useState([]);
   const [conversions, setConversions] = useState([]);
   const [clipJobs, setClipJobs] = useState([]);
+  const [reelJobs, setReelJobs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -101,18 +103,20 @@ const AdminPanel = () => {
   const fetchUsageData = async () => {
     try {
       setIsLoading(true);
-      const [data, txns, convs, us, clips] = await Promise.all([
+      const [data, txns, convs, us, clips, reels] = await Promise.all([
         getUsageStats(),
         getAdminTranscriptions(),
         getAdminConversions(),
         getAdminUsers(),
         getAdminClips().catch(() => []),
+        getAdminReels().catch(() => []),
       ]);
       setUsageData(data);
       setTranscriptions(txns);
       setConversions(convs);
       setUsers(us);
       setClipJobs(clips || []);
+      setReelJobs(reels || []);
       setError(null);
     } catch (err) {
       setError(err.message || 'Error al cargar datos de uso');
@@ -264,6 +268,7 @@ const AdminPanel = () => {
             { id: 'usuarios', label: 'Usuarios', icon: '👥', badge: users.length },
             { id: 'transcripciones', label: 'Transcripciones', icon: '📝', badge: transcriptions.length },
             { id: 'clips', label: 'Clips', icon: '🎬' },
+            { id: 'reels', label: 'Reels', icon: '🎵' },
             { id: 'conversiones', label: 'Conversiones', icon: '📄', badge: conversions.length },
             { id: 'secretos', label: 'Secretos', icon: '🔐' },
           ].map((tab) => (
@@ -421,6 +426,32 @@ const AdminPanel = () => {
             <div className="font-mono text-sm text-gray-900 dark:text-white">markitdown</div>
             <div className="text-xs text-gray-500 mt-1">$0 · sin LLM, conversión nativa</div>
           </div>
+
+          {/* AS Reels Cleaner */}
+          <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs uppercase tracking-wide text-amber-600 dark:text-amber-400 font-semibold">Reels · transcripción</span>
+              <span className="text-[11px] text-gray-500">OpenAI</span>
+            </div>
+            <div className="font-mono text-sm text-gray-900 dark:text-white">whisper-1</div>
+            <div className="text-xs text-gray-500 mt-1">$0.006 / minuto · word-timestamps</div>
+          </div>
+          <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs uppercase tracking-wide text-amber-600 dark:text-amber-400 font-semibold">Reels · sugerir música</span>
+              <span className="text-[11px] text-gray-500">OpenAI / Anthropic</span>
+            </div>
+            <div className="font-mono text-sm text-gray-900 dark:text-white">gpt-4o-mini · claude-sonnet-4-5</div>
+            <div className="text-xs text-gray-500 mt-1">$0.001 / sugerencia (mini) · $0.02 (sonnet)</div>
+          </div>
+          <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs uppercase tracking-wide text-rose-600 dark:text-rose-400 font-semibold">Reels · música</span>
+              <span className="text-[11px] text-gray-500">Jamendo</span>
+            </div>
+            <div className="font-mono text-sm text-gray-900 dark:text-white">jamendo API</div>
+            <div className="text-xs text-gray-500 mt-1">$0 · CC, instrumentales, 35K req/mes</div>
+          </div>
         </div>
       </div>
 
@@ -436,8 +467,9 @@ const AdminPanel = () => {
               <tr>
                 <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Fecha</th>
                 <th className="py-3 px-6 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Transcripciones</th>
-                <th className="py-3 px-6 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Clips · jobs</th>
-                <th className="py-3 px-6 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Min. procesados</th>
+                <th className="py-3 px-6 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Clips</th>
+                <th className="py-3 px-6 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Reels</th>
+                <th className="py-3 px-6 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Min. totales</th>
                 <th className="py-3 px-6 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Costo total</th>
                 <th className="py-3 px-6"></th>
               </tr>
@@ -445,8 +477,9 @@ const AdminPanel = () => {
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {(() => {
                 const byDate = {};
+                const empty = d => ({ date: d, txns: 0, txnMin: 0, txnCost: 0, clipJobs: 0, clipMin: 0, clipCost: 0, reelJobs: 0, reelMin: 0, reelCost: 0 });
                 (usageData.recentHistory || []).forEach(e => {
-                  byDate[e.date] = byDate[e.date] || { date: e.date, txns: 0, txnMin: 0, txnCost: 0, clipJobs: 0, clipMin: 0, clipCost: 0 };
+                  byDate[e.date] = byDate[e.date] || empty(e.date);
                   byDate[e.date].txns += e.transcriptions || 0;
                   byDate[e.date].txnMin += e.audioMinutes || 0;
                   byDate[e.date].txnCost += e.cost || 0;
@@ -454,15 +487,23 @@ const AdminPanel = () => {
                 (clipJobs || []).forEach(j => {
                   if (!j.created_at) return;
                   const date = j.created_at.slice(0, 10);
-                  byDate[date] = byDate[date] || { date, txns: 0, txnMin: 0, txnCost: 0, clipJobs: 0, clipMin: 0, clipCost: 0 };
+                  byDate[date] = byDate[date] || empty(date);
                   byDate[date].clipJobs += 1;
                   byDate[date].clipMin += (j.duration_seconds || 0) / 60;
                   byDate[date].clipCost += j.total_cost_usd || 0;
                 });
+                (reelJobs || []).forEach(j => {
+                  if (!j.created_at) return;
+                  const date = j.created_at.slice(0, 10);
+                  byDate[date] = byDate[date] || empty(date);
+                  byDate[date].reelJobs += 1;
+                  byDate[date].reelMin += (j.duration_seconds || 0) / 60;
+                  byDate[date].reelCost += j.total_cost_usd || 0;
+                });
                 const rows = Object.values(byDate).sort((a, b) => b.date.localeCompare(a.date));
                 if (rows.length === 0) {
                   return (
-                    <tr><td colSpan="6" className="py-8 px-6 text-sm text-center text-gray-500 dark:text-gray-400">Sin actividad aún</td></tr>
+                    <tr><td colSpan="7" className="py-8 px-6 text-sm text-center text-gray-500 dark:text-gray-400">Sin actividad aún</td></tr>
                   );
                 }
                 return rows.map((r) => (
@@ -470,8 +511,9 @@ const AdminPanel = () => {
                     <td className="py-3 px-6 text-sm font-medium text-gray-900 dark:text-white">{r.date}</td>
                     <td className="py-3 px-6 text-sm text-right tabular-nums text-gray-700 dark:text-gray-300">{r.txns}</td>
                     <td className="py-3 px-6 text-sm text-right tabular-nums text-gray-700 dark:text-gray-300">{r.clipJobs}</td>
-                    <td className="py-3 px-6 text-sm text-right tabular-nums text-gray-700 dark:text-gray-300">{formatNumber(r.txnMin + r.clipMin)}</td>
-                    <td className="py-3 px-6 text-sm text-right tabular-nums font-semibold text-purple-600 dark:text-purple-400">{formatPrice(r.txnCost + r.clipCost)}</td>
+                    <td className="py-3 px-6 text-sm text-right tabular-nums text-gray-700 dark:text-gray-300">{r.reelJobs}</td>
+                    <td className="py-3 px-6 text-sm text-right tabular-nums text-gray-700 dark:text-gray-300">{formatNumber(r.txnMin + r.clipMin + r.reelMin)}</td>
+                    <td className="py-3 px-6 text-sm text-right tabular-nums font-semibold text-purple-600 dark:text-purple-400">{formatPrice(r.txnCost + r.clipCost + r.reelCost)}</td>
                     <td className="py-3 px-6 text-right">
                       {r.txns > 0 && (
                         <button onClick={() => handleDeleteClick(r.date)}
@@ -536,6 +578,7 @@ const AdminPanel = () => {
 
       {/* === TAB: CLIPS === */}
       {activeTab === 'clips' && <ClipsAdmin />}
+      {activeTab === 'reels' && <ReelsAdmin />}
 
       {/* === TAB: CONVERSIONES === */}
       {activeTab === 'conversiones' && (

@@ -114,6 +114,10 @@ db.serialize(() => {
   db.run(`ALTER TABLE usage_stats ADD COLUMN conversions INTEGER DEFAULT 0`, (err) => {
     // Ignora si la columna ya existe
   });
+  // Reels Cleaner: contador + minutos finales + costo total agregado por día.
+  db.run(`ALTER TABLE usage_stats ADD COLUMN reels INTEGER DEFAULT 0`, () => {});
+  db.run(`ALTER TABLE usage_stats ADD COLUMN reels_minutes REAL DEFAULT 0`, () => {});
+  db.run(`ALTER TABLE usage_stats ADD COLUMN reels_cost REAL DEFAULT 0`, () => {});
 
   // Tabla de configuración
   db.run(`
@@ -280,6 +284,99 @@ db.serialize(() => {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  // AS Reels Cleaner — toma cruda corta (≤5 min) que se limpia de silencios y se exporta
+  // como reel vertical con subs IG. Distinto de clip_jobs: aquí NO se selecciona un highlight,
+  // se procesa el video completo aplicando los cortes que el usuario validó.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS reel_jobs (
+      id TEXT PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      source_filename TEXT,
+      title TEXT,
+      duration_seconds REAL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      stage_index INTEGER DEFAULT 0,
+      error_message TEXT,
+      whisper_json_path TEXT,
+      source_video_path TEXT,
+      output_path TEXT,
+      output_duration_seconds REAL,
+      threshold_ms INTEGER DEFAULT 500,
+      cuts_json TEXT,
+      whisper_cost_usd REAL DEFAULT 0,
+      total_cost_usd REAL DEFAULT 0,
+      files_purged INTEGER DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      finished_at TIMESTAMP
+    )
+  `);
+
+  // Reels Cleaner — paso 2 de revisión (estilo de subtítulos + texto editado).
+  // base_video_path: video con cortes aplicados pero SIN subs quemados (modelo Clips).
+  // El final con subs se genera en burnFinal() reusando ese base, mucho más rápido que re-cortar.
+  db.run(`ALTER TABLE reel_jobs ADD COLUMN base_video_path TEXT`, () => {});
+  db.run(`ALTER TABLE reel_jobs ADD COLUMN remapped_words_json TEXT`, () => {});
+  db.run(`ALTER TABLE reel_jobs ADD COLUMN caption_overrides TEXT`, () => {}); // JSON [{idx, text, hidden}]
+  db.run(`ALTER TABLE reel_jobs ADD COLUMN font_caption TEXT DEFAULT 'InterSemiBold'`, () => {});
+  db.run(`ALTER TABLE reel_jobs ADD COLUMN caption_color TEXT DEFAULT '#FFFFFF'`, () => {});
+  db.run(`ALTER TABLE reel_jobs ADD COLUMN outline_color TEXT DEFAULT '#000000'`, () => {});
+  db.run(`ALTER TABLE reel_jobs ADD COLUMN caption_font_size INTEGER DEFAULT 62`, () => {});
+  // 40..90 (mismo rango que Clips). Default 68 = subs centrados a ~700px del borde
+  // inferior en frame 1080x1920 → DEBAJO del bloque de UI de TikTok (~540px) y de IG (~400px).
+  // Cualquier valor <60 invade la zona del action bar de TikTok.
+  db.run(`ALTER TABLE reel_jobs ADD COLUMN sub_position INTEGER DEFAULT 68`, () => {
+    // Migración suave: jobs viejos quedaron con default=50 (invade UI TikTok). Subimos a 68
+    // SOLO si el job todavía no llegó a 'done' (no queremos cambiar render ya entregados).
+    // El frontend marcará preview_dirty=1 al volver a entrar, así se re-renderiza.
+    db.run(`UPDATE reel_jobs SET sub_position=68, preview_dirty=1
+            WHERE sub_position=50 AND status != 'done'`, () => {});
+  });
+  db.run(`ALTER TABLE reel_jobs ADD COLUMN preview_dirty INTEGER DEFAULT 1`, () => {}); // 1 = output_path no refleja los ajustes actuales
+  // Grosor del borde de subs (0..10). 0 = sin borde. Default 4 ≈ el que se quema actualmente.
+  db.run(`ALTER TABLE reel_jobs ADD COLUMN outline_thickness INTEGER DEFAULT 4`, () => {});
+  // Costo acumulado de las llamadas LLM de sugerencia musical en este reel (puede llamarse varias veces).
+  db.run(`ALTER TABLE reel_jobs ADD COLUMN llm_cost_suggest_usd REAL DEFAULT 0`, () => {});
+
+  // Reels Cleaner — paso 3 música de fondo (opcional).
+  db.run(`ALTER TABLE reel_jobs ADD COLUMN music_track_id TEXT`, () => {}); // null = sin música
+  db.run(`ALTER TABLE reel_jobs ADD COLUMN music_volume_db INTEGER DEFAULT -16`, () => {}); // -30 a 0
+  db.run(`ALTER TABLE reel_jobs ADD COLUMN music_ducking INTEGER DEFAULT 1`, () => {}); // 1 = auto-bajar bajo voz
+  db.run(`ALTER TABLE reel_jobs ADD COLUMN music_fade_in REAL DEFAULT 1.0`, () => {});
+  db.run(`ALTER TABLE reel_jobs ADD COLUMN music_fade_out REAL DEFAULT 1.5`, () => {});
+  db.run(`ALTER TABLE reel_jobs ADD COLUMN music_start_offset REAL DEFAULT 0`, () => {}); // seg que se saltan del inicio del track
+  db.run(`ALTER TABLE reel_jobs ADD COLUMN music_skipped INTEGER DEFAULT 0`, () => {}); // 1 = usuario saltó el paso, exportar sin música
+
+  // Catálogo de música: tracks subidos por el owner para usar en reels.
+  // tags se guarda como JSON array de strings (slugs del catálogo predefinido en api/reels/musicTags.js).
+  db.run(`
+    CREATE TABLE IF NOT EXISTS music_tracks (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      artist TEXT,
+      tags TEXT,
+      bpm INTEGER,
+      duration_seconds REAL,
+      file_path TEXT NOT NULL,
+      source TEXT,
+      license TEXT,
+      uploaded_by_user_id INTEGER REFERENCES users(id),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Tracks remotos (Jamendo, etc): el archivo NO está en disco hasta que se use por primera
+  // vez. file_path arranca vacío; lazy download al primer mix. external_id permite dedupe
+  // entre múltiples curaciones del mismo provider.
+  db.run(`ALTER TABLE music_tracks ADD COLUMN external_provider TEXT`, () => {}); // 'jamendo', null para locales
+  db.run(`ALTER TABLE music_tracks ADD COLUMN external_id TEXT`, () => {});
+  db.run(`ALTER TABLE music_tracks ADD COLUMN external_audio_url TEXT`, () => {});
+  db.run(`ALTER TABLE music_tracks ADD COLUMN external_preview_url TEXT`, () => {});
+  db.run(`ALTER TABLE music_tracks ADD COLUMN thumbnail_url TEXT`, () => {});
+  db.run(`ALTER TABLE music_tracks ADD COLUMN license_url TEXT`, () => {});
+  // file_path se vuelve nullable para tracks remotos no descargados aún.
+  // SQLite no permite ALTER COLUMN, pero el INSERT de tracks remotos puede pasar '' o NULL.
+  db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_music_external ON music_tracks(external_provider, external_id) WHERE external_provider IS NOT NULL`, () => {});
 
   // Magic link tokens — login sin contraseña por email (15 min, un solo uso).
   // Se guarda el hash SHA-256 del token, nunca el token en claro.
