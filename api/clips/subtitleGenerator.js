@@ -132,20 +132,12 @@ export function buildAssForClip(clip, whisperJson) {
   const marginV = Math.round(200 + ((sp - 40) / 50) * 900);
   const marginVHook = Math.max(80, marginV + 220);
 
-  // Hook: si el clip tiene hook_font_size definido, lo respeta. Si es null/0 → adaptativo.
-  // Tamaños subidos ~33% para que en 1080p el hook tenga impacto similar al preview HTML
-  // (que tiende a mostrarse visualmente más grande por la escala del editor). El usuario
-  // puede sobreescribir desde el slider en cualquier momento.
+  // Hook: tamaño fijo 90 por defecto. El usuario puede sobreescribir desde el slider.
+  // Antes había sizing adaptativo oculto (90/78/66/58 según largo de texto) que generaba
+  // cambios de tamaño inesperados cuando el usuario editaba el hook — rompía la sensación
+  // WYSIWYG. Si quieres más grande, mueves el slider y ves el número exacto.
   const hookText = (hook || '').toUpperCase();
-  let hookSize;
-  if (clip.hook_font_size && clip.hook_font_size > 0) {
-    hookSize = clip.hook_font_size;
-  } else {
-    if (hookText.length <= 22) hookSize = 120;
-    else if (hookText.length <= 32) hookSize = 105;
-    else if (hookText.length <= 44) hookSize = 90;
-    else hookSize = 78;
-  }
+  const hookSize = (clip.hook_font_size && clip.hook_font_size > 0) ? clip.hook_font_size : 90;
   const captionSize = clip.caption_font_size && clip.caption_font_size > 0 ? clip.caption_font_size : 58;
   const hookItalic = clip.hook_italic ? 1 : 0;
   const hookUnderline = clip.hook_underline ? 1 : 0;
@@ -257,8 +249,8 @@ PlayResY: 1920
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Hook,${fontHook.name},${hookSize},${hookColor},&H000000FF,${outlineColor},&H${shadowAlphaHex}000000,${fontHook.bold},${hookItalic},${hookUnderline},0,100,100,0,0,1,${outlineThickness},${shadowDepth},2,120,120,${marginVHook},1
-Style: Caption,${fontCap.name},${captionSize},${captionColor},${clip.karaoke_enabled ? dimColor : '&H000000FF'},${outlineColor},&H${shadowAlphaHex}000000,${fontCap.bold},${capItalic},${capUnderline},0,100,100,0,0,1,${Math.max(0, outlineThickness - 1)},${shadowDepth},2,100,100,${marginV},1
+Style: Hook,${fontHook.name},${hookSize},${hookColor},&H000000FF,${outlineColor},&H${shadowAlphaHex}000000,${fontHook.bold},${hookItalic},${hookUnderline},0,100,100,0,0,1,${outlineThickness},${shadowDepth},2,86,86,${marginVHook},1
+Style: Caption,${fontCap.name},${captionSize},${captionColor},${clip.karaoke_enabled ? dimColor : '&H000000FF'},${outlineColor},&H${shadowAlphaHex}000000,${fontCap.bold},${capItalic},${capUnderline},0,100,100,0,0,1,${Math.max(0, outlineThickness - 1)},${shadowDepth},2,86,86,${marginV},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
