@@ -132,16 +132,19 @@ export function buildAssForClip(clip, whisperJson) {
   const marginV = Math.round(200 + ((sp - 40) / 50) * 900);
   const marginVHook = Math.max(80, marginV + 220);
 
-  // Hook: si el clip tiene hook_font_size definido, lo respeta. Si es null/0 → adaptativo (legacy).
+  // Hook: si el clip tiene hook_font_size definido, lo respeta. Si es null/0 → adaptativo.
+  // Tamaños subidos ~33% para que en 1080p el hook tenga impacto similar al preview HTML
+  // (que tiende a mostrarse visualmente más grande por la escala del editor). El usuario
+  // puede sobreescribir desde el slider en cualquier momento.
   const hookText = (hook || '').toUpperCase();
   let hookSize;
   if (clip.hook_font_size && clip.hook_font_size > 0) {
     hookSize = clip.hook_font_size;
   } else {
-    if (hookText.length <= 22) hookSize = 90;
-    else if (hookText.length <= 32) hookSize = 78;
-    else if (hookText.length <= 44) hookSize = 66;
-    else hookSize = 58;
+    if (hookText.length <= 22) hookSize = 120;
+    else if (hookText.length <= 32) hookSize = 105;
+    else if (hookText.length <= 44) hookSize = 90;
+    else hookSize = 78;
   }
   const captionSize = clip.caption_font_size && clip.caption_font_size > 0 ? clip.caption_font_size : 58;
   const hookItalic = clip.hook_italic ? 1 : 0;
