@@ -188,6 +188,9 @@ db.serialize(() => {
   // Si en modo manual el usuario quiere que la IA genere hook + caption + post_captions (gpt-4o-mini) por clip.
   // 1 = sí (default), 0 = no (clip queda con strings vacíos, el usuario los rellena en el editor).
   db.run(`ALTER TABLE clip_jobs ADD COLUMN hook_auto_enabled INTEGER DEFAULT 1`, () => {});
+  // Cleanup automático: 1 = archivos físicos del job (video fuente, base.mp4, final.mp4)
+  // fueron purgados del disco. La fila se conserva en DB pero el clip no es re-exportable.
+  db.run(`ALTER TABLE clip_jobs ADD COLUMN files_purged INTEGER DEFAULT 0`, () => {});
 
   // CREATE TABLE clips DEBE ir ANTES de los ALTER TABLE clips siguientes, sino en una DB fresca
   // las migraciones fallan silenciosamente y la tabla nace incompleta. Bug latente histórico:
