@@ -1,5 +1,44 @@
-/* Importar fuente Inter */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+/* Fuentes locales servidas por nuestro propio server (api: /assets/fonts/*).
+   Browser y libass leen el MISMO archivo TTF → métricas, kerning y espaciado
+   idénticos entre preview HTML y export ffmpeg. Imprescindible para WYSIWYG. */
+
+/* Sans-serif neutras */
+@font-face { font-family: 'Inter'; src: url('/assets/fonts/Inter-Variable.ttf') format('truetype-variations'); font-weight: 100 900; font-display: block; }
+@font-face { font-family: 'Roboto'; src: url('/assets/fonts/Roboto-Variable.ttf') format('truetype-variations'); font-weight: 100 900; font-display: block; }
+@font-face { font-family: 'Lato'; src: url('/assets/fonts/Lato-Bold.ttf') format('truetype'); font-weight: 700; font-display: block; }
+@font-face { font-family: 'Nunito'; src: url('/assets/fonts/Nunito-Variable.ttf') format('truetype-variations'); font-weight: 200 1000; font-display: block; }
+@font-face { font-family: 'Work Sans'; src: url('/assets/fonts/WorkSans-Variable.ttf') format('truetype-variations'); font-weight: 100 900; font-display: block; }
+@font-face { font-family: 'DM Sans'; src: url('/assets/fonts/DMSans-Variable.ttf') format('truetype-variations'); font-weight: 100 1000; font-display: block; }
+@font-face { font-family: 'Plus Jakarta Sans'; src: url('/assets/fonts/PlusJakartaSans-Variable.ttf') format('truetype-variations'); font-weight: 200 800; font-display: block; }
+@font-face { font-family: 'Montserrat'; src: url('/assets/fonts/Montserrat-Variable.ttf') format('truetype-variations'); font-weight: 100 900; font-display: block; }
+@font-face { font-family: 'Poppins'; src: url('/assets/fonts/Poppins-Bold.ttf') format('truetype'); font-weight: 700; font-display: block; }
+@font-face { font-family: 'Archivo'; src: url('/assets/fonts/Archivo-Variable.ttf') format('truetype-variations'); font-weight: 100 900; font-display: block; }
+@font-face { font-family: 'Rubik'; src: url('/assets/fonts/Rubik-Variable.ttf') format('truetype-variations'); font-weight: 300 900; font-display: block; }
+@font-face { font-family: 'League Spartan'; src: url('/assets/fonts/LeagueSpartan-Variable.ttf') format('truetype-variations'); font-weight: 100 900; font-display: block; }
+@font-face { font-family: 'Passion One'; src: url('/assets/fonts/PassionOne-Bold.ttf') format('truetype'); font-weight: 700; font-display: block; }
+
+/* Sans-serif condensadas / display */
+@font-face { font-family: 'Anton'; src: url('/assets/fonts/Anton-Regular.ttf') format('truetype'); font-weight: 400; font-display: block; }
+@font-face { font-family: 'Bebas Neue'; src: url('/assets/fonts/BebasNeue-Regular.ttf') format('truetype'); font-weight: 400; font-display: block; }
+@font-face { font-family: 'Oswald'; src: url('/assets/fonts/Oswald-Variable.ttf') format('truetype-variations'); font-weight: 200 700; font-display: block; }
+@font-face { font-family: 'Bowlby One'; src: url('/assets/fonts/BowlbyOne-Regular.ttf') format('truetype'); font-weight: 400; font-display: block; }
+
+/* Serifs editoriales */
+@font-face { font-family: 'Lora'; src: url('/assets/fonts/Lora-Variable.ttf') format('truetype-variations'); font-weight: 400 700; font-display: block; }
+@font-face { font-family: 'Lora'; src: url('/assets/fonts/Lora-Italic-Variable.ttf') format('truetype-variations'); font-weight: 400 700; font-style: italic; font-display: block; }
+@font-face { font-family: 'EB Garamond'; src: url('/assets/fonts/EBGaramond-Variable.ttf') format('truetype-variations'); font-weight: 400 800; font-display: block; }
+@font-face { font-family: 'EB Garamond'; src: url('/assets/fonts/EBGaramond-Italic-Variable.ttf') format('truetype-variations'); font-weight: 400 800; font-style: italic; font-display: block; }
+@font-face { font-family: 'Cormorant Garamond'; src: url('/assets/fonts/CormorantGaramond-Variable.ttf') format('truetype-variations'); font-weight: 300 700; font-display: block; }
+@font-face { font-family: 'Cormorant Garamond'; src: url('/assets/fonts/CormorantGaramond-Italic-Variable.ttf') format('truetype-variations'); font-weight: 300 700; font-style: italic; font-display: block; }
+@font-face { font-family: 'Playfair Display'; src: url('/assets/fonts/PlayfairDisplay-Variable.ttf') format('truetype-variations'); font-weight: 400 900; font-display: block; }
+@font-face { font-family: 'Playfair Display'; src: url('/assets/fonts/PlayfairDisplay-Italic-Variable.ttf') format('truetype-variations'); font-weight: 400 900; font-style: italic; font-display: block; }
+@font-face { font-family: 'DM Serif Display'; src: url('/assets/fonts/DMSerifDisplay-Regular.ttf') format('truetype'); font-weight: 400; font-display: block; }
+@font-face { font-family: 'DM Serif Display'; src: url('/assets/fonts/DMSerifDisplay-Italic.ttf') format('truetype'); font-weight: 400; font-style: italic; font-display: block; }
+
+/* Display / hand-drawn (keyword accents) */
+@font-face { font-family: 'Luckiest Guy'; src: url('/assets/fonts/LuckiestGuy-Regular.ttf') format('truetype'); font-weight: 400; font-display: block; }
+@font-face { font-family: 'Permanent Marker'; src: url('/assets/fonts/PermanentMarker-Regular.ttf') format('truetype'); font-weight: 400; font-display: block; }
+@font-face { font-family: 'Caveat'; src: url('/assets/fonts/Caveat-Variable.ttf') format('truetype-variations'); font-weight: 400 700; font-display: block; }
 
 @tailwind base;
 @tailwind components;

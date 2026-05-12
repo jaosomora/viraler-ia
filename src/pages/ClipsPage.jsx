@@ -7,15 +7,10 @@ import JobProgress from '../components/JobProgress';
 import ManualClipSelection from '../components/ManualClipSelection';
 
 // Importar Google Fonts una sola vez para preview en cards y editor
-const FONTS_LINK_ID = 'as-clips-fonts';
-const ensureFonts = () => {
-  if (document.getElementById(FONTS_LINK_ID)) return;
-  const link = document.createElement('link');
-  link.id = FONTS_LINK_ID;
-  link.rel = 'stylesheet';
-  link.href = 'https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@900&family=Bebas+Neue&family=Bowlby+One&family=Caveat:wght@700&family=Cormorant+Garamond:ital,wght@0,700;1,700&family=DM+Sans:wght@700&family=DM+Serif+Display:ital@0;1&family=EB+Garamond:ital,wght@0,600;0,700;1,700&family=Inter:wght@400;500;600;700&family=Lato:wght@700&family=League+Spartan:wght@700;800&family=Lora:ital,wght@0,600;0,700;1,700&family=Luckiest+Guy&family=Montserrat:wght@600;700;900&family=Nunito:wght@700&family=Oswald:wght@700&family=Passion+One:wght@700&family=Permanent+Marker&family=Playfair+Display:ital,wght@0,700;1,700&family=Plus+Jakarta+Sans:wght@700&family=Poppins:wght@600;700&family=Roboto:wght@500;700&family=Rubik:wght@700;900&family=Work+Sans:wght@600;700&display=swap';
-  document.head.appendChild(link);
-};
+// Las fuentes ahora se cargan via @font-face desde nuestro propio server
+// (/assets/fonts/*.ttf — declarados en src/index.css). Esto garantiza que
+// browser y libass usen el MISMO archivo TTF, asegurando WYSIWYG real.
+const ensureFonts = () => {};
 
 const ClipsPage = () => {
   const { jobs, activeJob, activeJobId, setActiveJobId, loadJobs, loadJob, downloadClip, reopenForSelection } = useClips();
