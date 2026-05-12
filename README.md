@@ -311,6 +311,35 @@ Para acceder a contenido protegido de Instagram (especialmente perfiles privados
 
 La aplicación detectará automáticamente y usará las cookies cuando sea necesario.
 
+## Configuración para Facebook (videos de páginas)
+
+Algunos videos de Facebook — típicamente los de páginas (fan pages, medios) — requieren cookies de sesión para que yt-dlp pueda parsear el manifest de reproducción. El síntoma es que la **metadata** funciona (yt-dlp lee título, duración, dimensiones) pero la **descarga** falla con `ERROR: [facebook] ... Cannot parse data`. No es un bug de yt-dlp ni se arregla con `yt-dlp -U`: Facebook esconde el manifest real detrás de un check de sesión.
+
+### Cómo configurar cookies de Facebook
+
+1. Inicia sesión en Facebook en tu navegador.
+2. Instala la extensión **"Get cookies.txt LOCALLY"** (Chrome/Firefox). Es la que usa la API `chrome.cookies` y por eso puede leer las cookies `HttpOnly` (`c_user`, `xs`, `fr`, `datr`, `sb`) — un script en página no puede.
+3. Visita `facebook.com`, clic en la extensión → **Export** → guarda como `www.facebook.com_cookies.txt`.
+
+### En desarrollo local (Docker)
+
+Coloca el archivo en `config/fb-cookies.txt` (o `config/cookies.txt`). La carpeta `config/` ya se monta como volumen.
+
+### En producción (Render)
+
+1. Dashboard → tu servicio `as-transcribe` → **Environment** → **Secret Files** → **Add Secret File**.
+2. Filename: `www.facebook.com_cookies.txt` (Render lo monta en `/etc/secrets/<filename>`).
+3. Contents: pega el contenido del `.txt` exportado.
+4. Save → Render redeploy automático.
+
+### Detalles de implementación
+
+- El soporte está en [api/utils/ytdlpCookies.js](api/utils/ytdlpCookies.js) y se aplica en clips, transcribe y descarga de video.
+- **Solo se envía a URLs de Facebook** (no a YouTube/TikTok/Instagram), por seguridad.
+- Rutas que detecta automáticamente, en orden: `$FB_COOKIES_PATH`, `/etc/secrets/www.facebook.com_cookies.txt`, `/etc/secrets/fb-cookies.txt`, `/etc/secrets/cookies.txt`, `/app/config/fb-cookies.txt`, `/app/config/cookies.txt`.
+- **Importante**: `/etc/secrets/` en Render es read-only y yt-dlp reescribe el cookies file después de usarlo (refresh de tokens). Por eso el helper copia el archivo a `os.tmpdir()` (`/tmp/ytdlp-<basename>`) en el primer uso y solo recopia si el secret cambió (`mtime`). Si no se hiciera esta copia, yt-dlp falla con `OSError: [Errno 30] Read-only file system`.
+- Las cookies tienen vencimiento. Si vuelves a ver "Cannot parse data" tras semanas/meses, re-exporta el archivo y actualiza el Secret File en Render.
+
 ## Configuración de FFmpeg
 
 FFmpeg es una dependencia **crítica** para el funcionamiento de la aplicación. Si estás usando Docker, FFmpeg ya está configurado correctamente.

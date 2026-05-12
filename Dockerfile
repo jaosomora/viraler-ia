@@ -42,6 +42,10 @@ COPY server.js ./
 COPY api/ ./api/
 COPY scripts/ ./scripts/
 
+# Copiar fuentes para AS Clips (libass las usa vía --fontsdir en burn-in de subs).
+# Sin esto, ffmpeg cae al fallback sans-serif y el hook pierde la fuente Anton.
+COPY assets/ ./assets/
+
 # Crear directorio para cookies y datos
 RUN mkdir -p /app/config /opt/data && chmod 777 /opt/data /app/config
 
