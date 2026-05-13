@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useTranscriptionContext } from '../context/TranscriptionContext';
 import { authFetch } from '../context/AuthContext';
+import VideoMetadataCard from './VideoMetadataCard';
+import VideoAnalysisPanel from './VideoAnalysisPanel';
 
 const API_BASE = import.meta.env.MODE === 'development' ? 'http://localhost:3000/api' : '/api';
 
@@ -222,11 +224,18 @@ const TranscriptionResults = () => {
           </div>
         )}
 
+        {/* Ficha del video: thumbnail + métricas + description + hashtags.
+            Si no hay metadata (caso upload, IG sin cookies, etc.) el componente no renderiza nada. */}
+        <VideoMetadataCard transcription={currentTranscription} />
+
+        {/* Análisis on-demand: solo si la transcripción ya tiene id real de DB. */}
+        <VideoAnalysisPanel transcription={currentTranscription} />
+
         <div className="mb-4">
           <div className="flex items-center mb-2">
             <span className="text-xs text-gray-500 dark:text-gray-400">URL del contenido:</span>
           </div>
-          <a 
+          <a
             href={url}
             target="_blank"
             rel="noopener noreferrer"

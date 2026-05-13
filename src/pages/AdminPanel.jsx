@@ -331,8 +331,8 @@ const AdminPanel = () => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </div>
-        <p className="text-4xl font-bold tabular-nums">{formatPrice((usageData.estimatedCost || 0) + clipsAgg.cost)}</p>
-        <div className="mt-3 grid grid-cols-2 gap-3 text-xs opacity-90">
+        <p className="text-4xl font-bold tabular-nums">{formatPrice((usageData.estimatedCost || 0) + clipsAgg.cost + (usageData.totalAnalysesCost || 0))}</p>
+        <div className="mt-3 grid grid-cols-2 md:grid-cols-3 gap-3 text-xs opacity-90">
           <div className="bg-white/10 rounded-lg px-3 py-2">
             <div className="opacity-80 text-[11px]">Transcripciones</div>
             <div className="font-semibold tabular-nums">{formatPrice(usageData.estimatedCost || 0)}</div>
@@ -341,33 +341,43 @@ const AdminPanel = () => {
             <div className="opacity-80 text-[11px]">Clips · Whisper {formatPrice(clipsAgg.whisperCost)} + LLM {formatPrice(clipsAgg.llmCost)}</div>
             <div className="font-semibold tabular-nums">{formatPrice(clipsAgg.cost)}</div>
           </div>
+          <div className="bg-white/10 rounded-lg px-3 py-2">
+            <div className="opacity-80 text-[11px]">Análisis de ideas · {usageData.totalAnalyses || 0} corridas</div>
+            <div className="font-semibold tabular-nums">{formatPrice(usageData.totalAnalysesCost || 0)}</div>
+          </div>
         </div>
       </div>
 
       {/* Tarjetas de resumen */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-5">
-          <h3 className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 font-semibold">Transcripciones</h3>
+          <h3 className="text-xs uppercase tracking-wide text-gray-600 dark:text-gray-300 font-semibold">Transcripciones</h3>
           <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-white tabular-nums">{usageData.totalTranscriptions}</p>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{formatNumber(usageData.totalAudioMinutes)} min · {formatPrice(usageData.estimatedCost)}</p>
+          <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">{formatNumber(usageData.totalAudioMinutes)} min · {formatPrice(usageData.estimatedCost)}</p>
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-5">
-          <h3 className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 font-semibold">Clips generados</h3>
+          <h3 className="text-xs uppercase tracking-wide text-gray-600 dark:text-gray-300 font-semibold">Análisis de ideas</h3>
+          <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-white tabular-nums">{usageData.totalAnalyses || 0}</p>
+          <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">{formatPrice(usageData.totalAnalysesCost || 0)} · gpt-4o-mini</p>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-5">
+          <h3 className="text-xs uppercase tracking-wide text-gray-600 dark:text-gray-300 font-semibold">Clips generados</h3>
           <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-white tabular-nums">{clipsAgg.clips}</p>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{clipsAgg.jobs} jobs · {Math.round(clipsAgg.minutes)} min · {formatPrice(clipsAgg.cost)}</p>
+          <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">{clipsAgg.jobs} jobs · {Math.round(clipsAgg.minutes)} min · {formatPrice(clipsAgg.cost)}</p>
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-5">
-          <h3 className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 font-semibold">Conversiones</h3>
+          <h3 className="text-xs uppercase tracking-wide text-gray-600 dark:text-gray-300 font-semibold">Conversiones</h3>
           <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-white tabular-nums">{usageData.totalConversions || 0}</p>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">documentos</p>
+          <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">documentos</p>
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-5">
-          <h3 className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 font-semibold">Usuarios</h3>
+          <h3 className="text-xs uppercase tracking-wide text-gray-600 dark:text-gray-300 font-semibold">Usuarios</h3>
           <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-white tabular-nums">{users.length}</p>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">registrados</p>
+          <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">registrados</p>
         </div>
       </div>
 
@@ -381,10 +391,18 @@ const AdminPanel = () => {
           <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs uppercase tracking-wide text-purple-600 dark:text-purple-400 font-semibold">Transcribir</span>
-              <span className="text-[11px] text-gray-500">OpenAI</span>
+              <span className="text-[11px] text-gray-600 dark:text-gray-400">OpenAI</span>
             </div>
             <div className="font-mono text-sm text-gray-900 dark:text-white">gpt-4o-mini-transcribe</div>
-            <div className="text-xs text-gray-500 mt-1">$0.003 / minuto · audio → texto</div>
+            <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">$0.003 / minuto · audio → texto</div>
+          </div>
+          <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs uppercase tracking-wide text-emerald-600 dark:text-emerald-400 font-semibold">Análisis de ideas</span>
+              <span className="text-[11px] text-gray-600 dark:text-gray-400">OpenAI</span>
+            </div>
+            <div className="font-mono text-sm text-gray-900 dark:text-white">gpt-4o-mini</div>
+            <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">$0.15/M input · $0.60/M output · ~$0.002/análisis</div>
           </div>
           <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between mb-2">
@@ -465,24 +483,27 @@ const AdminPanel = () => {
           <table className="w-full">
             <thead className="bg-gray-50 dark:bg-gray-900/50">
               <tr>
-                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Fecha</th>
-                <th className="py-3 px-6 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Transcripciones</th>
-                <th className="py-3 px-6 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Clips</th>
-                <th className="py-3 px-6 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Reels</th>
-                <th className="py-3 px-6 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Min. totales</th>
-                <th className="py-3 px-6 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Costo total</th>
+                <th className="py-3 px-6 text-left text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider">Fecha</th>
+                <th className="py-3 px-6 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider">Transcripciones</th>
+                <th className="py-3 px-6 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider">Análisis</th>
+                <th className="py-3 px-6 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider">Clips</th>
+                <th className="py-3 px-6 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider">Reels</th>
+                <th className="py-3 px-6 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider">Min. totales</th>
+                <th className="py-3 px-6 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider">Costo total</th>
                 <th className="py-3 px-6"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {(() => {
                 const byDate = {};
-                const empty = d => ({ date: d, txns: 0, txnMin: 0, txnCost: 0, clipJobs: 0, clipMin: 0, clipCost: 0, reelJobs: 0, reelMin: 0, reelCost: 0 });
+                const empty = d => ({ date: d, txns: 0, txnMin: 0, txnCost: 0, analyses: 0, analysesCost: 0, clipJobs: 0, clipMin: 0, clipCost: 0, reelJobs: 0, reelMin: 0, reelCost: 0 });
                 (usageData.recentHistory || []).forEach(e => {
                   byDate[e.date] = byDate[e.date] || empty(e.date);
                   byDate[e.date].txns += e.transcriptions || 0;
                   byDate[e.date].txnMin += e.audioMinutes || 0;
                   byDate[e.date].txnCost += e.cost || 0;
+                  byDate[e.date].analyses += e.analyses || 0;
+                  byDate[e.date].analysesCost += e.analysesCost || 0;
                 });
                 (clipJobs || []).forEach(j => {
                   if (!j.created_at) return;
@@ -503,17 +524,18 @@ const AdminPanel = () => {
                 const rows = Object.values(byDate).sort((a, b) => b.date.localeCompare(a.date));
                 if (rows.length === 0) {
                   return (
-                    <tr><td colSpan="7" className="py-8 px-6 text-sm text-center text-gray-500 dark:text-gray-400">Sin actividad aún</td></tr>
+                    <tr><td colSpan="8" className="py-8 px-6 text-sm text-center text-gray-600 dark:text-gray-400">Sin actividad aún</td></tr>
                   );
                 }
                 return rows.map((r) => (
                   <tr key={r.date} className="hover:bg-gray-50 dark:hover:bg-gray-900/30">
                     <td className="py-3 px-6 text-sm font-medium text-gray-900 dark:text-white">{r.date}</td>
-                    <td className="py-3 px-6 text-sm text-right tabular-nums text-gray-700 dark:text-gray-300">{r.txns}</td>
-                    <td className="py-3 px-6 text-sm text-right tabular-nums text-gray-700 dark:text-gray-300">{r.clipJobs}</td>
-                    <td className="py-3 px-6 text-sm text-right tabular-nums text-gray-700 dark:text-gray-300">{r.reelJobs}</td>
-                    <td className="py-3 px-6 text-sm text-right tabular-nums text-gray-700 dark:text-gray-300">{formatNumber(r.txnMin + r.clipMin + r.reelMin)}</td>
-                    <td className="py-3 px-6 text-sm text-right tabular-nums font-semibold text-purple-600 dark:text-purple-400">{formatPrice(r.txnCost + r.clipCost + r.reelCost)}</td>
+                    <td className="py-3 px-6 text-sm text-right tabular-nums text-gray-800 dark:text-gray-200">{r.txns}</td>
+                    <td className="py-3 px-6 text-sm text-right tabular-nums text-gray-800 dark:text-gray-200">{r.analyses || '–'}</td>
+                    <td className="py-3 px-6 text-sm text-right tabular-nums text-gray-800 dark:text-gray-200">{r.clipJobs || '–'}</td>
+                    <td className="py-3 px-6 text-sm text-right tabular-nums text-gray-800 dark:text-gray-200">{r.reelJobs || '–'}</td>
+                    <td className="py-3 px-6 text-sm text-right tabular-nums text-gray-800 dark:text-gray-200">{formatNumber(r.txnMin + r.clipMin + r.reelMin)}</td>
+                    <td className="py-3 px-6 text-sm text-right tabular-nums font-semibold text-purple-700 dark:text-purple-300">{formatPrice(r.txnCost + r.clipCost + r.reelCost + (r.analysesCost || 0))}</td>
                     <td className="py-3 px-6 text-right">
                       {r.txns > 0 && (
                         <button onClick={() => handleDeleteClick(r.date)}
@@ -545,32 +567,84 @@ const AdminPanel = () => {
           {transcriptions.length === 0 && (
             <p className="p-6 text-sm text-center text-gray-500 dark:text-gray-400">No hay transcripciones</p>
           )}
-          {transcriptions.slice(0, 10).map((t) => (
-            <div key={t.id} className="p-4">
-              <div className="flex items-start justify-between">
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-medium text-gray-900 dark:text-white truncate">{t.title}</h3>
-                  <div className="flex flex-wrap gap-2 mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    <span className="px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">{t.platform}</span>
-                    {t.channel && <span>{t.channel}</span>}
-                    <span>{new Date(t.createdAt).toLocaleString()}</span>
-                    {t.duration > 0 && <span>{(t.duration / 60).toFixed(1)} min</span>}
+          {transcriptions.slice(0, 20).map((t) => {
+            const fmt = (n) => {
+              if (n === null || n === undefined) return null;
+              if (n < 1000) return String(n);
+              if (n < 1e6) return `${(n / 1e3).toFixed(n < 1e4 ? 1 : 0).replace(/\.0$/, '')}K`;
+              return `${(n / 1e6).toFixed(n < 1e7 ? 1 : 0).replace(/\.0$/, '')}M`;
+            };
+            const hasMetrics = t.viewCount || t.likeCount || t.commentCount;
+            const hasAnalysis = !!t.analysis;
+            return (
+              <div key={t.id} className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate">{t.title}</h3>
+                      {hasAnalysis && (
+                        <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
+                          ✨ Analizado
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-2 mt-1 text-xs text-gray-700 dark:text-gray-300">
+                      <span className="px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300 font-medium">{t.platform}</span>
+                      {t.uploaderHandle && <span className="font-medium">@{t.uploaderHandle}</span>}
+                      {t.channel && t.channel !== t.uploaderHandle && <span>{t.channel}</span>}
+                      <span>{new Date(t.createdAt).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' })}</span>
+                      {t.duration > 0 && <span>{(t.duration / 60).toFixed(1)} min</span>}
+                    </div>
+                    {hasMetrics && (
+                      <div className="flex flex-wrap gap-3 mt-2 text-sm text-gray-800 dark:text-gray-100">
+                        {t.viewCount !== null && t.viewCount !== undefined && (
+                          <span className="inline-flex items-center gap-1"><span aria-hidden="true">👁</span><span className="font-semibold tabular-nums">{fmt(t.viewCount)}</span></span>
+                        )}
+                        {t.likeCount !== null && t.likeCount !== undefined && (
+                          <span className="inline-flex items-center gap-1"><span aria-hidden="true">❤️</span><span className="font-semibold tabular-nums">{fmt(t.likeCount)}</span></span>
+                        )}
+                        {t.commentCount !== null && t.commentCount !== undefined && (
+                          <span className="inline-flex items-center gap-1"><span aria-hidden="true">💬</span><span className="font-semibold tabular-nums">{fmt(t.commentCount)}</span></span>
+                        )}
+                        {t.shareCount !== null && t.shareCount !== undefined && (
+                          <span className="inline-flex items-center gap-1"><span aria-hidden="true">🔁</span><span className="font-semibold tabular-nums">{fmt(t.shareCount)}</span></span>
+                        )}
+                      </div>
+                    )}
                   </div>
+                  <button
+                    onClick={() => setExpandedTranscription(expandedTranscription === t.id ? null : t.id)}
+                    className="text-xs font-medium text-purple-700 dark:text-purple-300 hover:underline whitespace-nowrap"
+                  >
+                    {expandedTranscription === t.id ? 'Ocultar' : (hasAnalysis ? 'Ver texto + análisis' : 'Ver texto')}
+                  </button>
                 </div>
-                <button
-                  onClick={() => setExpandedTranscription(expandedTranscription === t.id ? null : t.id)}
-                  className="ml-2 text-xs text-purple-600 dark:text-purple-400 hover:underline whitespace-nowrap"
-                >
-                  {expandedTranscription === t.id ? 'Ocultar' : 'Ver texto'}
-                </button>
+                {expandedTranscription === t.id && (
+                  <div className="mt-3 space-y-3">
+                    {hasAnalysis && (
+                      <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700/50 rounded-lg">
+                        <div className="text-[10px] uppercase tracking-wider text-emerald-800 dark:text-emerald-300 font-bold mb-2">
+                          ✨ Análisis de ideas {t.analysisModel ? `· ${t.analysisModel}` : ''}
+                        </div>
+                        <div className="text-sm text-gray-800 dark:text-gray-100 max-h-60 overflow-y-auto whitespace-pre-wrap font-mono leading-relaxed">
+                          {t.analysis}
+                        </div>
+                      </div>
+                    )}
+                    {t.description && (
+                      <div className="p-3 bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700 rounded-lg">
+                        <div className="text-[10px] uppercase tracking-wider text-gray-700 dark:text-gray-300 font-bold mb-1">Description del creador</div>
+                        <div className="text-sm text-gray-800 dark:text-gray-200 italic">"{t.description}"</div>
+                      </div>
+                    )}
+                    <div className="p-3 bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-800 dark:text-gray-100 max-h-60 overflow-y-auto whitespace-pre-wrap">
+                      {t.text}
+                    </div>
+                  </div>
+                )}
               </div>
-              {expandedTranscription === t.id && (
-                <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg text-sm text-gray-700 dark:text-gray-300 max-h-60 overflow-y-auto whitespace-pre-wrap">
-                  {t.text}
-                </div>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
       </>

@@ -87,9 +87,13 @@ import {
   deleteHistoryByDate,
   getTranscriptions,
   deleteTranscription,
+  getTranscriptionById,
+  saveTranscriptionAnalysis,
+  trackAnalysis,
   getConversions,
   deleteConversion
 } from './api/utils/usageTrackerSQLite.js';
+import { analyzeTranscription } from './api/services/analysisService.js';
 import './api/database/schema.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -358,6 +362,43 @@ app.delete('/api/transcriptions/:id', authMiddleware, async (req, res) => {
     }
   } catch (error) {
     res.status(500).json({ error: 'Error al eliminar transcripción' });
+  }
+});
+
+// Analizar transcripción (on-demand). Idempotente: si ya hay análisis y no se pasa
+// ?force=true, devuelve el guardado sin re-llamar al LLM (evita doble cobro accidental).
+app.post('/api/transcriptions/:id/analyze', authMiddleware, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isFinite(id)) return res.status(400).json({ error: 'ID inválido' });
+
+    const row = await getTranscriptionById(id, req.user.id);
+    if (!row) return res.status(404).json({ error: 'Transcripción no encontrada' });
+
+    const force = req.query.force === 'true' || req.query.force === '1';
+    if (row.analysis && !force) {
+      return res.json({
+        analysis: row.analysis,
+        model: row.analysis_model,
+        analysisAt: row.analysis_at,
+        cached: true,
+      });
+    }
+
+    const { analysis, model, costUsd } = await analyzeTranscription(row);
+    await saveTranscriptionAnalysis(id, { analysis, model, costUsd });
+    await trackAnalysis({ costUsd });
+
+    res.json({
+      analysis,
+      model,
+      analysisAt: new Date().toISOString(),
+      costUsd,
+      cached: false,
+    });
+  } catch (error) {
+    console.error('Error al analizar transcripción:', error);
+    res.status(500).json({ error: error.message || 'Error al analizar transcripción' });
   }
 });
 
