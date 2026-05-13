@@ -85,6 +85,24 @@ db.serialize(() => {
   // Migration: acceso temporal a la herramienta (NULL = sin límite, ej. owner/internos)
   db.run(`ALTER TABLE users ADD COLUMN access_expires_at TIMESTAMP`, () => {});
 
+  // Migration: metadata extendida del video (snapshot al momento de transcribir).
+  // Capturada del JSON de yt-dlp. Todos opcionales — IG/FB sin cookies devuelven null.
+  db.run(`ALTER TABLE transcriptions ADD COLUMN view_count INTEGER`, () => {});
+  db.run(`ALTER TABLE transcriptions ADD COLUMN like_count INTEGER`, () => {});
+  db.run(`ALTER TABLE transcriptions ADD COLUMN comment_count INTEGER`, () => {});
+  db.run(`ALTER TABLE transcriptions ADD COLUMN share_count INTEGER`, () => {}); // TikTok repost_count
+  db.run(`ALTER TABLE transcriptions ADD COLUMN uploader_handle TEXT`, () => {});
+  db.run(`ALTER TABLE transcriptions ADD COLUMN uploader_url TEXT`, () => {});
+  db.run(`ALTER TABLE transcriptions ADD COLUMN upload_date TEXT`, () => {}); // YYYYMMDD que da yt-dlp
+  db.run(`ALTER TABLE transcriptions ADD COLUMN description TEXT`, () => {});
+  db.run(`ALTER TABLE transcriptions ADD COLUMN hashtags TEXT`, () => {}); // JSON array
+  db.run(`ALTER TABLE transcriptions ADD COLUMN metrics_captured_at TIMESTAMP`, () => {});
+  // Análisis on-demand: markdown generado por LLM cuando el usuario pulsa "Analizar ideas".
+  db.run(`ALTER TABLE transcriptions ADD COLUMN analysis TEXT`, () => {});
+  db.run(`ALTER TABLE transcriptions ADD COLUMN analysis_at TIMESTAMP`, () => {});
+  db.run(`ALTER TABLE transcriptions ADD COLUMN analysis_model TEXT`, () => {});
+  db.run(`ALTER TABLE transcriptions ADD COLUMN analysis_cost_usd REAL`, () => {});
+
   // Tabla de registro de uso
   db.run(`
     CREATE TABLE IF NOT EXISTS usage_stats (
@@ -118,6 +136,9 @@ db.serialize(() => {
   db.run(`ALTER TABLE usage_stats ADD COLUMN reels INTEGER DEFAULT 0`, () => {});
   db.run(`ALTER TABLE usage_stats ADD COLUMN reels_minutes REAL DEFAULT 0`, () => {});
   db.run(`ALTER TABLE usage_stats ADD COLUMN reels_cost REAL DEFAULT 0`, () => {});
+  // Análisis de ideas on-demand sobre transcripciones (gpt-4o-mini).
+  db.run(`ALTER TABLE usage_stats ADD COLUMN analyses INTEGER DEFAULT 0`, () => {});
+  db.run(`ALTER TABLE usage_stats ADD COLUMN analyses_cost REAL DEFAULT 0`, () => {});
 
   // Tabla de configuración
   db.run(`

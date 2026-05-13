@@ -19,10 +19,25 @@ export const TranscriptionProvider = ({ children }) => {
       if (response.ok) {
         const data = await response.json();
         setSavedTranscriptions(data);
+        return data;
       }
     } catch (e) {
       console.error('Error al cargar transcripciones:', e);
     }
+    return null;
+  };
+
+  // Aplica los campos de análisis a la transcripción actual y a la lista guardada.
+  // Se llama desde VideoAnalysisPanel tras recibir respuesta del endpoint /analyze.
+  const applyAnalysisToTranscription = (id, { analysis, analysisModel, analysisAt }) => {
+    setCurrentTranscription((cur) =>
+      cur && (cur.id === id || cur.id == id)
+        ? { ...cur, analysis, analysisModel, analysisAt }
+        : cur
+    );
+    setSavedTranscriptions((prev) =>
+      prev.map((t) => (t.id === id || t.id == id ? { ...t, analysis, analysisModel, analysisAt } : t))
+    );
   };
 
   useEffect(() => {
@@ -50,17 +65,39 @@ export const TranscriptionProvider = ({ children }) => {
 
       const data = await response.json();
 
+      // Tras fetchTranscriptions(), la versión guardada (con id real de DB) ya está disponible.
+      // Para no introducir lag visual, construimos newTranscription con la metadata extendida
+      // que el endpoint ya devuelve (engagement, uploader, description, hashtags).
       const newTranscription = {
-        id: data.id || Date.now().toString(),
+        id: data.id || null,
         url,
         platform: detectPlatform(url),
         text: data.transcript,
         createdAt: new Date().toISOString(),
-        title: data.title || 'Sin título'
+        title: data.title || 'Sin título',
+        duration: data.duration ?? null,
+        channel: data.channel ?? null,
+        thumbnail: data.thumbnail ?? null,
+        viewCount: data.viewCount ?? null,
+        likeCount: data.likeCount ?? null,
+        commentCount: data.commentCount ?? null,
+        shareCount: data.shareCount ?? null,
+        uploaderHandle: data.uploaderHandle ?? null,
+        uploaderUrl: data.uploaderUrl ?? null,
+        uploadDate: data.uploadDate ?? null,
+        description: data.description ?? null,
+        hashtags: data.hashtags ?? null,
+        usageInfo: data.usageInfo ?? null,
       };
 
       setCurrentTranscription(newTranscription);
-      await fetchTranscriptions();
+      const refreshed = await fetchTranscriptions();
+      // Reemplazar currentTranscription con la versión de DB (que ya tiene id real)
+      // matcheando por url + created_at más reciente.
+      if (Array.isArray(refreshed) && refreshed.length > 0) {
+        const dbRow = refreshed.find((t) => t.url === url);
+        if (dbRow) setCurrentTranscription({ ...dbRow, text: dbRow.text });
+      }
       return newTranscription;
     } catch (err) {
       setError(err.message);
@@ -142,7 +179,8 @@ export const TranscriptionProvider = ({ children }) => {
     processFileTranscription,
     deleteTranscription,
     setCurrentTranscription,
-    fetchTranscriptions
+    fetchTranscriptions,
+    applyAnalysisToTranscription
   };
 
   return (

@@ -130,10 +130,24 @@ export const trackUsage = (audioData, metadata, userId = null) => {
         
         // Si hay transcripción en los metadatos, guardarla en la tabla de transcripciones
         if (metadata.transcript) {
+          // Detecta si trae al menos un campo de engagement (capturado vía yt-dlp).
+          // Si todos son null/undefined, dejamos metrics_captured_at NULL para que el frontend
+          // sepa que la ficha no aplica (caso upload o IG sin cookies).
+          const hasMetrics = [
+            metadata.viewCount, metadata.likeCount, metadata.commentCount,
+            metadata.shareCount, metadata.uploaderHandle, metadata.uploadDate,
+            metadata.description, metadata.hashtags
+          ].some((v) => v !== null && v !== undefined);
+          const metricsCapturedAt = hasMetrics ? new Date().toISOString() : null;
+          const hashtagsJson = Array.isArray(metadata.hashtags) && metadata.hashtags.length > 0
+            ? JSON.stringify(metadata.hashtags)
+            : null;
           db.run(
             `INSERT INTO transcriptions (
-              url, platform, title, transcript, duration, channel, thumbnail, language, user_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              url, platform, title, transcript, duration, channel, thumbnail, language, user_id,
+              view_count, like_count, comment_count, share_count,
+              uploader_handle, uploader_url, upload_date, description, hashtags, metrics_captured_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               metadata.url || '',
               metadata.platform || 'unknown',
@@ -143,7 +157,17 @@ export const trackUsage = (audioData, metadata, userId = null) => {
               metadata.channel || 'Desconocido',
               metadata.thumbnail || null,
               metadata.language || 'es',
-              userId
+              userId,
+              metadata.viewCount ?? null,
+              metadata.likeCount ?? null,
+              metadata.commentCount ?? null,
+              metadata.shareCount ?? null,
+              metadata.uploaderHandle ?? null,
+              metadata.uploaderUrl ?? null,
+              metadata.uploadDate ?? null,
+              metadata.description ?? null,
+              hashtagsJson,
+              metricsCapturedAt
             ],
             (err) => {
               if (err) {
@@ -188,7 +212,9 @@ export const generateUsageReport = () => {
           SUM(transcriptions) as totalTranscriptions,
           SUM(audio_minutes) as totalAudioMinutes,
           SUM(cost) as estimatedCost,
-          SUM(conversions) as totalConversions
+          SUM(conversions) as totalConversions,
+          SUM(analyses) as totalAnalyses,
+          SUM(analyses_cost) as totalAnalysesCost
         FROM usage_stats`,
         (err, row) => {
           if (err) {
@@ -201,6 +227,8 @@ export const generateUsageReport = () => {
             usageData.totalAudioMinutes = row.totalAudioMinutes || 0;
             usageData.estimatedCost = row.estimatedCost || 0;
             usageData.totalConversions = row.totalConversions || 0;
+            usageData.totalAnalyses = row.totalAnalyses || 0;
+            usageData.totalAnalysesCost = row.totalAnalysesCost || 0;
           }
 
           // Calcular promedios
@@ -216,7 +244,8 @@ export const generateUsageReport = () => {
 
           // Obtener historial
           db.all(
-            `SELECT date, transcriptions, audio_minutes as audioMinutes, cost, conversions
+            `SELECT date, transcriptions, audio_minutes as audioMinutes, cost, conversions,
+                    analyses, analyses_cost as analysesCost
              FROM usage_stats
              ORDER BY date DESC
              LIMIT 10`,
@@ -332,13 +361,17 @@ export const deleteHistoryByDate = (date) => {
  */
 export const getTranscriptions = (userId = null) => {
   return new Promise((resolve, reject) => {
+    const cols = `id, url, platform, title, transcript as text, duration, channel,
+                  thumbnail, language, created_at as createdAt,
+                  view_count as viewCount, like_count as likeCount,
+                  comment_count as commentCount, share_count as shareCount,
+                  uploader_handle as uploaderHandle, uploader_url as uploaderUrl,
+                  upload_date as uploadDate, description, hashtags,
+                  metrics_captured_at as metricsCapturedAt,
+                  analysis, analysis_at as analysisAt, analysis_model as analysisModel`;
     const query = userId
-      ? `SELECT id, url, platform, title, transcript as text, duration, channel,
-              thumbnail, language, created_at as createdAt
-         FROM transcriptions WHERE user_id = ? ORDER BY created_at DESC`
-      : `SELECT id, url, platform, title, transcript as text, duration, channel,
-              thumbnail, language, created_at as createdAt
-         FROM transcriptions ORDER BY created_at DESC`;
+      ? `SELECT ${cols} FROM transcriptions WHERE user_id = ? ORDER BY created_at DESC`
+      : `SELECT ${cols} FROM transcriptions ORDER BY created_at DESC`;
     const params = userId ? [userId] : [];
     db.all(query, params,
       (err, rows) => {
@@ -346,9 +379,84 @@ export const getTranscriptions = (userId = null) => {
           console.error('Error al obtener transcripciones:', err);
           return reject(err);
         }
-        resolve(rows || []);
+        // Parsear hashtags JSON → array
+        const parsed = (rows || []).map((r) => ({
+          ...r,
+          hashtags: r.hashtags ? safeParseArray(r.hashtags) : null
+        }));
+        resolve(parsed);
       }
     );
+  });
+};
+
+const safeParseArray = (s) => {
+  try { const v = JSON.parse(s); return Array.isArray(v) ? v : null; }
+  catch { return null; }
+};
+
+/**
+ * Obtiene una transcripción por ID, validando propiedad si se pasa userId.
+ * Devuelve null si no existe o no pertenece al usuario.
+ */
+export const getTranscriptionById = (id, userId = null) => {
+  return new Promise((resolve, reject) => {
+    const query = userId
+      ? `SELECT * FROM transcriptions WHERE id = ? AND user_id = ?`
+      : `SELECT * FROM transcriptions WHERE id = ?`;
+    const params = userId ? [id, userId] : [id];
+    db.get(query, params, (err, row) => {
+      if (err) return reject(err);
+      if (!row) return resolve(null);
+      row.hashtags = row.hashtags ? safeParseArray(row.hashtags) : null;
+      resolve(row);
+    });
+  });
+};
+
+/**
+ * Guarda el análisis on-demand generado por LLM en una transcripción.
+ */
+export const saveTranscriptionAnalysis = (id, { analysis, model, costUsd }) => {
+  return new Promise((resolve, reject) => {
+    db.run(
+      `UPDATE transcriptions
+       SET analysis = ?, analysis_at = CURRENT_TIMESTAMP, analysis_model = ?, analysis_cost_usd = ?
+       WHERE id = ?`,
+      [analysis, model, costUsd || 0, id],
+      function (err) {
+        if (err) return reject(err);
+        resolve({ success: this.changes > 0 });
+      }
+    );
+  });
+};
+
+/**
+ * Suma una llamada de análisis al contador diario de usage_stats.
+ */
+export const trackAnalysis = ({ costUsd }) => {
+  return new Promise((resolve) => {
+    const today = new Date().toISOString().split('T')[0];
+    db.get(`SELECT id FROM usage_stats WHERE date = ?`, [today], (err, row) => {
+      if (err) { console.error('trackAnalysis:', err); return resolve(); }
+      if (row) {
+        db.run(
+          `UPDATE usage_stats SET analyses = COALESCE(analyses,0) + 1,
+                                  analyses_cost = COALESCE(analyses_cost,0) + ?
+           WHERE id = ?`,
+          [costUsd || 0, row.id],
+          () => resolve()
+        );
+      } else {
+        db.run(
+          `INSERT INTO usage_stats (date, transcriptions, audio_minutes, cost, analyses, analyses_cost)
+           VALUES (?, 0, 0, 0, 1, ?)`,
+          [today, costUsd || 0],
+          () => resolve()
+        );
+      }
+    });
   });
 };
 

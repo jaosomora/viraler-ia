@@ -218,6 +218,25 @@ async function getVideoMetadata(url, platform) {
             metadata.duration = info.duration || metadata.duration;
             metadata.channel = info.uploader || info.channel || metadata.channel;
             metadata.thumbnail = info.thumbnail || metadata.thumbnail;
+
+            // Metadata extendida (engagement + contexto del creador).
+            // yt-dlp normaliza estos campos pero cualquiera puede venir null/undefined
+            // según plataforma y disponibilidad de cookies. Guardamos lo que haya.
+            const toInt = (v) => (typeof v === 'number' && Number.isFinite(v)) ? Math.round(v) : null;
+            metadata.viewCount = toInt(info.view_count);
+            metadata.likeCount = toInt(info.like_count);
+            metadata.commentCount = toInt(info.comment_count);
+            // TikTok: repost_count. YouTube no expone shares en yt-dlp.
+            metadata.shareCount = toInt(info.repost_count ?? info.share_count);
+            metadata.uploaderHandle = info.uploader_id || info.uploader || null;
+            metadata.uploaderUrl = info.uploader_url || info.channel_url || null;
+            metadata.uploadDate = info.upload_date || null; // YYYYMMDD
+            metadata.description = info.description || null;
+            // Hashtags: yt-dlp da info.tags (array) y/o info.hashtags. Normalizamos a array.
+            let tagList = [];
+            if (Array.isArray(info.hashtags)) tagList = info.hashtags;
+            else if (Array.isArray(info.tags)) tagList = info.tags;
+            metadata.hashtags = tagList.length > 0 ? tagList : null;
           } catch (error) {
             console.warn('Error al parsear metadatos:', error);
           }

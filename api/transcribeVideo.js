@@ -40,7 +40,7 @@ export default async function transcribeVideo(req, res) {
     const userId = req.user ? req.user.id : null;
     const usage = trackUsage(audioBuffer, metadata, userId);
 
-    // Devolver la transcripción y metadatos
+    // Devolver la transcripción y metadatos (incluye engagement si yt-dlp lo devolvió).
     return res.status(200).json({
       success: true,
       url,
@@ -50,6 +50,15 @@ export default async function transcribeVideo(req, res) {
       duration: metadata.duration,
       channel: metadata.channel,
       thumbnail: metadata.thumbnail,
+      viewCount: metadata.viewCount ?? null,
+      likeCount: metadata.likeCount ?? null,
+      commentCount: metadata.commentCount ?? null,
+      shareCount: metadata.shareCount ?? null,
+      uploaderHandle: metadata.uploaderHandle ?? null,
+      uploaderUrl: metadata.uploaderUrl ?? null,
+      uploadDate: metadata.uploadDate ?? null,
+      description: metadata.description ?? null,
+      hashtags: metadata.hashtags ?? null,
       usageInfo: usageInfo || usage || null
     });
 
