@@ -14,49 +14,77 @@ import path from 'path';
 const OUTPUT_W = 1080;
 const OUTPUT_H = 1920; // 9:16
 
-/**
- * Pass 1: cuts + concat + crop 9:16 + scale. Sin subs.
- */
-export function renderReelBase({ sourceVideo, keepSegments, outputPath }) {
+function runFfmpeg(args, errLabel) {
   return new Promise((resolve, reject) => {
-    if (!keepSegments || keepSegments.length === 0) {
-      return reject(new Error('No hay segmentos para renderizar (todo está marcado para cortar)'));
-    }
     const ffmpeg = process.env.FFMPEG_PATH || 'ffmpeg';
-
-    const parts = [];
-    const concatInputs = [];
-    keepSegments.forEach((seg, i) => {
-      const s = seg.start.toFixed(3);
-      const e = seg.end.toFixed(3);
-      parts.push(`[0:v]trim=start=${s}:end=${e},setpts=PTS-STARTPTS[v${i}]`);
-      parts.push(`[0:a]atrim=start=${s}:end=${e},asetpts=PTS-STARTPTS[a${i}]`);
-      concatInputs.push(`[v${i}][a${i}]`);
-    });
-    const n = keepSegments.length;
-    parts.push(`${concatInputs.join('')}concat=n=${n}:v=1:a=1[vc][ac]`);
-    parts.push(`[vc]crop='min(iw,ih*9/16)':'ih':'(iw-min(iw,ih*9/16))/2':0,scale=${OUTPUT_W}:${OUTPUT_H},setsar=1[vo]`);
-
-    const args = [
-      '-y',
-      '-i', sourceVideo,
-      '-filter_complex', parts.join(';'),
-      '-map', '[vo]', '-map', '[ac]',
-      '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22',
-      '-c:a', 'aac', '-b:a', '128k',
-      '-movflags', '+faststart',
-      outputPath,
-    ];
-
     const p = spawn(ffmpeg, args);
     let stderr = '';
     p.stderr.on('data', d => { stderr += d.toString(); });
     p.on('close', code => {
-      if (code === 0 && fs.existsSync(outputPath)) resolve(outputPath);
-      else reject(new Error(`ffmpeg reel base render exit ${code}: ${stderr.slice(-1500)}`));
+      if (code === 0) resolve();
+      else reject(new Error(`ffmpeg ${errLabel} exit ${code}: ${stderr.slice(-1500)}`));
     });
     p.on('error', reject);
   });
+}
+
+/**
+ * Pass 1: cuts + concat + crop 9:16 + scale. Sin subs.
+ *
+ * Rotación: ffmpeg autorrota por defecto al decodificar y entrega frames ya
+ * orientados al filter graph (los píxeles salen bien). PERO cuando hay múltiples
+ * segmentos vía concat, el `displaymatrix` side_data del input se cuela al output
+ * y el navegador lo rota OTRA VEZ → video sideways en el player.
+ *
+ * Fix: tras el render, re-mux `-c copy -display_rotation:v 0` para reescribir el
+ * contenedor sin esa metadata. Es prácticamente gratis (no re-encodea), <1s.
+ */
+export async function renderReelBase({ sourceVideo, keepSegments, outputPath }) {
+  if (!keepSegments || keepSegments.length === 0) {
+    throw new Error('No hay segmentos para renderizar (todo está marcado para cortar)');
+  }
+
+  const parts = [];
+  const concatInputs = [];
+  keepSegments.forEach((seg, i) => {
+    const s = seg.start.toFixed(3);
+    const e = seg.end.toFixed(3);
+    parts.push(`[0:v]trim=start=${s}:end=${e},setpts=PTS-STARTPTS[v${i}]`);
+    parts.push(`[0:a]atrim=start=${s}:end=${e},asetpts=PTS-STARTPTS[a${i}]`);
+    concatInputs.push(`[v${i}][a${i}]`);
+  });
+  const n = keepSegments.length;
+  parts.push(`${concatInputs.join('')}concat=n=${n}:v=1:a=1[vc][ac]`);
+  parts.push(`[vc]crop='min(iw,ih*9/16)':'ih':'(iw-min(iw,ih*9/16))/2':0,scale=${OUTPUT_W}:${OUTPUT_H},setsar=1[vo]`);
+
+  const tmpPath = outputPath.replace(/\.mp4$/, '.tmp.mp4');
+
+  // Pass 1: render con cuts + crop a tmp.
+  await runFfmpeg([
+    '-y',
+    '-i', sourceVideo,
+    '-filter_complex', parts.join(';'),
+    '-map', '[vo]', '-map', '[ac]',
+    '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22',
+    '-c:a', 'aac', '-b:a', '128k',
+    '-movflags', '+faststart',
+    tmpPath,
+  ], 'reel base render');
+
+  // Pass 2: re-mux barato para limpiar el displaymatrix side_data heredado del concat.
+  await runFfmpeg([
+    '-y',
+    '-display_rotation:v', '0',
+    '-i', tmpPath,
+    '-c', 'copy',
+    '-movflags', '+faststart',
+    outputPath,
+  ], 'reel base remux');
+
+  try { fs.unlinkSync(tmpPath); } catch {}
+
+  if (!fs.existsSync(outputPath)) throw new Error('renderReelBase: output no existe tras remux');
+  return outputPath;
 }
 
 /**
