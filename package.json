@@ -11,6 +11,8 @@
     "build": "npx vite build",
     "start": "node server.js",
     "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "migrate": "node api/database/migrateJsonToSQLite.js",
     "docker:build": "docker-compose build",
@@ -52,7 +54,8 @@
     "nodemon": "^3.0.3",
     "postcss": "^8.4.33",
     "tailwindcss": "^3.4.1",
-    "vite": "^6.2.3"
+    "vite": "^6.2.3",
+    "vitest": "^4.1.6"
   },
   "overrides": {
     "uuid": "^14.0.0"

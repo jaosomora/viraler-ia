@@ -80,11 +80,23 @@ export function detectGaps(whisperJson) {
  */
 export function buildKeepSegments(cuts, totalDuration, padSeconds = 0.10) {
   // Normalizar: ordenar, encoger por pad, descartar cortes inválidos, mergear si se solapan.
+  // Padding asimétrico para cortes anclados a borde (start=0 o end=duration):
+  //   - El borde anclado: 0 pad (no hay nada que proteger fuera del archivo).
+  //   - El otro extremo: tampoco se padea. Whisper marca arranque/fin de palabra
+  //     con precisión ~10ms; un pad de 100ms aquí dejaría silencio audible antes
+  //     de la primera palabra (o después de la última), justo lo que el usuario
+  //     pidió eliminar al marcar un trim-head/tail o un silencio de borde.
+  // Cortes internos (entre dos palabras): pad simétrico estándar para no comer
+  // la cola del fonema previo ni el ataque del siguiente.
   const padded = (cuts || [])
-    .map(c => ({
-      start: Math.max(0, c.start + padSeconds),
-      end: Math.min(totalDuration, c.end - padSeconds),
-    }))
+    .map(c => {
+      const isBoundaryCut = c.start <= 0.001 || c.end >= totalDuration - 0.001;
+      const pad = isBoundaryCut ? 0 : padSeconds;
+      return {
+        start: Math.max(0, c.start + pad),
+        end: Math.min(totalDuration, c.end - pad),
+      };
+    })
     .filter(c => c.end > c.start + 0.05)
     .sort((a, b) => a.start - b.start);
 

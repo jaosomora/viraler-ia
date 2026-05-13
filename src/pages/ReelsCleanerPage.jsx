@@ -14,6 +14,23 @@ const fmtTime = s => {
   return `${m}:${ss}`;
 };
 
+// Parsea "mm:ss", "m:ss", "ss" o número decimal a segundos.
+// Devuelve null si no se puede interpretar (campo vacío, garabato, etc.).
+const parseTimeInput = str => {
+  if (str == null) return null;
+  const s = String(str).trim();
+  if (!s) return null;
+  if (s.includes(':')) {
+    const [mm, ss] = s.split(':');
+    const m = parseInt(mm, 10);
+    const sec = parseFloat(ss);
+    if (isNaN(m) || isNaN(sec)) return null;
+    return m * 60 + sec;
+  }
+  const n = parseFloat(s);
+  return isNaN(n) ? null : n;
+};
+
 const ReelsCleanerPage = () => {
   const [jobs, setJobs] = useState([]);
   const [activeJobId, setActiveJobId] = useState(localStorage.getItem('reels_active_job') || null);
@@ -248,6 +265,11 @@ const ReviewView = ({ job, onSubmitted, onError }) => {
   const [playWithCuts, setPlayWithCuts] = useState(false);
   const [videoTime, setVideoTime] = useState(0);
   const [autoScrollPaused, setAutoScrollPaused] = useState(false);
+  // Trim cabeza/cola: segundos a descartar al inicio y al final del video original.
+  // Se modela como dos cortes adicionales que pasan por el mismo pipeline (padding,
+  // snap, render). El input es texto para permitir typing libre tipo "0:07".
+  const [trimHeadStr, setTrimHeadStr] = useState('');
+  const [trimTailStr, setTrimTailStr] = useState('');
   const videoRef = useRef();
   const transcriptContainerRef = useRef();
   const activeWordRef = useRef();
@@ -264,9 +286,28 @@ const ReviewView = ({ job, onSubmitted, onError }) => {
     return { ...g, action };
   }), [gaps, threshold, overrides]);
 
-  const cuts = useMemo(() => gapsWithState
-    .filter(g => g.action === 'cut')
-    .map(g => ({ start: g.start, end: g.end })), [gapsWithState]);
+  // Cortes derivados de los inputs de trim. Clampeados a [0, totalDur] y descartados si
+  // son cero o negativos. Si el usuario escribe basura → el parser devuelve null y no
+  // generamos cut (sin error visible, simplemente no aplica).
+  const trimCuts = useMemo(() => {
+    const out = [];
+    const head = parseTimeInput(trimHeadStr);
+    const tail = parseTimeInput(trimTailStr);
+    if (head != null && head > 0.05) {
+      out.push({ start: 0, end: Math.min(head, totalDur) });
+    }
+    if (tail != null && tail > 0.05 && totalDur > 0) {
+      out.push({ start: Math.max(0, totalDur - tail), end: totalDur });
+    }
+    return out;
+  }, [trimHeadStr, trimTailStr, totalDur]);
+
+  const cuts = useMemo(() => {
+    const fromGaps = gapsWithState
+      .filter(g => g.action === 'cut')
+      .map(g => ({ start: g.start, end: g.end }));
+    return [...fromGaps, ...trimCuts];
+  }, [gapsWithState, trimCuts]);
 
   const removedSeconds = cuts.reduce((a, c) => a + (c.end - c.start), 0);
   const finalDuration = Math.max(0, totalDur - removedSeconds);
@@ -392,12 +433,17 @@ const ReviewView = ({ job, onSubmitted, onError }) => {
   const transcriptItems = useMemo(() => {
     if (words.length === 0) return [];
     const items = [];
-    const gapsSorted = [...gapsWithState].sort((a, b) => a.start - b.start);
+    // Solo renderizamos chips para gaps INTERNOS. Leading/trailing se gestionan
+    // desde el panel "Recortar inicio y final" — siguen contando como cortes en
+    // gapsWithState/cuts (no se pierde nada), solo no aparecen como chip inline.
+    const gapsSorted = [...gapsWithState]
+      .filter(g => g.position === 'internal')
+      .sort((a, b) => a.start - b.start);
     let gi = 0;
     for (let i = 0; i < words.length; i++) {
       const w = words[i];
       items.push({ type: 'word', word: w, key: `w${i}` });
-      while (gi < gapsSorted.length && gapsSorted[gi].start < w.end + 0.05 && gapsSorted[gi].position !== 'leading') {
+      while (gi < gapsSorted.length && gapsSorted[gi].start < w.end + 0.05) {
         items.push({ type: 'gap', gap: gapsSorted[gi], key: `g${gapsSorted[gi].idx}` });
         gi++;
       }
@@ -490,6 +536,75 @@ const ReviewView = ({ job, onSubmitted, onError }) => {
                     Si una palabra se oye cortada, marca esa pausa como "Mantener" en el transcript.
                   </p>
                 )}
+
+                {/* Trim cabeza/cola: dos cortes anclados a los extremos.
+                    Funcionan exactamente igual que los chips del transcript pero los marca el usuario manualmente. */}
+                <div className="mb-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700">
+                  <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-2">
+                    Recortar inicio y final
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] text-gray-500 mb-1">Quitar al inicio</label>
+                      <div className="flex gap-1">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="0:00"
+                          value={trimHeadStr}
+                          onChange={e => setTrimHeadStr(e.target.value)}
+                          className="w-full px-2 py-1 text-sm font-mono rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setTrimHeadStr(fmtTime(videoRef.current?.currentTime || 0))}
+                          className="px-2 py-1 text-[10px] rounded bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 whitespace-nowrap"
+                          title="Usar el tiempo actual del player"
+                        >
+                          Aquí
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-gray-500 mb-1">Quitar al final</label>
+                      <div className="flex gap-1">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="0:00"
+                          value={trimTailStr}
+                          onChange={e => setTrimTailStr(e.target.value)}
+                          className="w-full px-2 py-1 text-sm font-mono rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const t = videoRef.current?.currentTime;
+                            if (t != null && totalDur > 0) setTrimTailStr(fmtTime(Math.max(0, totalDur - t)));
+                          }}
+                          className="px-2 py-1 text-[10px] rounded bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 whitespace-nowrap"
+                          title="Cortar desde el tiempo actual hasta el final"
+                        >
+                          Aquí
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  {trimCuts.length > 0 && (
+                    <div className="mt-2 text-[11px] text-rose-700 dark:text-rose-400">
+                      {trimCuts[0]?.start === 0 && (
+                        <>Inicio: <span className="font-mono">0:00 → {fmtTime(trimCuts[0].end)}</span></>
+                      )}
+                      {trimCuts.length === 2 && <span className="mx-1.5 text-gray-400">·</span>}
+                      {trimCuts[trimCuts.length - 1]?.end === totalDur && (
+                        <>Final: <span className="font-mono">{fmtTime(trimCuts[trimCuts.length - 1].start)} → {fmtTime(totalDur)}</span></>
+                      )}
+                    </div>
+                  )}
+                  <p className="text-[10px] text-gray-500 mt-1.5 leading-snug">
+                    Pulsa "▶ Escuchar cómo queda" para oír el resultado en vivo (sin renderizar).
+                  </p>
+                </div>
 
                 <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-2">
                   Timeline (gris = mantener · rosa = cortar)
