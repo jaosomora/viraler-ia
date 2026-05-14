@@ -3,6 +3,7 @@ import {
   uploadReel, listReelJobs, getReelJob, applyCuts, deleteReelJob,
   updateReelStyle, updateReelTitle, renderReelPreview, finalizeReel, reopenSilences,
   continueToMusic, reopenStyle, updateMusic, mixMusic, suggestMusic,
+  fetchVoiceSample,
   sourceVideoUrl, baseVideoUrl, outputVideoUrl, outputWithMusicUrl, downloadUrl,
 } from '../services/reelsApi';
 import { listMusicTracks, uploadMusicTrack, deleteMusicTrack, streamUrl as musicStreamUrl, curateMusic, getMusicProviders } from '../services/musicApi';
@@ -831,6 +832,158 @@ const ColorPicker = ({ value, onChange, presets }) => {
   );
 };
 
+// Paso 2 — bloque de procesamiento de voz.
+// "Auto-nivelar" (loudnorm -16 LUFS) viene activo por defecto: la mayoría de fuentes
+// se benefician y el usuario no necesita decidir nada. El slider de ajuste fino solo
+// importa cuando el usuario siente que tras nivelar quedó muy alto/bajo.
+// El botón "Escuchar muestra" pide al backend 10s de mp3 con el procesamiento actual,
+// crea un Blob URL y lo reproduce — sin re-renderizar el reel.
+const GAIN_PRESETS = [-6, -3, 0, 3, 6, 12];
+
+const VoicePanel = ({ jobId, autolevel, gainDb, onAutolevelChange, onGainChange, onError }) => {
+  const [sampleUrl, setSampleUrl] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const audioRef = useRef();
+
+  // Liberar el Blob URL anterior cuando lo reemplazamos o al desmontar.
+  useEffect(() => () => { if (sampleUrl) URL.revokeObjectURL(sampleUrl); }, [sampleUrl]);
+
+  const handleSample = async () => {
+    setLoading(true);
+    try {
+      // Stop reproducción anterior antes de reemplazar el src.
+      if (audioRef.current) {
+        try { audioRef.current.pause(); } catch {}
+      }
+      const url = await fetchVoiceSample(jobId, {
+        startSec: 0,
+        autolevel,
+        gainDb,
+      });
+      // Revocar el anterior recién después de tener el nuevo.
+      if (sampleUrl) URL.revokeObjectURL(sampleUrl);
+      setSampleUrl(url);
+      // Pequeño tick para que el <audio> recoja el nuevo src antes de play.
+      setTimeout(() => {
+        audioRef.current?.play().catch(() => {});
+      }, 50);
+    } catch (e) {
+      onError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const isPassthrough = !autolevel && gainDb === 0;
+
+  return (
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div>
+          <h3 className="font-semibold text-sm uppercase tracking-wide text-gray-500 flex items-center gap-2">
+            <span>🎙️</span> Voz
+          </h3>
+          <p className="text-xs text-gray-500 mt-1">
+            ¿Tu voz se escucha bajita? Lo arreglamos sin que tengas que pensarlo.
+          </p>
+        </div>
+        {isPassthrough && (
+          <span className="text-[10px] uppercase tracking-wider text-gray-400 px-2 py-0.5 border border-gray-300 dark:border-gray-600 rounded">
+            sin procesar
+          </span>
+        )}
+      </div>
+
+      {/* Toggle de auto-nivelar */}
+      <label className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-amber-400 dark:hover:border-amber-600 cursor-pointer transition mb-3">
+        <input
+          type="checkbox"
+          checked={autolevel}
+          onChange={e => onAutolevelChange(e.target.checked)}
+          className="mt-0.5 w-4 h-4 accent-rose-600"
+        />
+        <div className="flex-1">
+          <div className="text-sm font-medium text-gray-800 dark:text-gray-100 flex items-center gap-2">
+            Nivelar automáticamente
+            <span className="text-[10px] uppercase tracking-wider text-rose-700 bg-rose-50 dark:bg-rose-900/30 dark:text-rose-300 px-1.5 py-0.5 rounded">recomendado</span>
+          </div>
+          <div className="text-xs text-gray-500 mt-0.5">
+            Lleva tu voz al volumen estándar de Instagram y TikTok (−16 LUFS), sin distorsión.
+          </div>
+        </div>
+      </label>
+
+      {/* Slider de ajuste fino */}
+      <div className="mt-2">
+        <div className="flex items-center justify-between mb-1.5">
+          <label className="text-xs text-gray-500">Ajuste fino</label>
+          <span className={`text-xs font-mono ${gainDb === 0 ? 'text-gray-400' : 'text-amber-700 dark:text-amber-400 font-semibold'}`}>
+            {gainDb > 0 ? `+${gainDb}` : gainDb} dB
+          </span>
+        </div>
+        <input
+          type="range" min="-6" max="12" step="1"
+          value={gainDb}
+          onChange={e => onGainChange(parseInt(e.target.value, 10))}
+          className="w-full accent-amber-500"
+        />
+        <div className="flex justify-between mt-1.5 gap-1">
+          {GAIN_PRESETS.map(preset => (
+            <button
+              key={preset}
+              type="button"
+              onClick={() => onGainChange(preset)}
+              className={`flex-1 text-[10px] py-1 rounded transition ${
+                gainDb === preset
+                  ? 'bg-amber-500 text-white font-semibold'
+                  : 'bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:bg-amber-50 dark:hover:bg-amber-900/30'
+              }`}
+            >
+              {preset > 0 ? `+${preset}` : preset}
+            </button>
+          ))}
+        </div>
+        <p className="text-[11px] text-gray-400 mt-2">
+          Sube si tras auto-nivelar igual te suena bajo. Si oyes distorsión, baja.
+        </p>
+      </div>
+
+      {/* Muestra de audio */}
+      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="text-xs text-gray-500">
+            Escucha 10 segundos con el ajuste actual, sin re-renderizar.
+          </div>
+          <button
+            type="button"
+            onClick={handleSample}
+            disabled={loading}
+            className="px-3 py-1.5 text-xs font-medium bg-gray-900 hover:bg-gray-800 dark:bg-amber-600 dark:hover:bg-amber-700 text-white rounded-lg disabled:opacity-50 inline-flex items-center gap-1.5"
+          >
+            {loading ? (
+              <>
+                <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.3" />
+                  <path d="M12 2 A10 10 0 0 1 22 12" stroke="currentColor" strokeWidth="3" />
+                </svg>
+                Generando…
+              </>
+            ) : sampleUrl ? '↻ Re-generar muestra' : '▶ Escuchar muestra'}
+          </button>
+        </div>
+        {sampleUrl && (
+          <audio
+            ref={audioRef}
+            src={sampleUrl}
+            controls
+            className="w-full mt-3 h-9"
+          />
+        )}
+      </div>
+    </div>
+  );
+};
+
 const StyleReviewView = ({ job, onChange, onError }) => {
   const [localStyle, setLocalStyle] = useState({
     font_caption: job.font_caption || 'InterSemiBold',
@@ -839,6 +992,8 @@ const StyleReviewView = ({ job, onChange, onError }) => {
     caption_font_size: job.caption_font_size || 62,
     sub_position: job.sub_position ?? 68, // 68 = zona segura IG/TikTok
     outline_thickness: job.outline_thickness ?? 4, // 0..10
+    voice_autolevel: job.voice_autolevel ?? 1, // 1 = nivelar a -16 LUFS (recomendado)
+    voice_gain_db: job.voice_gain_db ?? 0,     // -6..+12 ajuste fino
   });
   const [localChunks, setLocalChunks] = useState(job.chunks || []);
   const [dirty, setDirty] = useState(!!job.preview_dirty);
@@ -1089,6 +1244,16 @@ const StyleReviewView = ({ job, onChange, onError }) => {
 
         {/* Panel de edición */}
         <div className="lg:col-span-7 space-y-5">
+          {/* Voz — auto-nivelar + ajuste fino */}
+          <VoicePanel
+            jobId={job.id}
+            autolevel={!!localStyle.voice_autolevel}
+            gainDb={localStyle.voice_gain_db}
+            onAutolevelChange={v => setStyleField('voice_autolevel', v ? 1 : 0)}
+            onGainChange={v => setStyleField('voice_gain_db', v)}
+            onError={onError}
+          />
+
           {/* Estilo */}
           <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
             <h3 className="font-semibold text-sm uppercase tracking-wide text-gray-500 mb-4">Estilo de subtítulos</h3>

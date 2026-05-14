@@ -61,6 +61,7 @@ import {
   updateMusicHandler as reelsUpdateMusic,
   mixMusicHandler as reelsMixMusic,
   suggestMusicHandler as reelsSuggestMusic,
+  voiceSampleHandler as reelsVoiceSample,
   outputWithMusicHandler as reelsOutputWithMusic,
   sourceVideoHandler as reelsSourceVideo,
   baseVideoHandler as reelsBaseVideo,
@@ -290,6 +291,7 @@ app.post('/api/reels/jobs/:id/reopen-style', authMiddleware, reelsReopenStyle);
 app.patch('/api/reels/jobs/:id/music', authMiddleware, reelsUpdateMusic);
 app.post('/api/reels/jobs/:id/mix-music', authMiddleware, reelsMixMusic);
 app.post('/api/reels/jobs/:id/suggest-music', authMiddleware, reelsSuggestMusic);
+app.post('/api/reels/jobs/:id/voice-sample', authMiddleware, reelsVoiceSample);
 app.get('/api/reels/jobs/:id/output-with-music', authMiddlewareMedia, reelsOutputWithMusic);
 app.get('/api/reels/jobs/:id/source-video', authMiddlewareMedia, reelsSourceVideo);
 app.get('/api/reels/jobs/:id/base-video', authMiddlewareMedia, reelsBaseVideo);

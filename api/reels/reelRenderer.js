@@ -14,6 +14,26 @@ import path from 'path';
 const OUTPUT_W = 1080;
 const OUTPUT_H = 1920; // 9:16
 
+/**
+ * Construye la cadena de filtros de audio para procesar la voz.
+ * Pensado para fuentes con voz muy baja/alta o desnivelada.
+ *
+ * @param {object} opts
+ * @param {boolean} opts.autolevel — si true, aplica loudnorm a -16 LUFS (estándar IG/TikTok).
+ * @param {number}  opts.gainDb    — ajuste fino sobre el resultado. Clamp -12..+18 dB.
+ * @returns {string|null} — cadena ffmpeg -af. null si no hay nada que aplicar (=passthrough).
+ *
+ * loudnorm single-pass: I=-16 LUFS, TP=-1.5 dBTP (true peak limiter integrado, sin clipping),
+ * LRA=11 LU (rango dinámico medio, típico para voz hablada en social).
+ */
+export function buildVoiceAudioFilter({ autolevel, gainDb } = {}) {
+  const gain = Math.max(-12, Math.min(18, Number(gainDb) || 0));
+  const parts = [];
+  if (autolevel) parts.push('loudnorm=I=-16:TP=-1.5:LRA=11');
+  if (gain !== 0) parts.push(`volume=${gain >= 0 ? '+' : ''}${gain}dB`);
+  return parts.length ? parts.join(',') : null;
+}
+
 function runFfmpeg(args, errLabel) {
   return new Promise((resolve, reject) => {
     const ffmpeg = process.env.FFMPEG_PATH || 'ffmpeg';
@@ -89,8 +109,11 @@ export async function renderReelBase({ sourceVideo, keepSegments, outputPath }) 
 
 /**
  * Pass 2: quema un .ass sobre el base.mp4. Mucho más rápido que renderReelBase.
+ *
+ * Si voiceAutolevel o voiceGainDb!=0, también procesa la voz en la misma pasada
+ * (re-encode de audio con AAC). Si ambos están en passthrough, el audio se copia tal cual.
  */
-export function burnSubsOnBase({ baseVideo, assPath, outputPath }) {
+export function burnSubsOnBase({ baseVideo, assPath, outputPath, voiceAutolevel = false, voiceGainDb = 0 }) {
   return new Promise((resolve, reject) => {
     const ffmpeg = process.env.FFMPEG_PATH || 'ffmpeg';
     const fontsDir = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../assets/fonts');
@@ -100,12 +123,17 @@ export function burnSubsOnBase({ baseVideo, assPath, outputPath }) {
       : '';
     const vf = `subtitles='${escapedAss}'${fontsArg}`;
 
+    const voiceFilter = buildVoiceAudioFilter({ autolevel: voiceAutolevel, gainDb: voiceGainDb });
+    const audioArgs = voiceFilter
+      ? ['-af', voiceFilter, '-c:a', 'aac', '-b:a', '192k']
+      : ['-c:a', 'copy'];
+
     const args = [
       '-y',
       '-i', baseVideo,
       '-vf', vf,
       '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22',
-      '-c:a', 'copy',
+      ...audioArgs,
       '-movflags', '+faststart',
       outputPath,
     ];
@@ -135,6 +163,38 @@ export function renderReel({ sourceVideo, keepSegments, assPath, outputPath }) {
       })
       .then(resolve)
       .catch(reject);
+  });
+}
+
+/**
+ * Renderiza 10s de audio del base.mp4 aplicando el procesamiento de voz actual.
+ * Se usa para el botón "Escuchar muestra" en el paso 2 — siempre rápido (1-2s),
+ * no toca video, devuelve un .mp3 que el browser puede reproducir directo.
+ */
+export function renderVoiceSample({ baseVideo, startSec = 0, durationSec = 10, autolevel = false, gainDb = 0, outputPath }) {
+  return new Promise((resolve, reject) => {
+    const ffmpeg = process.env.FFMPEG_PATH || 'ffmpeg';
+    if (!fs.existsSync(baseVideo)) return reject(new Error('Base video no existe'));
+
+    const voiceFilter = buildVoiceAudioFilter({ autolevel, gainDb });
+    const args = [
+      '-y',
+      '-ss', Math.max(0, startSec).toFixed(3),
+      '-i', baseVideo,
+      '-t', durationSec.toFixed(3),
+      '-vn',
+    ];
+    if (voiceFilter) args.push('-af', voiceFilter);
+    args.push('-c:a', 'libmp3lame', '-b:a', '128k', outputPath);
+
+    const p = spawn(ffmpeg, args);
+    let stderr = '';
+    p.stderr.on('data', d => { stderr += d.toString(); });
+    p.on('close', code => {
+      if (code === 0 && fs.existsSync(outputPath)) resolve(outputPath);
+      else reject(new Error(`ffmpeg voice sample exit ${code}: ${stderr.slice(-800)}`));
+    });
+    p.on('error', reject);
   });
 }
 
