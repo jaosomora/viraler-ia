@@ -368,6 +368,12 @@ db.serialize(() => {
   db.run(`ALTER TABLE reel_jobs ADD COLUMN music_start_offset REAL DEFAULT 0`, () => {}); // seg que se saltan del inicio del track
   db.run(`ALTER TABLE reel_jobs ADD COLUMN music_skipped INTEGER DEFAULT 0`, () => {}); // 1 = usuario saltó el paso, exportar sin música
 
+  // Reels Cleaner — procesamiento de voz (paso 2). Para fuentes con audio desnivelado.
+  // voice_autolevel = 1: aplica loudnorm EBU R128 a -16 LUFS (estándar IG/TikTok) antes del burn-in.
+  // voice_gain_db: ajuste fino sobre el resultado (volume=XdB). Rango -6..+12 dB.
+  db.run(`ALTER TABLE reel_jobs ADD COLUMN voice_autolevel INTEGER DEFAULT 1`, () => {});
+  db.run(`ALTER TABLE reel_jobs ADD COLUMN voice_gain_db INTEGER DEFAULT 0`, () => {});
+
   // Catálogo de música: tracks subidos por el owner para usar en reels.
   // tags se guarda como JSON array de strings (slugs del catálogo predefinido en api/reels/musicTags.js).
   db.run(`

@@ -124,6 +124,26 @@ export async function mixMusic(id) {
   return r.json();
 }
 
+/**
+ * Pide 10s de audio mp3 con el procesamiento de voz aplicado.
+ * Devuelve un Blob URL listo para usar como src de <audio>.
+ * El caller debe URL.revokeObjectURL() cuando el audio se reemplace/desmonte.
+ */
+export async function fetchVoiceSample(id, { startSec = 0, autolevel, gainDb } = {}) {
+  const r = await fetch(`${API_BASE_URL}/reels/jobs/${id}/voice-sample`, {
+    method: 'POST',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ startSec, autolevel, gainDb }),
+  });
+  if (!r.ok) {
+    let msg = 'Error generando muestra';
+    try { msg = (await r.json()).error || msg; } catch {}
+    throw new Error(msg);
+  }
+  const blob = await r.blob();
+  return URL.createObjectURL(blob);
+}
+
 export async function suggestMusic(id) {
   const r = await fetch(`${API_BASE_URL}/reels/jobs/${id}/suggest-music`, {
     method: 'POST', headers: authHeaders(),

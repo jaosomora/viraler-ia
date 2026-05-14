@@ -17,7 +17,7 @@ import { extractAudioFromVideo } from '../clips/videoProcessor.js';
 import { cleanupOrthography } from '../clips/orthographyCleanup.js';
 import { detectGaps, buildKeepSegments, remapWords } from './silenceDetector.js';
 import { buildReelAss, buildChunks, REEL_FONT_OPTIONS } from './reelSubtitles.js';
-import { renderReelBase, burnSubsOnBase, probeDuration } from './reelRenderer.js';
+import { renderReelBase, burnSubsOnBase, probeDuration, renderVoiceSample } from './reelRenderer.js';
 import { mixMusicOntoReel } from './musicMixer.js';
 import { getTrack as getMusicTrack, listTracks as listMusicTracks } from './musicService.js';
 import { MUSIC_TAGS, tagsCatalogForLLM } from './musicTags.js';
@@ -218,9 +218,15 @@ async function _burnPreview(jobId) {
   const outPath = path.join(jobDir, 'reel.mp4');
 
   fs.writeFileSync(assPath, buildReelAss(remapped, finalDuration, style, overrides));
-  await burnSubsOnBase({ baseVideo: job.base_video_path, assPath, outputPath: outPath });
+  await burnSubsOnBase({
+    baseVideo: job.base_video_path,
+    assPath,
+    outputPath: outPath,
+    voiceAutolevel: !!job.voice_autolevel,
+    voiceGainDb: job.voice_gain_db || 0,
+  });
   await run(`UPDATE reel_jobs SET output_path=?, preview_dirty=0 WHERE id=?`, [outPath, jobId]);
-  log(jobId, `preview burned (font=${style.fontCaption}, color=${style.captionColor}, pos=${style.subPosition})`);
+  log(jobId, `preview burned (font=${style.fontCaption}, color=${style.captionColor}, pos=${style.subPosition}, voice=${job.voice_autolevel ? 'auto' : 'off'}${job.voice_gain_db ? `+${job.voice_gain_db}dB` : ''})`);
 }
 
 /**
@@ -257,11 +263,17 @@ export async function updateStyle(jobId, patch) {
 
   const fields = [];
   const values = [];
-  const allowed = ['font_caption', 'caption_color', 'outline_color', 'caption_font_size', 'sub_position', 'outline_thickness'];
+  const allowed = [
+    'font_caption', 'caption_color', 'outline_color', 'caption_font_size', 'sub_position', 'outline_thickness',
+    'voice_autolevel', 'voice_gain_db',
+  ];
   for (const k of allowed) {
     if (patch[k] !== undefined) {
+      let v = patch[k];
+      if (k === 'voice_autolevel') v = v ? 1 : 0;
+      if (k === 'voice_gain_db') v = Math.max(-12, Math.min(18, parseInt(v, 10) || 0));
       fields.push(`${k}=?`);
-      values.push(patch[k]);
+      values.push(v);
     }
   }
   if (patch.caption_overrides !== undefined) {
@@ -532,6 +544,46 @@ export async function finalize(jobId) {
     const fresh = await get('SELECT total_cost_usd FROM reel_jobs WHERE id=?', [jobId]);
     trackReelUsage({ durationMinutes: durMinutes, costUsd: fresh?.total_cost_usd || 0 }).catch(() => {});
   }
+}
+
+/**
+ * Renderiza 10s de muestra del base.mp4 con el procesamiento de voz indicado en `opts`
+ * (o el guardado en el job si no se pasa). NO modifica el job — solo escribe un .mp3
+ * temporal y devuelve su path. El cliente lo reproduce y al cerrar Paso 2 se purga con
+ * el resto del jobDir.
+ *
+ * Acepta startSec opcional para que el usuario elija desde dónde escuchar (default 0).
+ */
+export async function generateVoiceSample(jobId, { startSec = 0, autolevel, gainDb } = {}) {
+  const job = await get('SELECT * FROM reel_jobs WHERE id=?', [jobId]);
+  if (!job) throw new Error('Job no encontrado');
+  if (!job.base_video_path || !fs.existsSync(job.base_video_path)) {
+    throw new Error('Aún no hay base render para muestrear');
+  }
+  // Si el caller no manda flags, usamos los del job.
+  const useAuto = autolevel === undefined ? !!job.voice_autolevel : !!autolevel;
+  const useGain = gainDb === undefined ? (job.voice_gain_db || 0) : Math.max(-12, Math.min(18, parseInt(gainDb, 10) || 0));
+
+  const jobDir = path.join(REELS_ROOT, jobId);
+  const outPath = path.join(jobDir, `voice_sample_${Date.now()}.mp3`);
+  // Limpiamos samples viejos (el usuario solo necesita el último).
+  try {
+    for (const f of fs.readdirSync(jobDir)) {
+      if (f.startsWith('voice_sample_') && f.endsWith('.mp3')) {
+        try { fs.unlinkSync(path.join(jobDir, f)); } catch {}
+      }
+    }
+  } catch {}
+
+  await renderVoiceSample({
+    baseVideo: job.base_video_path,
+    startSec: Math.max(0, startSec),
+    durationSec: 10,
+    autolevel: useAuto,
+    gainDb: useGain,
+    outputPath: outPath,
+  });
+  return outPath;
 }
 
 /**

@@ -5,6 +5,7 @@ import {
   createJob, processJobUntilReview, applyCutsAndRenderBase,
   updateStyle, renderPreview, finalize, reopenSilenceReview,
   continueToMusicReview, reopenStyleReview, updateMusic, renderMusicMix, suggestMusic,
+  generateVoiceSample,
   getJobForUser, listJobsForUser, deleteJob,
 } from './reelsService.js';
 import path from 'path';
@@ -198,6 +199,27 @@ export async function outputWithMusicHandler(req, res) {
     if (!fs.existsSync(mixed)) return res.status(404).json({ error: 'Mezcla con música no existe' });
     streamVideoWithRange(req, res, mixed);
   } catch (err) { res.status(500).json({ error: err.message }); }
+}
+
+// POST /api/reels/jobs/:id/voice-sample → Body: { startSec, autolevel, gainDb }
+// Genera 10s de mp3 con el procesamiento actual y devuelve el archivo en la misma respuesta.
+export async function voiceSampleHandler(req, res) {
+  try {
+    const job = await get('SELECT user_id FROM reel_jobs WHERE id=?', [req.params.id]);
+    if (!job || job.user_id !== req.user.id) return res.status(404).json({ error: 'Job no encontrado' });
+    const { startSec, autolevel, gainDb } = req.body || {};
+    const samplePath = await generateVoiceSample(req.params.id, {
+      startSec: Number(startSec) || 0,
+      autolevel: autolevel === undefined ? undefined : !!autolevel,
+      gainDb: gainDb === undefined ? undefined : parseInt(gainDb, 10),
+    });
+    res.sendFile(samplePath, { dotfiles: 'allow' }, err => {
+      if (err && !res.headersSent) res.status(500).json({ error: err.message });
+    });
+  } catch (err) {
+    console.error('[reels] voice-sample error:', err);
+    res.status(400).json({ error: err.message });
+  }
 }
 
 export async function sourceVideoHandler(req, res) {
