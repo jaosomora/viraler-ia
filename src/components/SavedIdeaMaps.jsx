@@ -63,6 +63,11 @@ export default function SavedIdeaMaps() {
                   {m.axis_mode && <span className="text-xs text-gray-500 dark:text-gray-400">· {m.axis_mode}</span>}
                   <span className="text-xs text-gray-400 ml-auto">{new Date(m.created_at).toLocaleString('es', { dateStyle: 'short', timeStyle: 'short' })}</span>
                 </div>
+                {m.tema && (
+                  <div className="text-sm font-medium text-violet-700 dark:text-violet-300 mb-2 line-clamp-1">
+                    💡 {m.tema}
+                  </div>
+                )}
                 <div className="text-sm text-gray-700 dark:text-gray-300 line-clamp-1">
                   <span className="text-rose-600 dark:text-rose-400 font-medium">No:</span> {m.preview_no}…
                 </div>

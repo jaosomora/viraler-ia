@@ -30,6 +30,7 @@ async function processTurn(map) {
   })).filter(a => a.user_response); // solo intentos con respuesta
 
   const gate = await runGate({
+    tema: map.tema,
     vida_no_quiero: map.vida_no_quiero,
     vida_si_quiero: map.vida_si_quiero,
     prior_attempts: priorAttempts,
@@ -92,7 +93,7 @@ async function processTurn(map) {
   }
 
   // Pasó la compuerta. Generar.
-  const gen = await runGenerate({ axis_mode: gate.axis_mode, structure: gate.structure });
+  const gen = await runGenerate({ tema: map.tema, axis_mode: gate.axis_mode, structure: gate.structure });
   accumCost = +(accumCost + gen.costUsd).toFixed(6);
 
   await updateIdeaMap(map.id, {
@@ -122,18 +123,24 @@ async function processTurn(map) {
 
 export async function createHandler(req, res) {
   try {
-    const { vida_no_quiero, vida_si_quiero } = req.body || {};
+    const { tema, vida_no_quiero, vida_si_quiero } = req.body || {};
     if (typeof vida_no_quiero !== 'string' || typeof vida_si_quiero !== 'string') {
       return res.status(400).json({ error: 'vida_no_quiero y vida_si_quiero son requeridos (string).' });
     }
+    if (typeof tema !== 'string' || tema.trim().length < 5) {
+      return res.status(400).json({
+        error: 'Necesitas decirme sobre qué tema quieres sacar ideas (mínimo 5 caracteres). Ej: "mi negocio de café", "ser papá", "mi curso".',
+      });
+    }
     if (vida_no_quiero.trim().length < MIN_INPUT_CHARS || vida_si_quiero.trim().length < MIN_INPUT_CHARS) {
       return res.status(400).json({
-        error: `Cada columna necesita al menos ${MIN_INPUT_CHARS} caracteres. Escribe escenas concretas (martes, gente, lugares, qué haces), no resúmenes.`,
+        error: `Cada columna necesita al menos ${MIN_INPUT_CHARS} caracteres. Escribe escenas concretas (qué pasa, con quién, dónde, cuándo), no resúmenes.`,
       });
     }
 
     const id = await createIdeaMap({
       userId: req.user.id,
+      tema: tema.trim(),
       vida_no_quiero: vida_no_quiero.trim(),
       vida_si_quiero: vida_si_quiero.trim(),
     });

@@ -36,31 +36,39 @@ export const MIN_INPUT_CHARS = 80;
 // ─────────────────────────────────────────────────────────────────────────
 export const LENS = `Generador de Ideas — método de mapa de contraste.
 
-El usuario entrega dos columnas crudas: la vida que NO quiere y la vida que SÍ quiere, descritas como escenas concretas (martes, gente, lugares, qué hace, a qué le dijo sí, a qué le dijo no).
+El objetivo: ayudar a un creador a sacar ideas de CONTENIDO (para sus publicaciones, videos, posts, charlas) que suenen a su voz y no a las de cualquier otro creador. Las ideas generadas son materia prima para comunicar, no consejos de vida.
+
+El usuario entrega:
+1. TEMA — sobre qué quiere sacar ideas. Puede ser cualquier dominio del cual quiere comunicar: su vida, su negocio, un producto, un servicio, un emprendimiento, una práctica, una creencia, lo que sea.
+2. DOS COLUMNAS CRUDAS:
+   - Cómo NO quiere que sea ese tema (escenas concretas de lo que ya pasa, o de lo que vería como fracaso).
+   - Cómo SÍ quiere que sea (escenas concretas de lo que quiere que pase, o de lo que vería como éxito).
 
 A partir de ese contraste, la herramienta:
-1. Extrae territorios temáticos.
-2. Abre cada territorio en subtemas y en un punto A (estado actual) → punto B (estado deseado).
+1. Extrae territorios temáticos del tema en cuestión.
+2. Abre cada territorio en subtemas y en un punto A (estado actual / NO) → punto B (estado deseado / SÍ).
 3. Cruza subtemas de territorios distintos. De esa fricción salen frases-idea con torsión.
-4. Si solo emerge un eje único legítimo (ej: dinero), no fuerza territorios falsos. Abre el eje en sus caras (ej: sostener / elegir / desear) y cruza caras.
-5. Devuelve 4-5 frases crudas, sin pulir. Materia prima, no calendario.
+4. Si solo emerge un eje único legítimo (ej: dinero, tiempo, identidad), no fuerza territorios falsos. Abre el eje en sus caras (ej: dinero → sostener / elegir / desear) y cruza caras.
+5. Devuelve 4-5 frases crudas, sin pulir. Materia prima, no calendario de publicación.
+
+Las frases deben servir para que ESE creador, sobre ESE tema, las pueda decir tal cual (o adaptarlas) en sus publicaciones. No son ideas para que la persona "viva mejor", son ideas para que comunique con voz propia.
 
 La compuerta es el producto. Generar sin validar produce frases genéricas. Por eso la herramienta detecta y bloquea tres modos de fallo antes de generar:
 
-FALLO 1 — Sentimiento en vez de escena.
-La persona escribe estados emocionales y adjetivos abstractos ("me siento angustiado", "quiero estar tranquilo", "libertad", "amplitud") en lugar de escenas concretas ("el martes hago X con Y, le dije sí a Z").
-Detección: lenguaje de estado emocional / adjetivos abstractos, sin sujeto concreto, sin acción, sin momento ubicable.
-Acción: NO generar. Devolver la frase del propio usuario y pedir que la convierta en escena con un ejemplo antes/después. Incluir el gatillo: "¿y eso cuándo te pasó, exactamente? Escribe ese momento en vez del sentimiento."
+FALLO 1 — Sentimiento o abstracción en vez de escena.
+La persona escribe estados emocionales y adjetivos abstractos ("me siento angustiado", "quiero una marca con esencia", "libertad", "autenticidad", "alma") en lugar de escenas concretas (algo ubicable: qué pasa, con quién, dónde, cuándo, qué se ve o se hace).
+Detección: lenguaje de estado / adjetivos abstractos, sin sujeto concreto, sin acción, sin momento ubicable. Aplica igual si el tema es vida ("me siento sin paz") o negocio ("quiero una marca auténtica").
+Acción: NO generar. Devolver la frase del propio usuario y pedir que la convierta en escena con un ejemplo antes/después. Incluir el gatillo: "¿y eso cuándo pasó, o cuándo lo viste? Describe ese momento en vez del sentimiento o el adjetivo."
 
 FALLO 2 — Eje único disfrazado de varios.
-La persona entrega "tres territorios" que son la misma cosa dicha tres veces (típico: todo cuelga del dinero).
+La persona entrega "tres territorios" que son la misma cosa dicha tres veces (típicos: todo cuelga del dinero, del tiempo, del miedo, de un mismo cliente).
 Detección: los territorios extraídos reducen a un mismo concepto raíz.
-Acción: NO forzar tres ejes falsos. Hacer la pregunta de desacople: "Si [eje principal] estuviera resuelto, fuera de la ecuación para siempre, ¿qué de la vida que NO quieres seguiría exactamente igual?"
+Acción: NO forzar tres ejes falsos. Hacer la pregunta de desacople: "Si [eje principal] estuviera resuelto, fuera de la ecuación para siempre, ¿qué de lo que NO quieres seguiría exactamente igual?"
 Si tras eso sigue siendo un eje, ACEPTAR el eje único explícitamente y cambiar de estrategia: abrir el eje en sus caras y cruzar caras en vez de territorios. Un eje único NO es un error — es una respuesta legítima. La herramienta nunca penaliza ir hondo en vez de ancho.
 
 FALLO 3 — La fuga.
-Tras la pregunta de desacople, la persona se escapa hacia la vida buena ("entonces todo estaría bien, viajaría, crearía") en vez de quedarse en lo que sigue incomodando.
-Acción preventiva: el copy de la pregunta de desacople debe nombrar la fuga antes de que ocurra. "Tu cabeza va a querer irse a lo bueno. Lo vas a sentir como alivio. No lo tomes. Quédate en el martes con todo resuelto y busca una sola cosa que igual te incomode."
+Tras la pregunta de desacople, la persona se escapa hacia el escenario bueno ("entonces todo estaría bien, mi negocio crecería, viajaría, crearía") en vez de quedarse en lo que sigue incomodando.
+Acción preventiva: el copy de la pregunta de desacople debe nombrar la fuga antes de que ocurra. "Tu cabeza va a querer irse a lo bueno. Lo vas a sentir como alivio. No lo tomes. Quédate en el escenario con eso ya resuelto y busca una sola cosa que igual te incomode."
 Acción reactiva: si la respuesta es claramente una fuga (lenguaje de deseo / futuro positivo), repreguntar una vez más, distinto, antes de aceptar un "no queda nada".
 Límite honesto: la herramienta NO puede verificar que la persona buscó en serio antes de decir "no aparece nada". Mejora el piso, no garantiza el techo.
 
@@ -70,10 +78,11 @@ LO QUE LA HERRAMIENTA NUNCA HACE:
 - No inventa profundidad. Eje único + búsqueda honesta = eje único.
 - No produce más de 4-5 ideas. Más es ruido.
 - No pulir las frases. La herramienta entrega crudo.
-- No psicologiza al usuario. Esto es un ejercicio de contenido, no terapia.
+- No psicologiza al usuario. Esto es un ejercicio de contenido, no terapia ni consultoría.
+- No vende. No incluye CTA, hashtags, ni invitaciones a comprar.
 
 ESTRUCTURA DE LAS IDEAS GENERADAS (paso final, solo cuando pasa la compuerta):
-Cada frase tiene torsión: contradice o reencuadra una creencia implícita. No aconseja.
+Cada frase tiene torsión: contradice o reencuadra una creencia implícita sobre ese TEMA. No aconseja. Suena al creador hablando.
 Patrones que funcionan (guía, no plantilla rígida):
 - "Te enseñaron X. Nadie te dijo Y."
 - "No es que no puedas Z. Es que [reencuadre]."
@@ -81,7 +90,7 @@ Patrones que funcionan (guía, no plantilla rígida):
 La frase sola va al output. Si hay nota de uso (de dónde sale, qué cruce produjo la fricción) va en campo aparte.
 
 PROHIBIDO en cualquier output:
-- Jerga de marketing: "engagement", "viralidad", "audiencia", "espectador", "alcance", "recurso retórico", "tesis", "narrativa".
+- Jerga de marketing: "engagement", "viralidad", "audiencia", "espectador", "alcance", "recurso retórico", "tesis", "narrativa", "lead", "funnel".
 - Lenguaje terapéutico: "tu niño interior", "abraza tu", "permite que".
 - Genéricos vacíos: "para captar atención", "para conectar con tu público".
 
@@ -116,12 +125,15 @@ REGLAS DURAS:
 - Ningún campo "repregunta" puede contener jerga prohibida.
 - Devuelve SOLO el JSON, sin markdown, sin explicación.`;
 
-export function buildGateUserPrompt({ vida_no_quiero, vida_si_quiero, prior_attempts = [] }) {
+export function buildGateUserPrompt({ tema, vida_no_quiero, vida_si_quiero, prior_attempts = [] }) {
   const parts = [];
-  parts.push('VIDA QUE NO QUIERO (lado izquierdo de la hoja):');
+  const temaLabel = (tema && tema.trim()) ? tema.trim() : 'lo que el usuario quiere comunicar';
+  parts.push(`TEMA SOBRE EL QUE EL USUARIO QUIERE SACAR IDEAS: ${temaLabel}`);
+  parts.push('');
+  parts.push(`CÓMO NO QUIERE QUE SEA ${temaLabel.toUpperCase()} (lado izquierdo):`);
   parts.push(vida_no_quiero.trim());
   parts.push('');
-  parts.push('VIDA QUE SÍ QUIERO (lado derecho de la hoja):');
+  parts.push(`CÓMO SÍ QUIERE QUE SEA ${temaLabel.toUpperCase()} (lado derecho):`);
   parts.push(vida_si_quiero.trim());
 
   if (prior_attempts.length > 0) {
@@ -184,8 +196,9 @@ REGLAS DURAS:
 - nota_uso es para que el usuario entienda de dónde sale la idea. No coaching, no marketing.
 - Devuelve SOLO el JSON.`;
 
-export function buildGenerateUserPrompt({ axis_mode, extracted_territorios, caras }) {
-  const parts = [`AXIS_MODE: ${axis_mode}`];
+export function buildGenerateUserPrompt({ tema, axis_mode, extracted_territorios, caras }) {
+  const temaLabel = (tema && tema.trim()) ? tema.trim() : 'lo que el usuario quiere comunicar';
+  const parts = [`TEMA: ${temaLabel}`, `AXIS_MODE: ${axis_mode}`];
   if (axis_mode === 'multi') {
     parts.push('TERRITORIOS:');
     for (const t of extracted_territorios) {
@@ -202,7 +215,7 @@ export function buildGenerateUserPrompt({ axis_mode, extracted_territorios, cara
     }
   }
   parts.push('');
-  parts.push('Genera 4-5 ideas cruzando subtemas de unidades distintas. Devuelve solo el JSON.');
+  parts.push(`Genera 4-5 ideas que ${temaLabel === 'lo que el usuario quiere comunicar' ? 'el creador' : `alguien que habla sobre "${temaLabel}"`} podría decir tal cual en sus publicaciones, cruzando subtemas de unidades distintas. Devuelve solo el JSON.`);
   return parts.join('\n');
 }
 
@@ -278,8 +291,8 @@ async function callOpenAIJSON({ systemPrompt, userPrompt, temperature = 0.5 }) {
  *
  * Output: { kind: 'pass'|'reject', failed_filter?, repregunta?, axis_mode?, structure?, costUsd }
  */
-export async function runGate({ vida_no_quiero, vida_si_quiero, prior_attempts = [] }) {
-  const userPrompt = buildGateUserPrompt({ vida_no_quiero, vida_si_quiero, prior_attempts });
+export async function runGate({ tema, vida_no_quiero, vida_si_quiero, prior_attempts = [] }) {
+  const userPrompt = buildGateUserPrompt({ tema, vida_no_quiero, vida_si_quiero, prior_attempts });
   const { parsed, costUsd } = await callOpenAIJSON({
     systemPrompt: GATE_SYSTEM_PROMPT,
     userPrompt,
@@ -343,8 +356,9 @@ export async function runGate({ vida_no_quiero, vida_si_quiero, prior_attempts =
 /**
  * Genera las ideas. Solo se invoca cuando runGate devolvió kind='pass'.
  */
-export async function runGenerate({ axis_mode, structure }) {
+export async function runGenerate({ tema, axis_mode, structure }) {
   const userPrompt = buildGenerateUserPrompt({
+    tema,
     axis_mode,
     extracted_territorios: structure.extracted_territorios,
     caras: structure.caras,
