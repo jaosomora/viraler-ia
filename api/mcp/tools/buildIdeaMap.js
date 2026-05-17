@@ -14,14 +14,23 @@ import {
 export const requiredScope = 'ideas:write';
 
 export const description =
-  'GENERADOR DE IDEAS de AS Tools. Esta es LA tool del "Generador de Ideas" — si el usuario menciona "Generador de Ideas", "quiero usar el Generador de Ideas", "quiero generar ideas", "ideas para mis publicaciones", "ideas para contenido", "mapa de ideas", "ideas que suenen a mí" → es ESTA tool, no analyze_ideas.\n\n' +
+  '⚡ GENERADOR DE IDEAS de AS Tools. Esta es LA tool del producto llamado "Generador de Ideas". Si el usuario dice cualquiera de estas frases, USA ESTA TOOL (no analyze_ideas, no transcribe_video_url):\n' +
+  '• "Generador de Ideas"\n' +
+  '• "quiero usar el Generador de Ideas"\n' +
+  '• "generar/sacar/hacer ideas"\n' +
+  '• "ideas para mis publicaciones / contenido / videos"\n' +
+  '• "ideas que suenen a mí"\n' +
+  '• "mapa de ideas" / "mapa de contraste"\n' +
+  '• "tengo bloqueo creativo"\n\n' +
 
-  'Qué hace: ayuda al usuario a sacar 4-5 frases CRUDAS con torsión que suenen a su voz (no a las de cualquier otro creador), sobre el TEMA que quiera comunicar — su vida, su negocio, un producto, un servicio, una práctica, lo que sea. NO analiza videos. NO procesa URLs. NO necesita transcripciones previas. El usuario te da un tema + dos columnas en escenas concretas (cómo NO/SÍ quiere que sea ese tema) y tú generas las ideas.\n\n' +
+  '🚫 NO USA VIDEOS. NO PIDE URLs. NO NECESITA TRANSCRIPCIONES. No menciones videos al usuario, no le pidas un link, no le ofrezcas usar transcripciones existentes. El input son DOS COLUMNAS DE TEXTO sobre un TEMA, escritas por el propio usuario en escenas concretas.\n\n' +
 
-  'IMPORTANTE — diferencia con analyze_ideas:\n' +
+  'Qué hace: ayuda al usuario a sacar 4-5 frases CRUDAS con torsión que suenen a su voz (no a las de cualquier otro creador), sobre el TEMA que quiera comunicar — su vida, su negocio, un producto, un servicio, una práctica.\n\n' +
+
+  'Diferencia con las otras tools:\n' +
+  '• transcribe_video_url = baja audio de una URL y lo transcribe.\n' +
   '• analyze_ideas = analiza un video AJENO que el usuario ya transcribió (necesita transcription_id).\n' +
-  '• build_idea_map (esta) = GENERA ideas propias del usuario desde un mapa de contraste. Sin video, sin transcripción.\n' +
-  'Si el usuario dice "Generador de Ideas" o "generar/sacar/hacer ideas" sobre su propio tema → SIEMPRE esta tool.\n\n' +
+  '• build_idea_map (esta) = GENERA ideas propias del usuario desde un mapa de contraste. SIN VIDEO. SIN URL. SIN TRANSCRIPCIÓN.\n\n' +
 
   'NO ejecuta ningún LLM en el servidor — el razonamiento (extraer territorios, aplicar la compuerta de 3 fallos, generar las 4-5 ideas con torsión) lo haces tú mismo siguiendo el LENTE. Sin costo OpenAI.\n\n' +
 
@@ -33,7 +42,11 @@ export const description =
   '5. Respeta los límites: máximo ' + MAX_ATTEMPTS_PER_FILTER + ' repreguntas por filtro, máximo ' + MAX_TOTAL_TURNS + ' turnos totales. Si se agota, corta con: "' + EXHAUSTED_MESSAGE + '"\n' +
   '6. La compuerta es el producto, no un caso de error. Negarse a generar cuando el insumo está roto es la feature principal.\n\n' +
 
-  'PRIMER TURNO: si el usuario te dice "quiero usar el Generador de Ideas" sin más contexto, NO llames esta tool todavía. Antes pregúntale: (a) sobre qué tema quiere sacar ideas, (b) que escriba cómo NO quiere que sea ese tema en escenas concretas, (c) cómo SÍ. Recién con esos 3 datos llamas la tool. NUNCA inventes los inputs por el usuario.\n\n' +
+  'PRIMER TURNO (importante): si el usuario te dice "quiero usar el Generador de Ideas" o similar sin dar contexto, NO llames esta tool todavía. NO menciones videos. NO le pidas una URL. Antes pídele EXACTAMENTE estas 3 cosas, en este orden:\n' +
+  '  1. "¿Sobre qué tema quieres sacar ideas? Puede ser tu vida, tu negocio, un producto, un servicio o cualquier cosa que quieras comunicar. Ej: \'mi negocio de café\', \'ser papá\', \'mi curso\'."\n' +
+  '  2. "Escribe en escenas concretas cómo NO quieres que sea ese tema. Qué pasa, con quién, dónde, cuándo. Sin sentimientos ni adjetivos abstractos (\'me siento sin paz\', \'marca con alma\' = no sirven)."\n' +
+  '  3. "Ahora cómo SÍ quieres que sea, mismo formato."\n' +
+  'Recién con esos 3 datos llamas la tool con tema + vida_no_quiero + vida_si_quiero + prior_attempts=[]. NUNCA inventes los inputs por el usuario. NUNCA ofrezcas usar una transcripción existente — esta tool no usa transcripciones.\n\n' +
 
   'PARA SEGUIR LA CONVERSACIÓN: si el usuario responde a tu repregunta, vuelve a llamar este tool con el mismo tema + columnas + array prior_attempts actualizado (agregando el filtro que rechazaste, tu repregunta literal y la respuesta nueva del usuario). El servidor es stateless — TÚ mantienes el hilo.';
 

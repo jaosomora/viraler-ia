@@ -89,11 +89,18 @@ export function buildServerForUser(user, grantedScopes = [], clientId = null) {
     {
       capabilities: { tools: {} },
       instructions:
-        'AS Tools expone herramientas de transcripción de video y análisis de ideas. ' +
-        'Las herramientas operan bajo la cuenta del usuario autenticado vía OAuth — todos los ids ' +
-        'devueltos pertenecen al usuario y solo él puede leerlos. ' +
-        'Flujo típico: 1) transcribe_video_url(url) → devuelve id; 2) get_transcription(id) para leer; 3) analyze_ideas(id) para extraer estructura replicable. ' +
-        'build_idea_map permite al usuario generar ideas propias desde un mapa de contraste (compuerta + cruces).',
+        'AS Tools tiene DOS familias de herramientas distintas — no las mezcles:\n\n' +
+        'FAMILIA 1 — Trabajo sobre videos AJENOS (transcripción + análisis):\n' +
+        '  • transcribe_video_url(url) → baja audio y transcribe\n' +
+        '  • get_transcription(id) → lee transcript guardado\n' +
+        '  • list_my_transcriptions() → lista los del usuario\n' +
+        '  • analyze_ideas(transcription_id) → extrae estructura replicable de un video ajeno ya transcrito\n' +
+        'Trigger: el usuario menciona un VIDEO específico, pega una URL, o quiere analizar contenido AJENO.\n\n' +
+        'FAMILIA 2 — Generación de ideas PROPIAS (sin videos):\n' +
+        '  • build_idea_map(tema, vida_no_quiero, vida_si_quiero, prior_attempts) → ayuda al usuario a generar 4-5 frases con torsión sobre SU PROPIO tema (vida, negocio, producto, servicio). NO usa videos. NO pide URLs.\n' +
+        'Trigger: el usuario dice "Generador de Ideas", "quiero generar ideas", "ideas para mis publicaciones", "ideas que suenen a mí", "mapa de ideas", "tengo bloqueo creativo".\n\n' +
+        'REGLA DE ORO: si el usuario dice "Generador de Ideas" o "generar/sacar ideas para mí" → SIEMPRE build_idea_map. Nunca le ofrezcas usar una transcripción existente para esto. Las dos familias no se mezclan.\n\n' +
+        'Las herramientas operan bajo la cuenta del usuario autenticado vía OAuth.',
     }
   );
 
