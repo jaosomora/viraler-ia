@@ -21,8 +21,8 @@ import {
 import { renderLogin, renderConsent, renderError } from './views.js';
 import { comparePassword } from '../auth.js';
 
-const SUPPORTED_SCOPES = ['transcribe:read', 'transcribe:write', 'analyze:write'];
-const DEFAULT_SCOPES = ['transcribe:read', 'transcribe:write', 'analyze:write'];
+const SUPPORTED_SCOPES = ['transcribe:read', 'transcribe:write', 'analyze:write', 'ideas:write'];
+const DEFAULT_SCOPES = ['transcribe:read', 'transcribe:write', 'analyze:write', 'ideas:write'];
 
 function isAccessExpired(expiresAt) {
   if (!expiresAt) return false;

@@ -60,7 +60,8 @@ Equivalente conceptual: lo que cal.com, Linear, Sentry, Notion ya ofrecen vía s
                                           │  │   ├ list_my…     │   │
                                           │  │   ├ transcribe_… │   │
                                           │  │   ├ get_…        │   │
-                                          │  │   └ analyze_…    │   │
+                                          │  │   ├ analyze_…    │   │
+                                          │  │   └ build_idea…  │   │
                                           │  └──────────────────┘   │
                                           │                         │
                                           │  SQLite (/opt/data/)    │
@@ -401,6 +402,9 @@ El authorize endpoint es donde se decide a quién dar acceso a una cuenta. Menos
 
 ### `analyze_ideas` en MCP NO llama gpt-4o-mini
 Cuando el cliente está en Claude.ai, ya está pagando Claude (más capaz). Hacer una llamada a OpenAI desde el server es dejar calidad sobre la mesa y agregar costo innecesario. El tool devuelve transcript + lente y deja que Claude del chat haga la síntesis. La UI web SÍ sigue usando gpt-4o-mini porque ahí no hay un LLM disponible.
+
+### `build_idea_map` lleva ese patrón un paso más allá: la compuerta vive en el LENS
+El Generador de Ideas no devuelve "el transcript + el lente" (no hay video). Devuelve **las dos columnas crudas del usuario + el LENS completo con las tres reglas de rechazo (Fallo 1/2/3) + el copy exacto de las repreguntas + los límites operativos (máx 2 repreguntas/filtro, 5 turnos)**. Claude-en-chat aplica todo. El servidor es stateless: el cliente Claude pasa `prior_attempts` en cada call para que la tool sepa cuántos turnos lleva y cuándo cortar. La UI web sí persiste estado y ejecuta tres prompts dedicados en backend (gate + fuga + generate). Ver `api/services/ideaMapService.js` para el LENS canónico — fuente única de verdad compartida por web y MCP.
 
 ### Audit log con `args_summary` truncado a 500 chars
 Por privacidad. No queremos guardar URLs completas, transcripts, o cualquier cosa que pudiera filtrar info sensible si alguien accede a la DB.

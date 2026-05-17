@@ -26,7 +26,7 @@ export function protectedResourceMetadata(req, res) {
   res.json({
     resource: `${base}/mcp`,
     authorization_servers: [base],
-    scopes_supported: ['transcribe:read', 'transcribe:write', 'analyze:write'],
+    scopes_supported: ['transcribe:read', 'transcribe:write', 'analyze:write', 'ideas:write'],
     bearer_methods_supported: ['header'],
     resource_documentation: `${base}/`,
   });
@@ -45,7 +45,7 @@ export function authorizationServerMetadata(req, res) {
     grant_types_supported: ['authorization_code', 'refresh_token'],
     code_challenge_methods_supported: ['S256'],
     token_endpoint_auth_methods_supported: ['none', 'client_secret_post'],
-    scopes_supported: ['transcribe:read', 'transcribe:write', 'analyze:write'],
+    scopes_supported: ['transcribe:read', 'transcribe:write', 'analyze:write', 'ideas:write'],
     service_documentation: `${base}/`,
   });
 }

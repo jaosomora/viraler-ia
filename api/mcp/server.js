@@ -8,6 +8,7 @@ import * as listMyTranscriptions from './tools/listMyTranscriptions.js';
 import * as transcribeVideoUrl from './tools/transcribeVideoUrl.js';
 import * as getTranscription from './tools/getTranscription.js';
 import * as analyzeIdeas from './tools/analyzeIdeas.js';
+import * as buildIdeaMap from './tools/buildIdeaMap.js';
 import { checkQuota, logToolCall } from './audit.js';
 
 // Catálogo de tools. requiredScope opcional: si no está, la tool aparece siempre
@@ -18,6 +19,7 @@ const TOOLS = {
   transcribe_video_url:   { ...transcribeVideoUrl },
   get_transcription:      { ...getTranscription },
   analyze_ideas:          { ...analyzeIdeas },
+  build_idea_map:         { ...buildIdeaMap },
 };
 
 // Wrappea el handler de una tool con:
@@ -90,7 +92,8 @@ export function buildServerForUser(user, grantedScopes = [], clientId = null) {
         'AS Tools expone herramientas de transcripción de video y análisis de ideas. ' +
         'Las herramientas operan bajo la cuenta del usuario autenticado vía OAuth — todos los ids ' +
         'devueltos pertenecen al usuario y solo él puede leerlos. ' +
-        'Flujo típico: 1) transcribe_video_url(url) → devuelve id; 2) get_transcription(id) para leer; 3) analyze_ideas(id) para extraer estructura replicable.',
+        'Flujo típico: 1) transcribe_video_url(url) → devuelve id; 2) get_transcription(id) para leer; 3) analyze_ideas(id) para extraer estructura replicable. ' +
+        'build_idea_map permite al usuario generar ideas propias desde un mapa de contraste (compuerta + cruces).',
     }
   );
 

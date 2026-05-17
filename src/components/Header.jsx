@@ -95,6 +95,16 @@ const Header = () => {
     Reels Cleaner
   </Link>
   <Link
+    to="/mapa-de-ideas"
+    className={`font-medium transition ${
+      isActive('/mapa-de-ideas')
+        ? 'text-purple-600 dark:text-purple-400'
+        : 'text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400'
+    }`}
+  >
+    Ideas
+  </Link>
+  <Link
     to="/convertir"
     className={`font-medium transition ${
       isActive('/convertir')
@@ -251,6 +261,17 @@ const Header = () => {
               }`}
             >
               Reels Cleaner
+            </Link>
+            <Link
+              to="/mapa-de-ideas"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className={`block py-2 px-4 rounded ${
+                isActive('/mapa-de-ideas')
+                  ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+              }`}
+            >
+              Ideas
             </Link>
             <Link
               to="/convertir"

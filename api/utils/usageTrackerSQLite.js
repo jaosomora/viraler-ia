@@ -214,7 +214,9 @@ export const generateUsageReport = () => {
           SUM(cost) as estimatedCost,
           SUM(conversions) as totalConversions,
           SUM(analyses) as totalAnalyses,
-          SUM(analyses_cost) as totalAnalysesCost
+          SUM(analyses_cost) as totalAnalysesCost,
+          SUM(idea_maps) as totalIdeaMaps,
+          SUM(idea_maps_cost) as totalIdeaMapsCost
         FROM usage_stats`,
         (err, row) => {
           if (err) {
@@ -229,6 +231,8 @@ export const generateUsageReport = () => {
             usageData.totalConversions = row.totalConversions || 0;
             usageData.totalAnalyses = row.totalAnalyses || 0;
             usageData.totalAnalysesCost = row.totalAnalysesCost || 0;
+            usageData.totalIdeaMaps = row.totalIdeaMaps || 0;
+            usageData.totalIdeaMapsCost = row.totalIdeaMapsCost || 0;
           }
 
           // Calcular promedios
@@ -245,7 +249,8 @@ export const generateUsageReport = () => {
           // Obtener historial
           db.all(
             `SELECT date, transcriptions, audio_minutes as audioMinutes, cost, conversions,
-                    analyses, analyses_cost as analysesCost
+                    analyses, analyses_cost as analysesCost,
+                    idea_maps as ideaMaps, idea_maps_cost as ideaMapsCost
              FROM usage_stats
              ORDER BY date DESC
              LIMIT 10`,

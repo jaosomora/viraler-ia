@@ -39,6 +39,18 @@ const tools = [
     bgHover: 'hover:border-amber-300 dark:hover:border-amber-700',
   },
   {
+    name: 'Generador de Ideas',
+    description: 'Mapa de contraste de tu vida → territorios → cruces → 4-5 frases con torsión que suenan a vos. La compuerta se niega a generar si el insumo está roto.',
+    path: '/mapa-de-ideas',
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+      </svg>
+    ),
+    color: 'from-violet-500 to-fuchsia-500',
+    bgHover: 'hover:border-violet-300 dark:hover:border-violet-700',
+  },
+  {
     name: 'Convertir Documento',
     description: 'Convierte documentos PDF, DOCX, PPTX, XLSX y EPUB a Markdown o HTML listo para usar.',
     path: '/convertir',

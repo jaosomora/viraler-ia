@@ -95,6 +95,14 @@ import {
   deleteConversion
 } from './api/utils/usageTrackerSQLite.js';
 import { analyzeTranscription } from './api/services/analysisService.js';
+import {
+  createHandler as ideaMapsCreate,
+  respondHandler as ideaMapsRespond,
+  getHandler as ideaMapsGet,
+  listHandler as ideaMapsList,
+  deleteHandler as ideaMapsDelete,
+  adminListHandler as ideaMapsAdminList,
+} from './api/ideaMaps.js';
 import { protectedResourceMetadata, authorizationServerMetadata } from './api/oauth/metadata.js';
 import { registerClient } from './api/oauth/register.js';
 import { tokenEndpoint } from './api/oauth/token.js';
@@ -440,6 +448,14 @@ app.post('/api/transcriptions/:id/analyze', authMiddleware, async (req, res) => 
     res.status(500).json({ error: error.message || 'Error al analizar transcripción' });
   }
 });
+
+// --- Generador de Ideas (build_idea_map) ---
+app.post('/api/idea-maps', authMiddleware, ideaMapsCreate);
+app.post('/api/idea-maps/:id/respond', authMiddleware, ideaMapsRespond);
+app.get('/api/idea-maps', authMiddleware, ideaMapsList);
+app.get('/api/idea-maps/:id', authMiddleware, ideaMapsGet);
+app.delete('/api/idea-maps/:id', authMiddleware, ideaMapsDelete);
+app.get('/api/admin/idea-maps', authMiddleware, ownerOnly, ideaMapsAdminList);
 
 // --- Rutas de Admin MCP (solo owner) ---
 app.get('/api/admin/mcp/overview',         authMiddleware, ownerOnly, mcpAdminOverview);
