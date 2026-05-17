@@ -418,6 +418,74 @@ db.serialize(() => {
     )
   `);
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // OAuth 2.1 server (para MCP remoto — Claude.ai conecta vía Custom Connector)
+  // Spec: RFC 7591 (DCR), RFC 9728 (Protected Resource Metadata), RFC 8414 (AS Metadata).
+  // Tokens guardados como SHA-256 hash, nunca en claro.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // Clientes OAuth registrados dinámicamente (Claude.ai se registra solo vía DCR).
+  // redirect_uris: JSON array. client_secret_hash: NULL para clientes públicos (PKCE-only).
+  db.run(`
+    CREATE TABLE IF NOT EXISTS oauth_clients (
+      client_id TEXT PRIMARY KEY,
+      client_secret_hash TEXT,
+      client_name TEXT,
+      redirect_uris TEXT NOT NULL,
+      token_endpoint_auth_method TEXT DEFAULT 'none',
+      grant_types TEXT DEFAULT '["authorization_code","refresh_token"]',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      last_used_at TIMESTAMP
+    )
+  `);
+
+  // Authorization codes (vida ≤10 min, single-use). PKCE obligatorio (S256).
+  db.run(`
+    CREATE TABLE IF NOT EXISTS oauth_auth_codes (
+      code_hash TEXT PRIMARY KEY,
+      client_id TEXT NOT NULL,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      redirect_uri TEXT NOT NULL,
+      code_challenge TEXT NOT NULL,
+      code_challenge_method TEXT NOT NULL DEFAULT 'S256',
+      scope TEXT,
+      resource TEXT,
+      expires_at TIMESTAMP NOT NULL,
+      used_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Access tokens (TTL 1h). Hash SHA-256, nunca el token raw.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS oauth_access_tokens (
+      token_hash TEXT PRIMARY KEY,
+      client_id TEXT NOT NULL,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      scope TEXT,
+      resource TEXT,
+      expires_at TIMESTAMP NOT NULL,
+      revoked_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      last_used_at TIMESTAMP
+    )
+  `);
+
+  // Refresh tokens (TTL 30d). Rotación: cada refresh emite nuevo y revoca el anterior.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS oauth_refresh_tokens (
+      token_hash TEXT PRIMARY KEY,
+      client_id TEXT NOT NULL,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      scope TEXT,
+      resource TEXT,
+      expires_at TIMESTAMP NOT NULL,
+      revoked_at TIMESTAMP,
+      replaced_by TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   console.log('Esquema de base de datos inicializado correctamente.');
 });
 

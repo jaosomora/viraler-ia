@@ -95,6 +95,12 @@ import {
   deleteConversion
 } from './api/utils/usageTrackerSQLite.js';
 import { analyzeTranscription } from './api/services/analysisService.js';
+import { protectedResourceMetadata, authorizationServerMetadata } from './api/oauth/metadata.js';
+import { registerClient } from './api/oauth/register.js';
+import { tokenEndpoint } from './api/oauth/token.js';
+import { authorizeGet, authorizeLogin, authorizeDecision } from './api/oauth/authorize.js';
+import { mcpAuthMiddleware } from './api/oauth/validator.js';
+import { mcpPost, mcpMethodNotAllowed } from './api/mcp/routes.js';
 import './api/database/schema.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -192,6 +198,25 @@ app.post('/api/auth/magic-link/verify', async (req, res) => {
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'API funcionando correctamente' });
 });
+
+// --- MCP / OAuth 2.1 (público — discovery + flujo) ---
+// Discovery: RFC 9728 (Protected Resource) + RFC 8414 (Authorization Server).
+app.get('/.well-known/oauth-protected-resource', protectedResourceMetadata);
+app.get('/.well-known/oauth-authorization-server', authorizationServerMetadata);
+// Dynamic Client Registration (RFC 7591): Claude.ai se auto-registra acá.
+app.post('/oauth/register', registerClient);
+// Token endpoint: acepta x-www-form-urlencoded (estándar OAuth) y JSON.
+app.post('/oauth/token', express.urlencoded({ extended: false }), tokenEndpoint);
+// Authorize: render HTML server-rendered con login y consent.
+app.get('/oauth/authorize', authorizeGet);
+app.post('/oauth/login', express.urlencoded({ extended: false }), authorizeLogin);
+app.post('/oauth/decision', express.urlencoded({ extended: false }), authorizeDecision);
+
+// --- MCP endpoint (Streamable HTTP, stateless) ---
+// Bearer token requerido. 401 incluye WWW-Authenticate apuntando al resource metadata.
+app.post('/mcp', mcpAuthMiddleware, mcpPost);
+app.get('/mcp', mcpMethodNotAllowed);
+app.delete('/mcp', mcpMethodNotAllowed);
 
 // --- Rutas protegidas (requieren login) ---
 
