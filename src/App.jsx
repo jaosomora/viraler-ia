@@ -8,6 +8,7 @@ import Home from './pages/Home';
 import ConvertPage from './pages/ConvertPage';
 import ClipsPage from './pages/ClipsPage';
 import ReelsCleanerPage from './pages/ReelsCleanerPage';
+import IdeaMapPage from './pages/IdeaMapPage';
 import MyResults from './pages/MyResults';
 import AdminPanel from './pages/AdminPanel';
 import NotFound from './pages/NotFound';
@@ -75,6 +76,8 @@ function App() {
           <Route path="/convertir" element={<ConvertPage />} />
           <Route path="/clips" element={<ClipsPage />} />
           <Route path="/reels-cleaner" element={<ReelsCleanerPage />} />
+          <Route path="/mapa-de-ideas" element={<IdeaMapPage />} />
+          <Route path="/mapa-de-ideas/:id" element={<IdeaMapPage />} />
           <Route path="/mis-resultados" element={<MyResults />} />
           <Route path="/secretos" element={<SecretsPage />} />
           <Route path="/secreto/:token" element={<ViewSecretPage />} />

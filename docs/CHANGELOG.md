@@ -8,6 +8,18 @@ ordenado por fecha descendente. Para detalles del MCP server ver `docs/MCP.md`.
 
 ---
 
+## 2026-05-17 — Generador de Ideas (build_idea_map)
+
+Nueva herramienta `/mapa-de-ideas` + tool MCP `build_idea_map` (scope nuevo `ideas:write`). Mapa de contraste → la compuerta extrae territorios y bloquea con repregunta si el insumo está roto (Fallo 1 sentimiento-vs-escena, Fallo 2 eje único disfrazado, Fallo 3 fuga). Solo si pasa los tres filtros genera 4-5 frases crudas cruzando subtemas de territorios o caras distintas. Límites duros: 2 repreguntas por filtro, 5 turnos totales.
+
+- **Patrón dual web/MCP** (clonado de `analyze_ideas`): web ejecuta gpt-4o-mini en backend (`api/services/ideaMapService.js` con 3 prompts: gate + fuga + generate); MCP devuelve el LENS sin ejecutar nada y Claude-en-chat aplica. Costo MCP = $0.
+- **Backend**: `api/services/ideaMapService.js` (LENS canónico + prompts + runGate/runGenerate + límites), `api/utils/ideaMapsTracker.js` (CRUD), `api/ideaMaps.js` (handlers REST con máquina de estados multi-turno), tabla `idea_maps` + columnas `idea_maps`/`idea_maps_cost` en `usage_stats`.
+- **Endpoints**: `POST /api/idea-maps` (arranca + procesa primer turno), `POST /api/idea-maps/:id/respond` (turnos siguientes), `GET/DELETE /api/idea-maps[/:id]`, `GET /api/admin/idea-maps`.
+- **MCP tool**: `api/mcp/tools/buildIdeaMap.js`. Stateless: el cliente Claude pasa `prior_attempts` en cada call. La tool calcula límites y devuelve la estructura para que Claude razone.
+- **OAuth**: nuevo scope `ideas:write` agregado en `metadata.js`, `views.js` (consent), `authorize.js`.
+- **Frontend**: `IdeaMapPage` (formulario inicial + turnos + resultado), `SavedIdeaMaps` (lista en MyResults), `IdeaMapsAdmin` (tab admin con totales y tabla por usuario). Cards en ToolHub, links en Header/Footer.
+- **Tests**: `api/services/ideaMapService.test.js` con 10 casos (6 compuerta, 3 generación, 1 edge). Mockean `globalThis.fetch`. 74 tests totales pasan.
+
 ## 2026-05-17 — Sprint MCP inicial
 
 ### Tests (Tier 1 + 2)

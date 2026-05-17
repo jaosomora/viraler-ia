@@ -139,6 +139,10 @@ db.serialize(() => {
   // Análisis de ideas on-demand sobre transcripciones (gpt-4o-mini).
   db.run(`ALTER TABLE usage_stats ADD COLUMN analyses INTEGER DEFAULT 0`, () => {});
   db.run(`ALTER TABLE usage_stats ADD COLUMN analyses_cost REAL DEFAULT 0`, () => {});
+  // Mapas de ideas: cada "mapa exitoso" cuenta como 1; los rechazos no cuentan
+  // (puede haber varios intentos por mapa). idea_maps_cost agrega validate+generate.
+  db.run(`ALTER TABLE usage_stats ADD COLUMN idea_maps INTEGER DEFAULT 0`, () => {});
+  db.run(`ALTER TABLE usage_stats ADD COLUMN idea_maps_cost REAL DEFAULT 0`, () => {});
 
   // Tabla de configuración
   db.run(`
@@ -404,6 +408,40 @@ db.serialize(() => {
   // file_path se vuelve nullable para tracks remotos no descargados aún.
   // SQLite no permite ALTER COLUMN, pero el INSERT de tracks remotos puede pasar '' o NULL.
   db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_music_external ON music_tracks(external_provider, external_id) WHERE external_provider IS NOT NULL`, () => {});
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Generador de ideas (build_idea_map): el usuario entrega dos columnas crudas
+  // (vida que NO quiero / vida que SÍ quiero) y la herramienta extrae territorios,
+  // valida (Fallo 1, 2, 3) y solo si el insumo pasa, genera 4-5 ideas con torsión.
+  // Multi-turno: cada repregunta es un turno; máx 2 por filtro, 5 totales.
+  //
+  // status:
+  //   'awaiting_correction' — la compuerta rechazó, espera respuesta del usuario al repregunta
+  //   'success' — generó ideas, terminado
+  //   'exhausted' — agotó turnos sin pasar, terminado (no se desbloquea solo)
+  // ─────────────────────────────────────────────────────────────────────────
+  db.run(`
+    CREATE TABLE IF NOT EXISTS idea_maps (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      vida_no_quiero TEXT NOT NULL,
+      vida_si_quiero TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'awaiting_correction',
+      turn INTEGER NOT NULL DEFAULT 1,
+      attempts_per_filter TEXT DEFAULT '{}',
+      history TEXT DEFAULT '[]',
+      failed_filter TEXT,
+      diagnostic TEXT,
+      repregunta TEXT,
+      axis_mode TEXT,
+      structure TEXT,
+      ideas TEXT,
+      cost_usd REAL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_idea_maps_user_created ON idea_maps(user_id, created_at DESC)`, () => {});
 
   // Magic link tokens — login sin contraseña por email (15 min, un solo uso).
   // Se guarda el hash SHA-256 del token, nunca el token en claro.

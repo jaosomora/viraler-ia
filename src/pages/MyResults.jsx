@@ -3,11 +3,13 @@ import SavedTranscriptions from '../components/SavedTranscriptions';
 import SavedConversions from '../components/SavedConversions';
 import SavedClips from '../components/SavedClips';
 import SavedReels from '../components/SavedReels';
+import SavedIdeaMaps from '../components/SavedIdeaMaps';
 
 const TABS = [
   { id: 'transcriptions', label: 'Transcripciones' },
   { id: 'clips', label: 'Clips' },
   { id: 'reels', label: 'Reels' },
+  { id: 'idea_maps', label: 'Mapas de ideas' },
   { id: 'conversions', label: 'Conversiones' },
 ];
 
@@ -43,6 +45,7 @@ const MyResults = () => {
       {activeTab === 'transcriptions' && <SavedTranscriptions />}
       {activeTab === 'clips' && <SavedClips />}
       {activeTab === 'reels' && <SavedReels />}
+      {activeTab === 'idea_maps' && <SavedIdeaMaps />}
       {activeTab === 'conversions' && <SavedConversions />}
     </div>
   );

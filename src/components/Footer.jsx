@@ -25,6 +25,9 @@ const Footer = () => {
             <Link to="/reels-cleaner" className="text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition">
               Reels Cleaner
             </Link>
+            <Link to="/mapa-de-ideas" className="text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition">
+              Ideas
+            </Link>
             <Link to="/convertir" className="text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition">
               Convertir
             </Link>

@@ -117,6 +117,7 @@ const SCOPE_LABELS = {
   'transcribe:read': 'Leer tus transcripciones y análisis guardados',
   'transcribe:write': 'Transcribir videos nuevos desde URL en tu nombre',
   'analyze:write': 'Generar análisis de ideas con IA (consume tu cuota mensual)',
+  'ideas:write': 'Usar el Generador de Ideas (mapas de contraste + cruces) desde tu chat',
 };
 
 export function renderConsent({ clientName, userEmail, scopes, params }) {

@@ -5,6 +5,7 @@ import SecretsAdmin from '../components/SecretsAdmin';
 import ClipsAdmin from '../components/ClipsAdmin';
 import ReelsAdmin from '../components/ReelsAdmin';
 import MCPAdmin from '../components/MCPAdmin';
+import IdeaMapsAdmin from '../components/IdeaMapsAdmin';
 
 const AdminPanel = () => {
   const [usageData, setUsageData] = useState(null);
@@ -271,6 +272,7 @@ const AdminPanel = () => {
             { id: 'clips', label: 'Clips', icon: '🎬' },
             { id: 'reels', label: 'Reels', icon: '🎵' },
             { id: 'conversiones', label: 'Conversiones', icon: '📄', badge: conversions.length },
+            { id: 'idea_maps', label: 'Mapas de ideas', icon: '💡' },
             { id: 'secretos', label: 'Secretos', icon: '🔐' },
             { id: 'mcp', label: 'MCP', icon: '🔌' },
           ].map((tab) => (
@@ -333,8 +335,8 @@ const AdminPanel = () => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </div>
-        <p className="text-4xl font-bold tabular-nums">{formatPrice((usageData.estimatedCost || 0) + clipsAgg.cost + (usageData.totalAnalysesCost || 0))}</p>
-        <div className="mt-3 grid grid-cols-2 md:grid-cols-3 gap-3 text-xs opacity-90">
+        <p className="text-4xl font-bold tabular-nums">{formatPrice((usageData.estimatedCost || 0) + clipsAgg.cost + (usageData.totalAnalysesCost || 0) + (usageData.totalIdeaMapsCost || 0))}</p>
+        <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs opacity-90">
           <div className="bg-white/10 rounded-lg px-3 py-2">
             <div className="opacity-80 text-[11px]">Transcripciones</div>
             <div className="font-semibold tabular-nums">{formatPrice(usageData.estimatedCost || 0)}</div>
@@ -347,11 +349,15 @@ const AdminPanel = () => {
             <div className="opacity-80 text-[11px]">Análisis de ideas · {usageData.totalAnalyses || 0} corridas</div>
             <div className="font-semibold tabular-nums">{formatPrice(usageData.totalAnalysesCost || 0)}</div>
           </div>
+          <div className="bg-white/10 rounded-lg px-3 py-2">
+            <div className="opacity-80 text-[11px]">Mapas de ideas · {usageData.totalIdeaMaps || 0} exitosos</div>
+            <div className="font-semibold tabular-nums">{formatPrice(usageData.totalIdeaMapsCost || 0)}</div>
+          </div>
         </div>
       </div>
 
       {/* Tarjetas de resumen */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-5">
           <h3 className="text-xs uppercase tracking-wide text-gray-600 dark:text-gray-300 font-semibold">Transcripciones</h3>
           <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-white tabular-nums">{usageData.totalTranscriptions}</p>
@@ -368,6 +374,12 @@ const AdminPanel = () => {
           <h3 className="text-xs uppercase tracking-wide text-gray-600 dark:text-gray-300 font-semibold">Clips generados</h3>
           <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-white tabular-nums">{clipsAgg.clips}</p>
           <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">{clipsAgg.jobs} jobs · {Math.round(clipsAgg.minutes)} min · {formatPrice(clipsAgg.cost)}</p>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-5">
+          <h3 className="text-xs uppercase tracking-wide text-gray-600 dark:text-gray-300 font-semibold">Mapas de ideas</h3>
+          <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-white tabular-nums">{usageData.totalIdeaMaps || 0}</p>
+          <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">{formatPrice(usageData.totalIdeaMapsCost || 0)} · gpt-4o-mini</p>
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-5">
@@ -405,6 +417,14 @@ const AdminPanel = () => {
             </div>
             <div className="font-mono text-sm text-gray-900 dark:text-white">gpt-4o-mini</div>
             <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">$0.15/M input · $0.60/M output · ~$0.002/análisis</div>
+          </div>
+          <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs uppercase tracking-wide text-violet-600 dark:text-violet-400 font-semibold">Generador de Ideas</span>
+              <span className="text-[11px] text-gray-600 dark:text-gray-400">OpenAI</span>
+            </div>
+            <div className="font-mono text-sm text-gray-900 dark:text-white">gpt-4o-mini</div>
+            <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">2 llamadas/mapa exitoso (gate + generate) · ~$0.003 · MCP $0</div>
           </div>
           <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between mb-2">
@@ -488,6 +508,7 @@ const AdminPanel = () => {
                 <th className="py-3 px-6 text-left text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider">Fecha</th>
                 <th className="py-3 px-6 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider">Transcripciones</th>
                 <th className="py-3 px-6 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider">Análisis</th>
+                <th className="py-3 px-6 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider">Mapas</th>
                 <th className="py-3 px-6 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider">Clips</th>
                 <th className="py-3 px-6 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider">Reels</th>
                 <th className="py-3 px-6 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider">Min. totales</th>
@@ -498,7 +519,7 @@ const AdminPanel = () => {
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {(() => {
                 const byDate = {};
-                const empty = d => ({ date: d, txns: 0, txnMin: 0, txnCost: 0, analyses: 0, analysesCost: 0, clipJobs: 0, clipMin: 0, clipCost: 0, reelJobs: 0, reelMin: 0, reelCost: 0 });
+                const empty = d => ({ date: d, txns: 0, txnMin: 0, txnCost: 0, analyses: 0, analysesCost: 0, ideaMaps: 0, ideaMapsCost: 0, clipJobs: 0, clipMin: 0, clipCost: 0, reelJobs: 0, reelMin: 0, reelCost: 0 });
                 (usageData.recentHistory || []).forEach(e => {
                   byDate[e.date] = byDate[e.date] || empty(e.date);
                   byDate[e.date].txns += e.transcriptions || 0;
@@ -506,6 +527,8 @@ const AdminPanel = () => {
                   byDate[e.date].txnCost += e.cost || 0;
                   byDate[e.date].analyses += e.analyses || 0;
                   byDate[e.date].analysesCost += e.analysesCost || 0;
+                  byDate[e.date].ideaMaps += e.ideaMaps || 0;
+                  byDate[e.date].ideaMapsCost += e.ideaMapsCost || 0;
                 });
                 (clipJobs || []).forEach(j => {
                   if (!j.created_at) return;
@@ -526,7 +549,7 @@ const AdminPanel = () => {
                 const rows = Object.values(byDate).sort((a, b) => b.date.localeCompare(a.date));
                 if (rows.length === 0) {
                   return (
-                    <tr><td colSpan="8" className="py-8 px-6 text-sm text-center text-gray-600 dark:text-gray-400">Sin actividad aún</td></tr>
+                    <tr><td colSpan="9" className="py-8 px-6 text-sm text-center text-gray-600 dark:text-gray-400">Sin actividad aún</td></tr>
                   );
                 }
                 return rows.map((r) => (
@@ -534,10 +557,11 @@ const AdminPanel = () => {
                     <td className="py-3 px-6 text-sm font-medium text-gray-900 dark:text-white">{r.date}</td>
                     <td className="py-3 px-6 text-sm text-right tabular-nums text-gray-800 dark:text-gray-200">{r.txns}</td>
                     <td className="py-3 px-6 text-sm text-right tabular-nums text-gray-800 dark:text-gray-200">{r.analyses || '–'}</td>
+                    <td className="py-3 px-6 text-sm text-right tabular-nums text-gray-800 dark:text-gray-200">{r.ideaMaps || '–'}</td>
                     <td className="py-3 px-6 text-sm text-right tabular-nums text-gray-800 dark:text-gray-200">{r.clipJobs || '–'}</td>
                     <td className="py-3 px-6 text-sm text-right tabular-nums text-gray-800 dark:text-gray-200">{r.reelJobs || '–'}</td>
                     <td className="py-3 px-6 text-sm text-right tabular-nums text-gray-800 dark:text-gray-200">{formatNumber(r.txnMin + r.clipMin + r.reelMin)}</td>
-                    <td className="py-3 px-6 text-sm text-right tabular-nums font-semibold text-purple-700 dark:text-purple-300">{formatPrice(r.txnCost + r.clipCost + r.reelCost + (r.analysesCost || 0))}</td>
+                    <td className="py-3 px-6 text-sm text-right tabular-nums font-semibold text-purple-700 dark:text-purple-300">{formatPrice(r.txnCost + r.clipCost + r.reelCost + (r.analysesCost || 0) + (r.ideaMapsCost || 0))}</td>
                     <td className="py-3 px-6 text-right">
                       {r.txns > 0 && (
                         <button onClick={() => handleDeleteClick(r.date)}
@@ -656,6 +680,7 @@ const AdminPanel = () => {
       {activeTab === 'clips' && <ClipsAdmin />}
       {activeTab === 'reels' && <ReelsAdmin />}
       {activeTab === 'mcp' && <MCPAdmin />}
+      {activeTab === 'idea_maps' && <IdeaMapsAdmin />}
 
       {/* === TAB: CONVERSIONES === */}
       {activeTab === 'conversiones' && (
