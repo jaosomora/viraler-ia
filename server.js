@@ -101,6 +101,18 @@ import { tokenEndpoint } from './api/oauth/token.js';
 import { authorizeGet, authorizeLogin, authorizeDecision } from './api/oauth/authorize.js';
 import { mcpAuthMiddleware } from './api/oauth/validator.js';
 import { mcpPost, mcpMethodNotAllowed } from './api/mcp/routes.js';
+import {
+  overview as mcpAdminOverview,
+  listClients as mcpAdminListClients,
+  deleteClient as mcpAdminDeleteClient,
+  listTokens as mcpAdminListTokens,
+  revokeToken as mcpAdminRevokeToken,
+  listAudit as mcpAdminListAudit,
+  getSettings as mcpAdminGetSettings,
+  updateSettings as mcpAdminUpdateSettings,
+  listQuotas as mcpAdminListQuotas,
+  updateUserQuota as mcpAdminUpdateUserQuota,
+} from './api/mcp/adminRoutes.js';
 import './api/database/schema.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -428,6 +440,18 @@ app.post('/api/transcriptions/:id/analyze', authMiddleware, async (req, res) => 
     res.status(500).json({ error: error.message || 'Error al analizar transcripción' });
   }
 });
+
+// --- Rutas de Admin MCP (solo owner) ---
+app.get('/api/admin/mcp/overview',         authMiddleware, ownerOnly, mcpAdminOverview);
+app.get('/api/admin/mcp/clients',          authMiddleware, ownerOnly, mcpAdminListClients);
+app.delete('/api/admin/mcp/clients/:id',   authMiddleware, ownerOnly, mcpAdminDeleteClient);
+app.get('/api/admin/mcp/tokens',           authMiddleware, ownerOnly, mcpAdminListTokens);
+app.delete('/api/admin/mcp/tokens/:hash',  authMiddleware, ownerOnly, mcpAdminRevokeToken);
+app.get('/api/admin/mcp/audit',            authMiddleware, ownerOnly, mcpAdminListAudit);
+app.get('/api/admin/mcp/settings',         authMiddleware, ownerOnly, mcpAdminGetSettings);
+app.patch('/api/admin/mcp/settings',       authMiddleware, ownerOnly, mcpAdminUpdateSettings);
+app.get('/api/admin/mcp/quotas',           authMiddleware, ownerOnly, mcpAdminListQuotas);
+app.patch('/api/admin/mcp/users/:id/quota', authMiddleware, ownerOnly, mcpAdminUpdateUserQuota);
 
 // --- Rutas de Admin (solo owner) ---
 
