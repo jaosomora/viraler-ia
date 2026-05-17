@@ -1,39 +1,46 @@
 // api/mcp/tools/analyzeIdeas.js
-// Genera el análisis de ideas (replicar, no auditar) sobre una transcripción.
-// Idempotente: si ya existe análisis y force=false, devuelve el cacheado (evita doble cobro).
+// Cuando este tool se llama desde el MCP (cliente = Claude.ai), NO ejecutamos gpt-4o-mini.
+// En su lugar, devolvemos el transcript + el LENTE (system prompt que ya está afinado)
+// para que el propio Claude del chat aplique el análisis con su capacidad superior.
+//
+// La REST API /api/transcriptions/:id/analyze (que alimenta la UI web) sigue
+// ejecutando gpt-4o-mini y persistiendo en DB — eso NO se toca.
 
 import { z } from 'zod';
-import {
-  getTranscriptionById,
-  saveTranscriptionAnalysis,
-  trackAnalysis,
-} from '../../utils/usageTrackerSQLite.js';
-import { analyzeTranscription } from '../../services/analysisService.js';
+import { getTranscriptionById } from '../../utils/usageTrackerSQLite.js';
+import { SYSTEM_PROMPT, buildUserPrompt } from '../../services/analysisService.js';
 
 export const requiredScope = 'analyze:write';
 
 export const description =
-  'Genera un análisis de ideas sobre una transcripción ya guardada. ' +
-  'El análisis NO es una auditoría — extrae la idea pelada del video y un molde paso a paso (con corchetes editables) ' +
-  'para que el usuario pueda replicar la estructura en su propio tema/voz/sector. ' +
-  'Devuelve el análisis en markdown. Idempotente: si ya hay análisis previo, lo devuelve cacheado salvo que pases force=true. ' +
-  'Usa esta herramienta cuando el usuario pida "analiza las ideas", "qué puedo aprender de esto", "cómo replicar esta estructura", o similar. ' +
-  'Consume cuota de OpenAI (~$0.002 por análisis).';
+  'Devuelve el transcript de un video junto con el lente de análisis afinado de AS Tools, ' +
+  'para que TÚ (Claude) hagas la síntesis de "idea pelada + molde replicable" con tu propia capacidad. ' +
+  'NO ejecuta gpt-4o-mini ni consume cuota OpenAI — el análisis lo produces tú mismo en este chat usando las instrucciones que vienen en el resultado.\n\n' +
+
+  'CÓMO USAR EL RESULTADO (importante):\n' +
+  '1. Lee el bloque "LENTE DE ANÁLISIS" → es el system prompt afinado de AS Tools (replicar no auditar, sin jerga de marketing, formato específico de 2 secciones).\n' +
+  '2. Lee el bloque "CONTEXTO + TRANSCRIPT" → es la entrada que normalmente recibe gpt-4o-mini.\n' +
+  '3. Aplica el lente al transcript y entrega al usuario el análisis siguiendo el formato exacto que pide el lente (las 2 secciones markdown: 💡 La jugada en dos líneas + 📋 El molde paso a paso).\n' +
+  '4. NO inventes contexto adicional fuera del transcript. NO adaptes a sectores ajenos. Sigue el lente al pie de la letra.\n\n' +
+
+  'Usa este tool cuando el usuario pida: "analiza las ideas", "qué hay detrás de este video", "saca el molde replicable", "cómo replico esta estructura". ' +
+  'Requiere haber transcrito el video antes (necesitas el transcription_id).';
 
 export const annotations = {
-  title: 'Analizar ideas de transcripción',
-  readOnlyHint: false,
-  destructiveHint: false,
-  idempotentHint: true,
-  openWorldHint: true,
+  title: 'Analizar ideas de transcripción (con Claude)',
+  readOnlyHint: true,
+  openWorldHint: false,
 };
 
 export const inputSchema = {
   transcription_id: z.number().int().positive()
-    .describe('Id de la transcripción a analizar.'),
-  force: z.boolean().optional()
-    .describe('Si true, regenera el análisis aunque ya exista uno previo. Default false (devuelve cacheado).'),
+    .describe('Id de la transcripción a analizar (devuelto por transcribe_video_url o list_my_transcriptions).'),
 };
+
+function safeParseJSON(s) {
+  if (!s) return null;
+  try { return JSON.parse(s); } catch { return null; }
+}
 
 export function makeHandler(user) {
   return async (args) => {
@@ -46,49 +53,47 @@ export function makeHandler(user) {
       };
     }
 
-    const force = !!args.force;
-    if (row.analysis && !force) {
+    const transcript = (row.transcript || '').trim();
+    if (transcript.length < 30) {
       return {
-        content: [{
-          type: 'text',
-          text:
-            `Análisis cacheado (generado ${row.analysis_at} con ${row.analysis_model}). ` +
-            `Para regenerar usa force=true.\n\n${row.analysis}`,
-        }],
-        structuredContent: {
-          transcription_id: id,
-          cached: true,
-          model: row.analysis_model,
-          generated_at: row.analysis_at,
-          analysis_markdown: row.analysis,
-        },
-      };
-    }
-
-    try {
-      const { analysis, model, costUsd } = await analyzeTranscription(row);
-      await saveTranscriptionAnalysis(id, { analysis, model, costUsd });
-      await trackAnalysis({ costUsd });
-
-      return {
-        content: [{
-          type: 'text',
-          text: `Análisis generado (${model}, costo $${costUsd.toFixed(4)} USD).\n\n${analysis}`,
-        }],
-        structuredContent: {
-          transcription_id: id,
-          cached: false,
-          model,
-          cost_usd: costUsd,
-          generated_at: new Date().toISOString(),
-          analysis_markdown: analysis,
-        },
-      };
-    } catch (err) {
-      return {
-        content: [{ type: 'text', text: `Error al analizar: ${err.message}` }],
+        content: [{ type: 'text', text: 'El transcript es demasiado corto para analizar (menos de 30 caracteres).' }],
         isError: true,
       };
     }
+
+    // Normalizar hashtags si vienen como string JSON (DB)
+    const normalized = {
+      ...row,
+      hashtags: typeof row.hashtags === 'string' ? safeParseJSON(row.hashtags) : row.hashtags,
+    };
+    const userPrompt = buildUserPrompt(normalized);
+
+    const text = [
+      `Transcripción id=${id} cargada. Aplica el lente al transcript siguiendo estas instrucciones:`,
+      '',
+      '─── LENTE DE ANÁLISIS (system prompt afinado de AS Tools) ───',
+      SYSTEM_PROMPT,
+      '─── FIN LENTE ───',
+      '',
+      '─── CONTEXTO + TRANSCRIPT (lo que aplicarías el lente) ───',
+      userPrompt,
+      '─── FIN CONTEXTO ───',
+      '',
+      'Ahora produce el análisis siguiendo el formato exacto del lente (2 secciones markdown: 💡 La jugada en dos líneas + 📋 El molde paso a paso) y entrégalo al usuario. NO ejecutes ningún tool adicional, NO adaptes a sectores ajenos, NO inventes contexto. Solo aplica el lente al transcript.',
+    ].join('\n');
+
+    return {
+      content: [{ type: 'text', text }],
+      structuredContent: {
+        transcription_id: id,
+        title: row.title,
+        platform: row.platform,
+        duration_seconds: row.duration,
+        analysis_lens: SYSTEM_PROMPT,
+        analysis_input: userPrompt,
+        executed_by: 'claude_in_chat',
+        cost_usd: 0,
+      },
+    };
   };
 }
