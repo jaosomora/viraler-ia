@@ -13,21 +13,21 @@ import { SYSTEM_PROMPT, buildUserPrompt } from '../../services/analysisService.j
 export const requiredScope = 'analyze:write';
 
 export const description =
-  'Devuelve el transcript de un video junto con el lente de análisis afinado de AS Tools, ' +
-  'para que TÚ (Claude) hagas la síntesis de "idea pelada + molde replicable" con tu propia capacidad. ' +
-  'NO ejecuta gpt-4o-mini ni consume cuota OpenAI — el análisis lo produces tú mismo en este chat usando las instrucciones que vienen en el resultado.\n\n' +
+  'Analiza una TRANSCRIPCIÓN de video AJENO ya guardada en AS Tools. Requiere un transcription_id existente (devuelto por transcribe_video_url o list_my_transcriptions). ' +
+  'Devuelve el transcript + un lente afinado para que TÚ (Claude) extraigas la estructura replicable del video del autor original. NO ejecuta LLM en el server.\n\n' +
 
-  'CÓMO USAR EL RESULTADO (importante):\n' +
-  '1. Lee el bloque "LENTE DE ANÁLISIS" → es el system prompt afinado de AS Tools (replicar no auditar, sin jerga de marketing, formato específico de 2 secciones).\n' +
-  '2. Lee el bloque "CONTEXTO + TRANSCRIPT" → es la entrada que normalmente recibe gpt-4o-mini.\n' +
-  '3. Aplica el lente al transcript y entrega al usuario el análisis siguiendo el formato exacto que pide el lente (las 2 secciones markdown: 💡 La jugada en dos líneas + 📋 El molde paso a paso).\n' +
-  '4. NO inventes contexto adicional fuera del transcript. NO adaptes a sectores ajenos. Sigue el lente al pie de la letra.\n\n' +
+  'NO ES el "Generador de Ideas". Si el usuario menciona "Generador de Ideas", "generar/sacar/hacer ideas", "ideas para mis publicaciones", "ideas que suenen a mí", o "mapa de ideas" → usa build_idea_map, NO esta tool. Esta tool SOLO sirve cuando hay un video ajeno transcrito y el usuario quiere replicar su estructura.\n\n' +
 
-  'CUÁNDO USAR: el usuario pide "analiza las ideas DE ESTE VIDEO", "qué hay detrás de este video", "saca el molde replicable de este video", "cómo replico esta estructura". Siempre apunta a un VIDEO AJENO ya transcrito. Requiere transcription_id (devuelto por transcribe_video_url o list_my_transcriptions).\n\n' +
-  'NO USES esta tool cuando el usuario diga "Generador de Ideas", "quiero generar/sacar/hacer ideas", "ideas para mis publicaciones", "ideas que suenen a mí", "mapa de ideas". Esos casos son para build_idea_map (genera ideas propias desde un mapa de contraste, sin video). Si dudas, fíjate si el usuario está hablando de un video ajeno (esta tool) o de generar contenido propio (build_idea_map).';
+  'CUÁNDO USAR: el usuario pide "analiza este video que transcribí", "qué hay detrás de este video", "cómo replico esta estructura de [@autor]", "decompón este reel". Siempre apunta a un VIDEO AJENO YA TRANSCRITO.\n\n' +
+
+  'CÓMO USAR EL RESULTADO:\n' +
+  '1. Lee el bloque "LENTE DE ANÁLISIS" → es el system prompt afinado de AS Tools.\n' +
+  '2. Lee el bloque "CONTEXTO + TRANSCRIPT" → es la entrada.\n' +
+  '3. Aplica el lente al transcript y entrega al usuario el análisis siguiendo el formato exacto que pide el lente.\n' +
+  '4. NO inventes contexto fuera del transcript. NO adaptes a sectores ajenos. Sigue el lente al pie de la letra.';
 
 export const annotations = {
-  title: 'Analizar ideas de transcripción (con Claude)',
+  title: 'Analizar transcripción de video (con Claude)',
   readOnlyHint: true,
   openWorldHint: false,
 };
