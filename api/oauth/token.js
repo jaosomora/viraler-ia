@@ -21,7 +21,8 @@ function bad(res, error, description, status = 400) {
   return res.status(status).json({ error, error_description: description });
 }
 
-function verifyPkceS256(verifier, challenge) {
+// Exportado para tests unitarios. Lo usa también handleAuthorizationCode internamente.
+export function verifyPkceS256(verifier, challenge) {
   if (typeof verifier !== 'string' || verifier.length < 43 || verifier.length > 128) return false;
   const computed = crypto.createHash('sha256').update(verifier).digest('base64url');
   // Comparación constant-time.
