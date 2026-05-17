@@ -18,6 +18,12 @@ services:
         sync: false
       - key: APP_BASE_URL
         sync: false      # ej: https://as-transcribe.onrender.com — necesario para magic links en prod
+      - key: MCP_BASE_URL
+        sync: false      # URL pública del MCP server. Normalmente = APP_BASE_URL.
+                         # Usado en /.well-known/* y en el header WWW-Authenticate del /mcp endpoint.
+                         # Si no se setea, se infiere del request (frágil detrás de proxies).
+      - key: OAUTH_SESSION_SECRET
+        generateValue: true  # Render genera un secret aleatorio único. 10-min OAuth session cookie HMAC.
       - key: FFMPEG_PATH
         value: /usr/bin/ffmpeg
     disk:
