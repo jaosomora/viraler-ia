@@ -23,8 +23,8 @@ export const description =
   '3. Aplica el lente al transcript y entrega al usuario el análisis siguiendo el formato exacto que pide el lente (las 2 secciones markdown: 💡 La jugada en dos líneas + 📋 El molde paso a paso).\n' +
   '4. NO inventes contexto adicional fuera del transcript. NO adaptes a sectores ajenos. Sigue el lente al pie de la letra.\n\n' +
 
-  'Usa este tool cuando el usuario pida: "analiza las ideas", "qué hay detrás de este video", "saca el molde replicable", "cómo replico esta estructura". ' +
-  'Requiere haber transcrito el video antes (necesitas el transcription_id).';
+  'CUÁNDO USAR: el usuario pide "analiza las ideas DE ESTE VIDEO", "qué hay detrás de este video", "saca el molde replicable de este video", "cómo replico esta estructura". Siempre apunta a un VIDEO AJENO ya transcrito. Requiere transcription_id (devuelto por transcribe_video_url o list_my_transcriptions).\n\n' +
+  'NO USES esta tool cuando el usuario diga "Generador de Ideas", "quiero generar/sacar/hacer ideas", "ideas para mis publicaciones", "ideas que suenen a mí", "mapa de ideas". Esos casos son para build_idea_map (genera ideas propias desde un mapa de contraste, sin video). Si dudas, fíjate si el usuario está hablando de un video ajeno (esta tool) o de generar contenido propio (build_idea_map).';
 
 export const annotations = {
   title: 'Analizar ideas de transcripción (con Claude)',
