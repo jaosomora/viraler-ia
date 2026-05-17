@@ -1,0 +1,56 @@
+# Changelog
+
+Cambios relevantes del proyecto AS Tools. Una línea por commit que afecte funcionalidad,
+ordenado por fecha descendente. Para detalles del MCP server ver `docs/MCP.md`.
+
+> Convención: cada commit que toque `api/mcp/*`, `api/oauth/*`, o que cambie endpoints/services
+> del backend, debe agregar entrada aquí. El hook PostToolUse lo recordará.
+
+---
+
+## 2026-05-17 — Sprint MCP inicial
+
+### Documentación
+- **docs/MCP.md** — doc maestro del MCP server (arquitectura, OAuth, receta para agregar tools, operación, roadmap)
+- **docs/CHANGELOG.md** — este archivo, arrancando con el sprint MCP
+- **CLAUDE.md root** — sección MCP + regla estricta "considerar MCP en todo cambio de backend"
+- **`.claude/settings.json`** — hook PostToolUse que recuerda actualizar docs si se tocó código MCP
+
+### Admin panel
+- **Nuevo tab `🔌 MCP` en /admin** (`c523349`) — overview, clientes registrados, sesiones activas (revocables), cuotas por usuario, audit log con filtros, toggle global de emergencia
+- Backend: 9 endpoints REST `/api/admin/mcp/*` (ownerOnly): overview, clients, tokens, audit, settings, quotas
+- Nueva tabla `mcp_audit_log` (cada tool call queda registrado con duración, costo, success/error)
+- Nuevas columnas en `users`: `mcp_quota_transcriptions_per_day` (NULL = ilimitado), `mcp_disabled`
+- Wrapper en `api/mcp/server.js` instrumenta cada handler con audit + quota check
+- Toggle global en tabla `settings` (`mcp_disabled`) para apagar `/mcp` con 503 sin tocar la UI web
+
+### Fixes
+- **`3030a6a`** UI: `VideoMetadataCard` ahora muestra el handle real cuando `uploader_handle` de TikTok es id numérico (preferencia: uploader_handle no-numérico → handle parseado de `/@xxx/` en uploaderUrl → channel). Mismo criterio que el helper del MCP.
+- **`256d11a`** MCP: `analyze_ideas` ya no llama a `gpt-4o-mini` desde el chat — devuelve transcript + lente para que Claude del chat haga la síntesis con su capacidad. Cero costo OpenAI desde el MCP. La REST API (UI web) sigue usando gpt-4o-mini y persistiendo en DB.
+- **`69d1503`** MCP: `transcribe_video_url` muestra el transcript LITERAL al usuario en vez de que Claude lo sintetice. Descripción del tool reforzada con instrucciones explícitas, response reordenado (transcript primero), límite subido de 500 a 2000 palabras (~15 min de habla).
+
+### Feature inicial — el servidor MCP completo
+- **`c7f222e`** Servidor MCP remoto con OAuth 2.1 para Claude.ai y otros clientes
+  - **OAuth 2.1** completo:
+    - Dynamic Client Registration (RFC 7591) — Claude.ai se auto-registra
+    - Protected Resource Metadata (RFC 9728) y Authorization Server Metadata (RFC 8414)
+    - PKCE S256 obligatorio
+    - Refresh token rotation
+    - Cookie HMAC de 10min para el flujo authorize → login → consent
+  - **Authorize + consent UI** server-rendered (HTML/CSS puro, sin React, escapado XSS)
+  - **Endpoint `/mcp`** Streamable HTTP stateless (server + transport nuevos por request)
+  - **4 tools** de Transcribe:
+    - `list_my_transcriptions` — paginado, filtrable por plataforma
+    - `transcribe_video_url` — sync, devuelve id + preview + metadata enriquecida
+    - `get_transcription` — completo o chunkeado, incluye análisis si existe
+    - `analyze_ideas` — devuelve lente para que Claude lo aplique
+  - **Filtrado de tools por scope OAuth** concedido
+  - **Metadata enriquecida** (helper `_videoMetadataFormat.js`): engagement raw + rates con misma fórmula que `VideoMetadataCard.jsx`, hashtags, descripción del creador, dedup del handle TikTok numérico
+  - **Vars Render**: `MCP_BASE_URL`, `OAUTH_SESSION_SECRET` (autogenerado)
+- **Deploy** en `https://as-tools.algosentido.com/mcp`
+
+---
+
+## Cambios anteriores
+
+Para cambios antes de esta fecha, ver `git log`.
