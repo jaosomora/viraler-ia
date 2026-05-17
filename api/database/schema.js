@@ -486,6 +486,31 @@ db.serialize(() => {
     )
   `);
 
+  // MCP audit log: cada tool call queda registrado. Permite ver al admin qué hizo
+  // cada usuario via MCP, costo agregado, errores. args_summary es un JSON truncado
+  // (max 500 chars) — no guardamos urls completas ni transcripts por privacidad.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS mcp_audit_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      client_id TEXT,
+      tool_name TEXT NOT NULL,
+      args_summary TEXT,
+      success INTEGER NOT NULL DEFAULT 1,
+      error_message TEXT,
+      duration_ms INTEGER,
+      cost_usd REAL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_mcp_audit_user_created ON mcp_audit_log(user_id, created_at DESC)`, () => {});
+
+  // Cuotas por usuario para uso del MCP. NULL = sin límite (default para owner).
+  // Si un usuario excede su cuota diaria, el tool MCP devuelve error claro.
+  // Se aplican solo a tools que cuestan dinero (transcribe_video_url).
+  db.run(`ALTER TABLE users ADD COLUMN mcp_quota_transcriptions_per_day INTEGER`, () => {});
+  db.run(`ALTER TABLE users ADD COLUMN mcp_disabled INTEGER DEFAULT 0`, () => {});
+
   console.log('Esquema de base de datos inicializado correctamente.');
 });
 

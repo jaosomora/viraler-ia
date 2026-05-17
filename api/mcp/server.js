@@ -8,6 +8,7 @@ import * as listMyTranscriptions from './tools/listMyTranscriptions.js';
 import * as transcribeVideoUrl from './tools/transcribeVideoUrl.js';
 import * as getTranscription from './tools/getTranscription.js';
 import * as analyzeIdeas from './tools/analyzeIdeas.js';
+import { checkQuota, logToolCall } from './audit.js';
 
 // Catálogo de tools. requiredScope opcional: si no está, la tool aparece siempre
 // (asumimos read-only y sin efectos). Si está, solo se registra cuando el token
@@ -19,7 +20,64 @@ const TOOLS = {
   analyze_ideas:          { ...analyzeIdeas },
 };
 
-export function buildServerForUser(user, grantedScopes = []) {
+// Wrappea el handler de una tool con:
+// 1) Chequeo de cuota (para tools que cuestan dinero) → 429-like error si excede.
+// 2) Audit log: registra cada call (exitoso o no) en mcp_audit_log.
+// 3) Extrae cost_usd del structuredContent si la tool lo expone para sumarlo al log.
+function wrapHandler(toolName, user, clientId, rawHandler) {
+  return async (args, extra) => {
+    // 1) Quota
+    try {
+      const q = await checkQuota(user, toolName);
+      if (!q.allowed) {
+        logToolCall({
+          userId: user.id, clientId, toolName, args,
+          success: false, errorMessage: `quota_exceeded: ${q.reason}`,
+          durationMs: 0, costUsd: 0,
+        });
+        return {
+          content: [{ type: 'text', text: q.reason }],
+          isError: true,
+        };
+      }
+    } catch (e) {
+      console.error(`[mcp] quota check failed for ${toolName}:`, e.message);
+      // No bloqueamos al usuario por un error de cuota — solo logueamos.
+    }
+
+    // 2) Ejecutar + medir
+    const start = Date.now();
+    let result;
+    let success = true;
+    let errorMessage = null;
+    try {
+      result = await rawHandler(args, extra);
+      if (result?.isError) {
+        success = false;
+        // Extraer texto del primer content item como mensaje de error.
+        const errText = result.content?.[0]?.text;
+        if (typeof errText === 'string') errorMessage = errText.slice(0, 300);
+      }
+    } catch (e) {
+      success = false;
+      errorMessage = e.message?.slice(0, 300) || 'unknown error';
+      // Re-throw para que el transport responda con JSON-RPC error.
+      logToolCall({ userId: user.id, clientId, toolName, args, success: false, errorMessage, durationMs: Date.now() - start, costUsd: 0 });
+      throw e;
+    }
+
+    const costUsd = result?.structuredContent?.cost_usd || 0;
+    logToolCall({
+      userId: user.id, clientId, toolName, args,
+      success, errorMessage,
+      durationMs: Date.now() - start, costUsd,
+    });
+
+    return result;
+  };
+}
+
+export function buildServerForUser(user, grantedScopes = [], clientId = null) {
   const server = new McpServer(
     {
       name: 'as-tools',
@@ -42,11 +100,13 @@ export function buildServerForUser(user, grantedScopes = []) {
     if (tool.requiredScope && !granted.has(tool.requiredScope)) {
       continue; // tool oculta si el token no tiene el scope necesario
     }
+    const rawHandler = tool.makeHandler(user);
+    const wrapped = wrapHandler(name, user, clientId, rawHandler);
     server.registerTool(name, {
       description: tool.description,
       inputSchema: tool.inputSchema,
       annotations: tool.annotations,
-    }, tool.makeHandler(user));
+    }, wrapped);
   }
 
   return server;

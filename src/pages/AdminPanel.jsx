@@ -4,6 +4,7 @@ import Spinner from '../components/Spinner';
 import SecretsAdmin from '../components/SecretsAdmin';
 import ClipsAdmin from '../components/ClipsAdmin';
 import ReelsAdmin from '../components/ReelsAdmin';
+import MCPAdmin from '../components/MCPAdmin';
 
 const AdminPanel = () => {
   const [usageData, setUsageData] = useState(null);
@@ -271,6 +272,7 @@ const AdminPanel = () => {
             { id: 'reels', label: 'Reels', icon: '🎵' },
             { id: 'conversiones', label: 'Conversiones', icon: '📄', badge: conversions.length },
             { id: 'secretos', label: 'Secretos', icon: '🔐' },
+            { id: 'mcp', label: 'MCP', icon: '🔌' },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -653,6 +655,7 @@ const AdminPanel = () => {
       {/* === TAB: CLIPS === */}
       {activeTab === 'clips' && <ClipsAdmin />}
       {activeTab === 'reels' && <ReelsAdmin />}
+      {activeTab === 'mcp' && <MCPAdmin />}
 
       {/* === TAB: CONVERSIONES === */}
       {activeTab === 'conversiones' && (
