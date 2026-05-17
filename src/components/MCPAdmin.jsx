@@ -259,7 +259,8 @@ const MCPAdmin = () => {
               <option value="list_my_transcriptions">list_my_transcriptions</option>
               <option value="transcribe_video_url">transcribe_video_url</option>
               <option value="get_transcription">get_transcription</option>
-              <option value="analyze_ideas">analyze_ideas</option>
+              <option value="analyze_video_transcript">analyze_video_transcript</option>
+              <option value="build_idea_map">build_idea_map</option>
             </select>
             <label className="inline-flex items-center gap-2">
               <input

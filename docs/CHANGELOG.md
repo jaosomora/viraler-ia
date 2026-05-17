@@ -8,6 +8,15 @@ ordenado por fecha descendente. Para detalles del MCP server ver `docs/MCP.md`.
 
 ---
 
+## 2026-05-17 — Rename: analyze_ideas → analyze_video_transcript
+
+Claude.ai elegía consistentemente `analyze_ideas` cuando el usuario pedía "Generador de Ideas" porque ambos nombres contenían "ideas". Tres iteraciones de description tweaks no resolvieron el colapso de routing. Solución estructural: renombrar la tool MCP para que solo `build_idea_map` contenga "idea" en el nombre.
+
+- **MCP**: `analyze_ideas` → `analyze_video_transcript`. La lógica, el lente, el costo ($0 server-side), todo igual. Solo cambia el nombre que ve el cliente MCP.
+- **UI web**: el botón "Analizar ideas" en `VideoAnalysisPanel` se queda como está — afecta solo MCP.
+- Audit log filter, smoke test, comentarios de services y docs actualizados.
+- **Acción requerida**: los clientes MCP que tengan el nombre viejo cacheado deben desconectar + reconectar para refrescar `tools/list`.
+
 ## 2026-05-17 — Generador de Ideas (build_idea_map)
 
 Nueva herramienta `/mapa-de-ideas` + tool MCP `build_idea_map` (scope nuevo `ideas:write`). Mapa de contraste → la compuerta extrae territorios y bloquea con repregunta si el insumo está roto (Fallo 1 sentimiento-vs-escena, Fallo 2 eje único disfrazado, Fallo 3 fuga). Solo si pasa los tres filtros genera 4-5 frases crudas cruzando subtemas de territorios o caras distintas. Límites duros: 2 repreguntas por filtro, 5 turnos totales.

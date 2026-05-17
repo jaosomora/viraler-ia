@@ -1,4 +1,8 @@
 // api/mcp/tools/analyzeIdeas.js
+// MCP tool registrada como `analyze_video_transcript` (sin "ideas" en el nombre para no
+// colisionar con build_idea_map → Generador de Ideas). El archivo conserva el nombre legacy
+// porque la lógica es la misma. La tool decompone un video AJENO ya transcrito.
+//
 // Cuando este tool se llama desde el MCP (cliente = Claude.ai), NO ejecutamos gpt-4o-mini.
 // En su lugar, devolvemos el transcript + el LENTE (system prompt que ya está afinado)
 // para que el propio Claude del chat aplique el análisis con su capacidad superior.

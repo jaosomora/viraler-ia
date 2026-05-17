@@ -80,7 +80,7 @@ export function makeHandler(user) {
 
       lines.push('');
       lines.push('─── PRÓXIMOS PASOS QUE PUEDES OFRECER (no ejecutar sin confirmación) ───');
-      lines.push(`• Análisis de ideas (idea pelada + molde replicable) → analyze_ideas(transcription_id=${result.transcriptionId})`);
+      lines.push(`• Decomponer estructura del video (idea pelada + molde replicable) → analyze_video_transcript(transcription_id=${result.transcriptionId})`);
       lines.push('• Resumen ejecutivo del contenido (puedes hacerlo tú mismo en el chat)');
       lines.push(`• Releer transcript completo más tarde → get_transcription(transcription_id=${result.transcriptionId})`);
 

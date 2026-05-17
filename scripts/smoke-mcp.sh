@@ -156,11 +156,11 @@ TOOLS=$(curl -sf -X POST "$BASE/mcp" \
   | sed -n 's/^data: //p' \
   | python3 -c "import json,sys; print(','.join(t['name'] for t in json.load(sys.stdin)['result']['tools']))")
 
-# Verificar que están las 4 tools del MVP
-for tool in list_my_transcriptions transcribe_video_url get_transcription analyze_ideas; do
+# Verificar que están las 5 tools del MVP
+for tool in list_my_transcriptions transcribe_video_url get_transcription analyze_video_transcript build_idea_map; do
   echo "$TOOLS" | grep -q "$tool" || fail "tool '$tool' no aparece en tools/list"
 done
-ok "tools/list devuelve las 4 tools esperadas"
+ok "tools/list devuelve las 5 tools esperadas"
 
 # ─── 9. tool/call read-only (list_my_transcriptions) ──────────────────────
 step "9. tools/call list_my_transcriptions (read-only, sin costo)"
