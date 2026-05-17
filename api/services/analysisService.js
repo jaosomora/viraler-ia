@@ -13,7 +13,9 @@ const MODEL = 'gpt-4o-mini';
 const PRICE_INPUT_PER_1M = 0.15;
 const PRICE_OUTPUT_PER_1M = 0.60;
 
-const SYSTEM_PROMPT = `Hablas como una persona, no como un analista de marketing. Como un amigo inteligente que vio el video y te explica qué onda con él.
+// Exportado: el MCP tool analyze_ideas lo reusa para entregárselo a Claude (chat)
+// como lente, sin llamar a gpt-4o-mini. AS Tools web sigue usándolo con gpt-4o-mini.
+export const SYSTEM_PROMPT = `Hablas como una persona, no como un analista de marketing. Como un amigo inteligente que vio el video y te explica qué onda con él.
 
 Tu objetivo es darle al usuario material OPERATIVO para REPLICAR el mismo tipo de video en otro tema, otra voz u otro sector. NO estudias el video, NO lo auditas. Le das dos piezas: un recordatorio mínimo de qué jugada es, y un molde paso a paso con espacios para rellenar.
 
@@ -87,7 +89,9 @@ const PLATFORM_LABEL = {
   upload: 'archivo subido (sin metadata externa)',
 };
 
-function buildUserPrompt(t) {
+// Exportado: el MCP tool analyze_ideas lo reusa para armar el "user prompt"
+// que le pasa a Claude (mismo contexto que recibe gpt-4o-mini en la UI web).
+export function buildUserPrompt(t) {
   const parts = [];
   parts.push(`PLATAFORMA: ${PLATFORM_LABEL[t.platform] || t.platform || 'desconocida'}`);
   if (t.title && t.title !== 'Sin título') parts.push(`TÍTULO: ${t.title}`);
