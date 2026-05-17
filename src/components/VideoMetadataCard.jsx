@@ -47,11 +47,22 @@ const VideoMetadataCard = ({ transcription }) => {
   if (!transcription) return null;
 
   const {
-    thumbnail, title, duration, platform,
+    thumbnail, title, duration, platform, channel,
     viewCount, likeCount, commentCount, shareCount,
     uploaderHandle, uploaderUrl, uploadDate,
     description, hashtags
   } = transcription;
+
+  // Resolución del handle a mostrar (@xxx). yt-dlp en TikTok mete el user_id
+  // numérico en uploader_handle (ej "6760748400905339909") mientras el handle
+  // real ("azurtejada") está en channel o embebido en uploaderUrl.
+  // Preferencia: uploader_handle si NO es numérico → handle parseado de URL
+  // (/@xxx/) → channel. Mismo criterio que api/mcp/tools/_videoMetadataFormat.js.
+  const handleIsNumeric = uploaderHandle && /^\d+$/.test(String(uploaderHandle));
+  const handleFromUrl = uploaderUrl?.match(/\/@([^\/?#]+)/)?.[1];
+  const displayHandle = handleIsNumeric
+    ? (handleFromUrl || channel || null)
+    : uploaderHandle;
 
   // Si no hay ni una sola señal de engagement/contexto, no renderizamos nada.
   const hasAnySignal = [
@@ -102,14 +113,14 @@ const VideoMetadataCard = ({ transcription }) => {
         <div className="flex-1 min-w-0">
           {/* Línea autor · fecha · duración */}
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xs text-gray-600 dark:text-gray-300 mb-1">
-            {uploaderHandle && (
+            {displayHandle && (
               uploaderUrl ? (
                 <a href={uploaderUrl} target="_blank" rel="noopener noreferrer"
                    className="font-semibold text-gray-900 dark:text-white hover:underline text-sm">
-                  @{uploaderHandle}
+                  @{displayHandle}
                 </a>
               ) : (
-                <span className="font-semibold text-gray-900 dark:text-white text-sm">@{uploaderHandle}</span>
+                <span className="font-semibold text-gray-900 dark:text-white text-sm">@{displayHandle}</span>
               )
             )}
             {relativeDate && <><span className="text-gray-400 dark:text-gray-500">·</span><span>{relativeDate}</span></>}
