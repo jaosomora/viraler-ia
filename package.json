@@ -20,7 +20,8 @@
     "docker:start:detached": "docker-compose up -d",
     "docker:stop": "docker-compose down",
     "docker:bash": "docker-compose exec as-transcribe bash",
-    "docker:logs": "docker-compose logs -f"
+    "docker:logs": "docker-compose logs -f",
+    "smoke:mcp": "bash scripts/smoke-mcp.sh"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

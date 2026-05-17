@@ -304,6 +304,32 @@ magic link al flujo OAuth, ver "Magic link en OAuth" en sección Roadmap.
 
 ## 6. Cómo operar en prod
 
+### Testing
+
+El proyecto tiene **2 niveles de tests** para el MCP:
+
+**Tier 1 — smoke test end-to-end** (`scripts/smoke-mcp.sh`)
+- Ejercita: discovery → DCR → login → consent → token → initialize → tools/list → tool/call
+- Corre con: `npm run smoke:mcp`
+- Default contra `http://localhost:3000` con usuario `oauth-test@example.com`
+- Contra prod: `BASE=https://as-tools.algosentido.com EMAIL=tu@email.com PASS=xxx npm run smoke:mcp`
+- Sale 0 si todo OK, 1 si algo falla. Usar después de cada deploy importante.
+
+**Tier 2 — unit tests** (Vitest)
+- `npm test` corre todos los tests (incluyendo los de Reels).
+- Cobertura crítica del MCP:
+  - `api/oauth/session.test.js` — HMAC de cookies de sesión (rotación de secret, tampering, expiration)
+  - `api/oauth/token.test.js` — PKCE S256 (verifier válido, inválido, longitud mínima/máxima)
+  - `api/mcp/audit.test.js` — `checkQuota` (owner unlimited, sin cuota, en límite, excedido) + `isQuotaApplicable`
+- ~40 tests para MCP, corren en <1s.
+
+**Lo que NO está cubierto** (roadmap):
+- Integration tests con `supertest` (Express in-process + hit real a `/oauth/*` y `/mcp`)
+- CI en GitHub Actions (corre tests automáticamente en cada PR)
+- Tests del MCP transport (Streamable HTTP) — depende del SDK upstream
+
+### URLs de producción
+
 ### URLs de producción
 
 - App + UI web: `https://as-tools.algosentido.com`

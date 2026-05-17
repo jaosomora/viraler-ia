@@ -10,6 +10,15 @@ ordenado por fecha descendente. Para detalles del MCP server ver `docs/MCP.md`.
 
 ## 2026-05-17 — Sprint MCP inicial
 
+### Tests (Tier 1 + 2)
+- **`scripts/smoke-mcp.sh`** — smoke test end-to-end del MCP: discovery → DCR → login → consent → token → initialize → tools/list → tool/call. Configurable via `BASE`, `EMAIL`, `PASS`. Corre con `npm run smoke:mcp`.
+- **Unit tests críticos del OAuth + audit**:
+  - `api/oauth/session.test.js` — HMAC de cookies de sesión (round-trip, tampering, expiración, rotación de secret)
+  - `api/oauth/token.test.js` — PKCE S256 (válido, inválido, longitudes límite, padding)
+  - `api/mcp/audit.test.js` — `checkQuota` (owner unlimited, sin cuota, en/sobre límite) + `isQuotaApplicable`
+- `verifyPkceS256` exportada desde `api/oauth/token.js` para testabilidad.
+- Total: ~40 tests del MCP corren en <1s. Existentes de Reels intactos.
+
 ### Documentación
 - **docs/MCP.md** — doc maestro del MCP server (arquitectura, OAuth, receta para agregar tools, operación, roadmap)
 - **docs/CHANGELOG.md** — este archivo, arrancando con el sprint MCP
