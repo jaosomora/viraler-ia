@@ -43,7 +43,7 @@ export default function IdeaMapPage() {
           });
           setStep('success');
         } else if (data.status === 'exhausted') {
-          setMapState({ status: 'exhausted', map_id: data.id, message: 'Esto no se desbloquea con repreguntas. Trabajalo offline antes de volver.' });
+          setMapState({ status: 'exhausted', map_id: data.id, message: 'Esto no se desbloquea con repreguntas. Trabájalo offline antes de volver.' });
           setStep('exhausted');
         } else {
           setMapState({
@@ -120,7 +120,7 @@ export default function IdeaMapPage() {
           Generador de Ideas
         </h1>
         <p className="mt-3 text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-          Mapa de contraste → territorios → cruces → 4-5 frases crudas que suenan a vos. La compuerta se niega a generar si el insumo está roto.
+          Mapa de contraste → territorios → cruces → 4-5 frases crudas que suenan a ti. La compuerta se niega a generar si el insumo está roto.
         </p>
       </div>
 
@@ -137,7 +137,7 @@ export default function IdeaMapPage() {
       {step === 'form' && (
         <form onSubmit={submitInitial} className="space-y-5">
           <div className="bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 p-4 rounded-lg text-sm text-violet-900 dark:text-violet-200">
-            <strong>Cómo escribir esto:</strong> escenas concretas. Martes a tal hora, qué hacés, con quién, dónde. A qué le dijiste sí, a qué le dijiste no. No sentimientos ("me siento sin libertad"), no adjetivos ("amplitud", "paz"). Si la compuerta detecta sentimientos en vez de escenas, no genera y te pide reescribirlas.
+            <strong>Cómo escribir esto:</strong> escenas concretas. Martes a tal hora, qué haces, con quién, dónde. A qué le dijiste sí, a qué le dijiste no. No sentimientos ("me siento sin libertad"), no adjetivos ("amplitud", "paz"). Si la compuerta detecta sentimientos en vez de escenas, no genera y te pide reescribirlas.
           </div>
 
           <div>

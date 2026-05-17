@@ -48,7 +48,7 @@ describe('runGate — compuerta', () => {
 
   it('E2 Fallo 1 subtle: escena con sentimiento incrustado → rechazo fallo_1', async () => {
     globalThis.fetch.mockResolvedValueOnce(mockOpenAIResponse({
-      fallo_1: { detected: true, evidence: '"los lunes me siento mal"', repregunta: '¿Qué pasa exactamente el lunes? Escribe qué haces, con quién, dónde — no cómo te sentís.' },
+      fallo_1: { detected: true, evidence: '"los lunes me siento mal"', repregunta: '¿Qué pasa exactamente el lunes? Escribe qué haces, con quién, dónde — no cómo te sientes.' },
       fallo_2: { detected: false, axis_candidate: '', evidence: '', repregunta: '' },
       extracted_territorios: [],
       axis_mode: 'multi',
@@ -68,7 +68,7 @@ describe('runGate — compuerta', () => {
       fallo_2: {
         detected: true, axis_candidate: 'dinero',
         evidence: 'Trabajo, casa y tiempo libre — los tres colapsan en escasez económica.',
-        repregunta: 'Si el dinero estuviera resuelto, fuera de la ecuación para siempre, ¿qué de la vida que NO querés seguiría exactamente igual? Tu cabeza va a querer irse a lo bueno — no la dejes. Quedate en el martes con todo resuelto y buscá una sola cosa que igual te incomode.',
+        repregunta: 'Si el dinero estuviera resuelto, fuera de la ecuación para siempre, ¿qué de la vida que NO quieres seguiría exactamente igual? Tu cabeza va a querer irse a lo bueno — no la dejes. Quédate en el martes con todo resuelto y busca una sola cosa que igual te incomode.',
       },
       extracted_territorios: [],
       axis_mode: 'single_pending_desacople',
@@ -90,7 +90,7 @@ describe('runGate — compuerta', () => {
       fallo_2: {
         detected: true, axis_candidate: 'tiempo',
         evidence: 'Salud, vida social y proyectos personales — los tres colapsan en falta de horas.',
-        repregunta: 'Si tuvieras todo el tiempo del mundo, ¿qué de la vida que NO querés seguiría igual?',
+        repregunta: 'Si tuvieras todo el tiempo del mundo, ¿qué de la vida que NO quieres seguiría igual?',
       },
       extracted_territorios: [],
       axis_mode: 'single_pending_desacople',
@@ -125,7 +125,7 @@ describe('runGate — compuerta', () => {
       vida_si_quiero: 'trabajo medio tiempo en lo mío, vivo en el sur, voy a ver a mi familia cada dos meses.',
       prior_attempts: [{
         filter: 'fallo_2',
-        repregunta: 'Si el dinero estuviera resuelto, ¿qué de la vida que NO querés seguiría igual?',
+        repregunta: 'Si el dinero estuviera resuelto, ¿qué de la vida que NO quieres seguiría igual?',
         user_response: 'Entonces todo estaría bien, viajaría por el mundo, crearía sin parar, fluiría.',
       }],
     });

@@ -40,7 +40,7 @@ const tools = [
   },
   {
     name: 'Generador de Ideas',
-    description: 'Mapa de contraste de tu vida → territorios → cruces → 4-5 frases con torsión que suenan a vos. La compuerta se niega a generar si el insumo está roto.',
+    description: 'Mapa de contraste de tu vida → territorios → cruces → 4-5 frases con torsión que suenan a ti. La compuerta se niega a generar si el insumo está roto.',
     path: '/mapa-de-ideas',
     icon: (
       <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
