@@ -18,7 +18,7 @@ const TOOLS = {
   list_my_transcriptions: { ...listMyTranscriptions, requiredScope: listMyTranscriptions.requiredScope || 'transcribe:read' },
   transcribe_video_url:   { ...transcribeVideoUrl },
   get_transcription:      { ...getTranscription },
-  analyze_ideas:          { ...analyzeIdeas },
+  analyze_video_transcript: { ...analyzeIdeas },
   build_idea_map:         { ...buildIdeaMap },
 };
 
@@ -94,7 +94,7 @@ export function buildServerForUser(user, grantedScopes = [], clientId = null) {
         '  • transcribe_video_url(url) → baja audio y transcribe\n' +
         '  • get_transcription(id) → lee transcript guardado\n' +
         '  • list_my_transcriptions() → lista los del usuario\n' +
-        '  • analyze_ideas(transcription_id) → extrae estructura replicable de un video ajeno ya transcrito\n' +
+        '  • analyze_video_transcript(transcription_id) → extrae estructura replicable de un video ajeno ya transcrito\n' +
         'Trigger: el usuario menciona un VIDEO específico, pega una URL, o quiere analizar contenido AJENO.\n\n' +
         'FAMILIA 2 — Generación de ideas PROPIAS (sin videos):\n' +
         '  • build_idea_map(tema, vida_no_quiero, vida_si_quiero, prior_attempts) → ayuda al usuario a generar 4-5 frases con torsión sobre SU PROPIO tema (vida, negocio, producto, servicio). NO usa videos. NO pide URLs.\n' +

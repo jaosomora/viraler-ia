@@ -36,8 +36,8 @@ describe('isQuotaApplicable', () => {
     expect(isQuotaApplicable('get_transcription')).toBe(false);
   });
 
-  it('NO aplica a analyze_ideas (delega a Claude, sin costo en server)', () => {
-    expect(isQuotaApplicable('analyze_ideas')).toBe(false);
+  it('NO aplica a analyze_video_transcript (delega a Claude, sin costo en server)', () => {
+    expect(isQuotaApplicable('analyze_video_transcript')).toBe(false);
   });
 
   it('NO aplica a tool desconocida', () => {

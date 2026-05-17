@@ -14,7 +14,7 @@ import {
 export const requiredScope = 'ideas:write';
 
 export const description =
-  '⚡ GENERADOR DE IDEAS de AS Tools. Esta es LA tool del producto llamado "Generador de Ideas". Si el usuario dice cualquiera de estas frases, USA ESTA TOOL (no analyze_ideas, no transcribe_video_url):\n' +
+  '⚡ GENERADOR DE IDEAS de AS Tools. Esta es LA tool del producto llamado "Generador de Ideas". Si el usuario dice cualquiera de estas frases, USA ESTA TOOL (no analyze_video_transcript, no transcribe_video_url):\n' +
   '• "Generador de Ideas"\n' +
   '• "quiero usar el Generador de Ideas"\n' +
   '• "generar/sacar/hacer ideas"\n' +
@@ -29,7 +29,7 @@ export const description =
 
   'Diferencia con las otras tools:\n' +
   '• transcribe_video_url = baja audio de una URL y lo transcribe.\n' +
-  '• analyze_ideas = analiza un video AJENO que el usuario ya transcribió (necesita transcription_id).\n' +
+  '• analyze_video_transcript = analiza un video AJENO que el usuario ya transcribió (necesita transcription_id).\n' +
   '• build_idea_map (esta) = GENERA ideas propias del usuario desde un mapa de contraste. SIN VIDEO. SIN URL. SIN TRANSCRIPCIÓN.\n\n' +
 
   'NO ejecuta ningún LLM en el servidor — el razonamiento (extraer territorios, aplicar la compuerta de 3 fallos, generar las 4-5 ideas con torsión) lo haces tú mismo siguiendo el LENTE. Sin costo OpenAI.\n\n' +

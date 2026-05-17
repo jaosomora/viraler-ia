@@ -1,7 +1,7 @@
 // api/services/transcribeService.js
 // Versión promisificada del flujo de transcripción que devuelve el row id insertado.
 // Necesaria para el MCP tool, que necesita devolver el id al cliente para que pueda
-// llamar a get_transcription / analyze_ideas después.
+// llamar a get_transcription / analyze_video_transcript después.
 //
 // El handler REST original (api/transcribeVideo.js) no lo necesita porque devuelve el
 // transcript completo en el mismo response. No tocamos ese handler.

@@ -400,7 +400,7 @@ Cada refresh emite nuevo refresh + revoca el anterior. Si un atacante roba un re
 ### Consent UI server-rendered en HTML puro (no React)
 El authorize endpoint es donde se decide a quién dar acceso a una cuenta. Menos JavaScript = menos superficie XSS, menos dependencias que auditar. También no requiere que el bundle React esté cargado para autorizar.
 
-### `analyze_ideas` en MCP NO llama gpt-4o-mini
+### `analyze_video_transcript` en MCP NO llama gpt-4o-mini
 Cuando el cliente está en Claude.ai, ya está pagando Claude (más capaz). Hacer una llamada a OpenAI desde el server es dejar calidad sobre la mesa y agregar costo innecesario. El tool devuelve transcript + lente y deja que Claude del chat haga la síntesis. La UI web SÍ sigue usando gpt-4o-mini porque ahí no hay un LLM disponible.
 
 ### `build_idea_map` lleva ese patrón un paso más allá: la compuerta vive en el LENS
