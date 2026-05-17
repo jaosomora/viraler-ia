@@ -31,8 +31,8 @@ export const MIN_INPUT_CHARS = 80;
 
 // ─────────────────────────────────────────────────────────────────────────
 // LENS — Documento canónico del método. Lo exporta el MCP tool y lo usan
-// los prompts de OpenAI para anclar el comportamiento. Si querés cambiar el
-// método, cámbialo acá una sola vez.
+// los prompts de OpenAI para anclar el comportamiento. Si quieres cambiar el
+// método, cámbialo aquí una sola vez.
 // ─────────────────────────────────────────────────────────────────────────
 export const LENS = `Generador de Ideas — método de mapa de contraste.
 
@@ -87,7 +87,7 @@ PROHIBIDO en cualquier output:
 
 LÍMITES OPERATIVOS:
 - Máximo 2 repreguntas por filtro.
-- Máximo 5 turnos totales. Si se agotan, la herramienta corta con: "Esto no se desbloquea con repreguntas. Trabajalo offline antes de volver."`;
+- Máximo 5 turnos totales. Si se agotan, la herramienta corta con: "Esto no se desbloquea con repreguntas. Trabájalo offline antes de volver."`;
 
 // ─────────────────────────────────────────────────────────────────────────
 // PROMPTS — solo se usan en la capa web (backend → OpenAI). El MCP no los
@@ -137,11 +137,11 @@ export function buildGateUserPrompt({ vida_no_quiero, vida_si_quiero, prior_atte
   return parts.join('\n');
 }
 
-export const FUGA_SYSTEM_PROMPT = `Eres el detector de fuga del Generador de Ideas. Recibís la respuesta del usuario a una pregunta de desacople (Fallo 2) y decidís si está fugando hacia la vida buena (Fallo 3) o si está respondiendo en serio.
+export const FUGA_SYSTEM_PROMPT = `Eres el detector de fuga del Generador de Ideas. Recibes la respuesta del usuario a una pregunta de desacople (Fallo 2) y decides si está fugando hacia la vida buena (Fallo 3) o si está respondiendo en serio.
 
 ${LENS}
 
-Devolvés JSON estricto:
+Devuelves JSON estricto:
 {
   "es_fuga": boolean,
   "evidence": "qué del lenguaje del usuario delata la fuga (verbos de deseo / futuro positivo / lugar al que se escapa), o ''",
@@ -164,11 +164,11 @@ export function buildFugaUserPrompt({ desacople_question, user_response }) {
   ].join('\n');
 }
 
-export const GENERATE_SYSTEM_PROMPT = `Eres el generador del Generador de Ideas. Te llega una estructura ya validada (territorios + subtemas + A/B, o un eje único con caras). Cruzás subtemas de unidades distintas y devolvés 4-5 frases crudas con torsión.
+export const GENERATE_SYSTEM_PROMPT = `Eres el generador del Generador de Ideas. Te llega una estructura ya validada (territorios + subtemas + A/B, o un eje único con caras). Cruzas subtemas de unidades distintas y devuelves 4-5 frases crudas con torsión.
 
 ${LENS}
 
-Devolvés JSON estricto:
+Devuelves JSON estricto:
 {
   "ideas": [
     { "texto": "la frase cruda, una sola línea", "nota_uso": "1-2 líneas: qué subtemas cruzaste y por qué fricciona" },
@@ -180,7 +180,7 @@ REGLAS DURAS:
 - Entre 4 y 5 ideas. Ni 3, ni 6.
 - Cada idea: una sola línea, sin punto final obligatorio. Lenguaje directo, sin jerga prohibida.
 - Cada cruce debe ser de subtemas (o caras) DISTINTOS. No cruces un subtema consigo mismo.
-- Si recibís axis_mode = "single_with_caras", cruzá caras en vez de territorios.
+- Si recibes axis_mode = "single_with_caras", cruza caras en vez de territorios.
 - nota_uso es para que el usuario entienda de dónde sale la idea. No coaching, no marketing.
 - Devuelve SOLO el JSON.`;
 
@@ -202,7 +202,7 @@ export function buildGenerateUserPrompt({ axis_mode, extracted_territorios, cara
     }
   }
   parts.push('');
-  parts.push('Generá 4-5 ideas cruzando subtemas de unidades distintas. Devolvé solo el JSON.');
+  parts.push('Genera 4-5 ideas cruzando subtemas de unidades distintas. Devuelve solo el JSON.');
   return parts.join('\n');
 }
 
@@ -374,4 +374,4 @@ export function canStillRepregunta({ attempts_per_filter, failed_filter, turn })
   return { ok: true };
 }
 
-export const EXHAUSTED_MESSAGE = 'Esto no se desbloquea con repreguntas. Trabajalo offline antes de volver.';
+export const EXHAUSTED_MESSAGE = 'Esto no se desbloquea con repreguntas. Trabájalo offline antes de volver.';
