@@ -14,12 +14,18 @@ import {
 export const requiredScope = 'ideas:write';
 
 export const description =
-  'Generador de ideas de contenido para creadores. Ayuda al usuario a sacar 4-5 frases con torsión que suenen a su voz (no a las de cualquier otro creador) sobre el TEMA que quiera comunicar — su vida, su negocio, un producto, un servicio, una práctica, lo que sea. Devuelve un LENTE de trabajo que TÚ (Claude) aplicas en este chat.\n\n' +
+  'GENERADOR DE IDEAS de AS Tools. Esta es LA tool del "Generador de Ideas" — si el usuario menciona "Generador de Ideas", "quiero usar el Generador de Ideas", "quiero generar ideas", "ideas para mis publicaciones", "ideas para contenido", "mapa de ideas", "ideas que suenen a mí" → es ESTA tool, no analyze_ideas.\n\n' +
 
-  'NO ejecuta ningún LLM en el servidor — el razonamiento (extraer territorios, aplicar la compuerta de 3 fallos, ' +
-  'generar las 4-5 ideas con torsión) lo haces tú mismo siguiendo el LENTE. Sin costo OpenAI.\n\n' +
+  'Qué hace: ayuda al usuario a sacar 4-5 frases CRUDAS con torsión que suenen a su voz (no a las de cualquier otro creador), sobre el TEMA que quiera comunicar — su vida, su negocio, un producto, un servicio, una práctica, lo que sea. NO analiza videos. NO procesa URLs. NO necesita transcripciones previas. El usuario te da un tema + dos columnas en escenas concretas (cómo NO/SÍ quiere que sea ese tema) y tú generas las ideas.\n\n' +
 
-  'CÓMO USAR EL RESULTADO (importante):\n' +
+  'IMPORTANTE — diferencia con analyze_ideas:\n' +
+  '• analyze_ideas = analiza un video AJENO que el usuario ya transcribió (necesita transcription_id).\n' +
+  '• build_idea_map (esta) = GENERA ideas propias del usuario desde un mapa de contraste. Sin video, sin transcripción.\n' +
+  'Si el usuario dice "Generador de Ideas" o "generar/sacar/hacer ideas" sobre su propio tema → SIEMPRE esta tool.\n\n' +
+
+  'NO ejecuta ningún LLM en el servidor — el razonamiento (extraer territorios, aplicar la compuerta de 3 fallos, generar las 4-5 ideas con torsión) lo haces tú mismo siguiendo el LENTE. Sin costo OpenAI.\n\n' +
+
+  'CÓMO USAR EL RESULTADO:\n' +
   '1. Lee el bloque "LENTE" → es el método completo + las 3 reglas de la compuerta + el formato de salida.\n' +
   '2. Lee "INPUTS" → tema + las dos columnas crudas + historial de intentos previos en este mismo mapa.\n' +
   '3. Aplica el LENTE: intenta extraer territorios del texto sobre el tema. Si tropiezas con Fallo 1 (sentimiento o abstracción en vez de escena) o Fallo 2 (eje único disfrazado), NO generes ideas — devuélvele al usuario el repregunta exacto que pide el LENTE. Si el último turno fue una respuesta a Fallo 2, verifica Fallo 3 (la fuga) antes de avanzar.\n' +
@@ -27,10 +33,9 @@ export const description =
   '5. Respeta los límites: máximo ' + MAX_ATTEMPTS_PER_FILTER + ' repreguntas por filtro, máximo ' + MAX_TOTAL_TURNS + ' turnos totales. Si se agota, corta con: "' + EXHAUSTED_MESSAGE + '"\n' +
   '6. La compuerta es el producto, no un caso de error. Negarse a generar cuando el insumo está roto es la feature principal.\n\n' +
 
-  'PARA SEGUIR LA CONVERSACIÓN: si el usuario responde a tu repregunta, vuelve a llamar este tool con el mismo tema + columnas + array prior_attempts actualizado (agregando el filtro que rechazaste, tu repregunta literal y la respuesta nueva del usuario). El servidor es stateless — TÚ mantienes el hilo.\n\n' +
+  'PRIMER TURNO: si el usuario te dice "quiero usar el Generador de Ideas" sin más contexto, NO llames esta tool todavía. Antes pregúntale: (a) sobre qué tema quiere sacar ideas, (b) que escriba cómo NO quiere que sea ese tema en escenas concretas, (c) cómo SÍ. Recién con esos 3 datos llamas la tool. NUNCA inventes los inputs por el usuario.\n\n' +
 
-  'Usa este tool cuando el usuario pida: "ayúdame a generar ideas para mis publicaciones", "tengo bloqueo creativo", ' +
-  '"quiero hacer mi mapa de ideas", "ideas que suenen a mí", "ideas de contenido sobre [tema]". NO uses para analizar videos ajenos (eso es analyze_ideas).';
+  'PARA SEGUIR LA CONVERSACIÓN: si el usuario responde a tu repregunta, vuelve a llamar este tool con el mismo tema + columnas + array prior_attempts actualizado (agregando el filtro que rechazaste, tu repregunta literal y la respuesta nueva del usuario). El servidor es stateless — TÚ mantienes el hilo.';
 
 export const annotations = {
   title: 'Generador de Ideas (compuerta + cruces)',
