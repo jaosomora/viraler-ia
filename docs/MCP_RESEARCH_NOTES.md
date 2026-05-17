@@ -1,4 +1,6 @@
-Excelente. Tengo ahora suficiente información para crear una investigación exhaustiva. Voy a organizarla en un documento estructurado.
+> ⚠️ **Archivo histórico** — este es el dump de la investigación inicial (mayo 2026) que justificó las decisiones técnicas del MCP server. Se conserva como referencia.
+>
+> **Para la documentación VIVA del sistema, ver `docs/MCP.md`**. Esta nota puede tener información desactualizada — el código y `MCP.md` son la fuente de verdad.
 
 ---
 

@@ -134,6 +134,30 @@ Required in `.env`:
 4. New page in `src/pages/`, new route in `App.jsx`
 5. Add card to `ToolHub.jsx`, link in `Header.jsx` and `Footer.jsx`
 6. Add tab in `MyResults.jsx`, section in `AdminPanel.jsx`
+7. **MCP**: ver regla obligatoria abajo. Considerar exponer la funcionalidad vía MCP en `api/mcp/tools/` siguiendo la receta de `docs/MCP.md` sección 4.
+
+## MCP Server (Model Context Protocol)
+AS Tools tiene un **servidor MCP remoto** en `https://as-tools.algosentido.com/mcp` que expone funcionalidades del backend a clientes de IA como Claude.ai vía OAuth 2.1. Permite que los clientes finales usen AS Tools directamente desde su chat de Claude (transcribir, analizar ideas, etc).
+
+**Archivos clave**: `api/mcp/` (server, tools, audit, admin) y `api/oauth/` (OAuth 2.1 flow completo).
+**Tab admin**: `/admin → 🔌 MCP` para monitoreo, cuotas, audit log, toggle de emergencia.
+
+**Documentación viva**: `docs/MCP.md` cubre arquitectura, flujo OAuth, receta para agregar tools, operación en prod, decisiones de diseño, y roadmap. **Léelo antes de tocar `api/mcp/*` o `api/oauth/*`.**
+
+### Regla obligatoria — considerar MCP en todo cambio de backend
+Toda sesión que toque endpoints REST en `server.js` o services en `api/services/` debe **proponer explícitamente** la implementación MCP de ese cambio como parte del plan. El default mental es "¿esto también debería estar disponible vía MCP?" — no preguntar es la excepción, no la regla.
+
+Aplica a:
+- ✅ Endpoints REST nuevos
+- ✅ Cambios en services del backend (lógica que tools podrían reusar)
+- ✅ Cambios en responses que afectan estructura de datos
+- ❌ NO aplica a fixes triviales de UI o estilo
+- ❌ NO aplica a refactors internos sin cambio funcional
+
+Si la respuesta es "no exponer en MCP", justificar brevemente. Si es "sí", incluirlo en el plan desde el inicio (no como afterthought). La receta para agregar una tool MCP está en `docs/MCP.md` sección 4 — son ~30 líneas de código si la lógica ya existe en un service.
+
+### Mantener docs en sync
+Si tu cambio toca `api/mcp/*`, `api/oauth/*`, agrega columnas relacionadas en `schema.js`, o cambia comportamiento del MCP — **actualiza `docs/MCP.md` y `docs/CHANGELOG.md` en el mismo commit**. Hay un hook en `.claude/settings.json` que recuerda esto al final de cada sesión.
 
 ## Portable Claude Setup
 This project keeps all Claude Code config in git for portability across machines:
