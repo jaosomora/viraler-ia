@@ -156,8 +156,19 @@ Aplica a:
 
 Si la respuesta es "no exponer en MCP", justificar brevemente. Si es "sí", incluirlo en el plan desde el inicio (no como afterthought). La receta para agregar una tool MCP está en `docs/MCP.md` sección 4 — son ~30 líneas de código si la lógica ya existe en un service.
 
-### Mantener docs en sync
-Si tu cambio toca `api/mcp/*`, `api/oauth/*`, agrega columnas relacionadas en `schema.js`, o cambia comportamiento del MCP — **actualiza `docs/MCP.md` y `docs/CHANGELOG.md` en el mismo commit**. Hay un hook en `.claude/settings.json` que recuerda esto al final de cada sesión.
+### Mantener docs + tests en sync
+Si tu cambio toca `api/mcp/*`, `api/oauth/*`, `api/services/*`, o agrega columnas en `schema.js`:
+
+**Docs** (en el mismo commit):
+- Actualiza `docs/MCP.md` si cambió arquitectura/endpoints/tools
+- Agrega entrada en `docs/CHANGELOG.md` (una línea, descriptiva)
+
+**Tests** (en el mismo commit cuando aplique):
+- Si la lógica nueva es testeable de forma aislada (pura o con mock simple) → agrega/extiende `.test.js` siguiendo el patrón existente
+- Antes de commitear: `npm test` (debe pasar todo, <1s) y `npm run smoke:mcp` (si el dev backend está arriba)
+- Después del deploy a Render: `BASE=https://as-tools.algosentido.com EMAIL=… PASS=… npm run smoke:mcp` para confirmar prod
+
+El hook Stop en `.claude/settings.json` (`mcp-checks.sh`) te recuerda los pendientes de docs y tests al final de cada sesión, y siempre te recuerda correr los tests + smoke antes de commitear. No bloquea — solo avisa.
 
 ## Portable Claude Setup
 This project keeps all Claude Code config in git for portability across machines:
