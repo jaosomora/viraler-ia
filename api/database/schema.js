@@ -442,6 +442,10 @@ db.serialize(() => {
     )
   `);
   db.run(`CREATE INDEX IF NOT EXISTS idx_idea_maps_user_created ON idea_maps(user_id, created_at DESC)`, () => {});
+  // Tema sobre el que se sacan ideas (ej: "mi negocio de café", "ser papá", "mi vida").
+  // Permite que la herramienta sirva para cualquier dominio, no solo "vida".
+  // Mapas antiguos creados antes de esta columna quedan con NULL — el service usa fallback.
+  db.run(`ALTER TABLE idea_maps ADD COLUMN tema TEXT`, () => {});
 
   // Magic link tokens — login sin contraseña por email (15 min, un solo uso).
   // Se guarda el hash SHA-256 del token, nunca el token en claro.

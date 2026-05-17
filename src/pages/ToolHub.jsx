@@ -40,7 +40,7 @@ const tools = [
   },
   {
     name: 'Generador de Ideas',
-    description: 'Mapa de contraste de tu vida → territorios → cruces → 4-5 frases con torsión que suenan a ti. La compuerta se niega a generar si el insumo está roto.',
+    description: 'Ideas para tus publicaciones que suenan a ti, no a cualquier otro creador. Funciona para tu vida, tu negocio, un producto, un servicio — lo que quieras comunicar. Frases crudas con torsión, no genéricas.',
     path: '/mapa-de-ideas',
     icon: (
       <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -84,7 +84,7 @@ const ToolHub = () => {
           Algo Sentido Tools
         </h1>
         <p className="mt-3 text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-          Transcribe videos y audios, convierte documentos y comparte secretos cifrados
+          Transcribe videos, genera ideas con voz propia, convierte documentos y más
         </p>
       </div>
 

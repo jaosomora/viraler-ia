@@ -14,24 +14,23 @@ import {
 export const requiredScope = 'ideas:write';
 
 export const description =
-  'Generador de ideas para creadores de contenido. Recibe dos columnas crudas en escenas concretas ' +
-  '(vida que NO quiere y vida que SÍ quiere) y devuelve un LENTE de trabajo que TÚ (Claude) aplicas en este chat.\n\n' +
+  'Generador de ideas de contenido para creadores. Ayuda al usuario a sacar 4-5 frases con torsión que suenen a su voz (no a las de cualquier otro creador) sobre el TEMA que quiera comunicar — su vida, su negocio, un producto, un servicio, una práctica, lo que sea. Devuelve un LENTE de trabajo que TÚ (Claude) aplicas en este chat.\n\n' +
 
   'NO ejecuta ningún LLM en el servidor — el razonamiento (extraer territorios, aplicar la compuerta de 3 fallos, ' +
   'generar las 4-5 ideas con torsión) lo haces tú mismo siguiendo el LENTE. Sin costo OpenAI.\n\n' +
 
   'CÓMO USAR EL RESULTADO (importante):\n' +
   '1. Lee el bloque "LENTE" → es el método completo + las 3 reglas de la compuerta + el formato de salida.\n' +
-  '2. Lee "INPUTS" → las dos columnas crudas + historial de intentos previos en este mismo mapa.\n' +
-  '3. Aplica el LENTE: intenta extraer territorios del texto. Si tropiezas con Fallo 1 (sentimiento en vez de escena) o Fallo 2 (eje único disfrazado), NO generes ideas — devuélvele al usuario el repregunta exacto que pide el LENTE. Si el último turno fue una respuesta a Fallo 2, verifica Fallo 3 (la fuga) antes de avanzar.\n' +
-  '4. Solo si el insumo pasa los tres filtros, genera 4-5 ideas crudas con torsión.\n' +
+  '2. Lee "INPUTS" → tema + las dos columnas crudas + historial de intentos previos en este mismo mapa.\n' +
+  '3. Aplica el LENTE: intenta extraer territorios del texto sobre el tema. Si tropiezas con Fallo 1 (sentimiento o abstracción en vez de escena) o Fallo 2 (eje único disfrazado), NO generes ideas — devuélvele al usuario el repregunta exacto que pide el LENTE. Si el último turno fue una respuesta a Fallo 2, verifica Fallo 3 (la fuga) antes de avanzar.\n' +
+  '4. Solo si el insumo pasa los tres filtros, genera 4-5 ideas crudas con torsión que el creador podría decir tal cual sobre ese tema.\n' +
   '5. Respeta los límites: máximo ' + MAX_ATTEMPTS_PER_FILTER + ' repreguntas por filtro, máximo ' + MAX_TOTAL_TURNS + ' turnos totales. Si se agota, corta con: "' + EXHAUSTED_MESSAGE + '"\n' +
   '6. La compuerta es el producto, no un caso de error. Negarse a generar cuando el insumo está roto es la feature principal.\n\n' +
 
-  'PARA SEGUIR LA CONVERSACIÓN: si el usuario responde a tu repregunta, vuelve a llamar este tool con el array prior_attempts actualizado (agregando el filtro que rechazaste, tu repregunta literal y la respuesta nueva del usuario). El servidor es stateless — TÚ mantienes el hilo.\n\n' +
+  'PARA SEGUIR LA CONVERSACIÓN: si el usuario responde a tu repregunta, vuelve a llamar este tool con el mismo tema + columnas + array prior_attempts actualizado (agregando el filtro que rechazaste, tu repregunta literal y la respuesta nueva del usuario). El servidor es stateless — TÚ mantienes el hilo.\n\n' +
 
-  'Usa este tool cuando el usuario pida: "ayúdame a generar ideas para mis videos", "tengo bloqueo creativo", ' +
-  '"quiero hacer mi mapa de ideas", "ideas que suenen a mí". NO uses para analizar videos ajenos (eso es analyze_ideas).';
+  'Usa este tool cuando el usuario pida: "ayúdame a generar ideas para mis publicaciones", "tengo bloqueo creativo", ' +
+  '"quiero hacer mi mapa de ideas", "ideas que suenen a mí", "ideas de contenido sobre [tema]". NO uses para analizar videos ajenos (eso es analyze_ideas).';
 
 export const annotations = {
   title: 'Generador de Ideas (compuerta + cruces)',
@@ -42,12 +41,20 @@ export const annotations = {
 };
 
 export const inputSchema = {
+  tema: z.string().min(5).describe(
+    'Sobre qué quiere sacar ideas el usuario. Puede ser cualquier dominio del cual quiera comunicar: ' +
+    'su vida, su negocio, un producto, un servicio, una práctica, una creencia, un emprendimiento. ' +
+    'Ejemplos: "ser papá con dos hijos chicos", "mi negocio de café de especialidad", "mi curso de escritura", ' +
+    '"vivir con ansiedad sin medicarme", "mi servicio de coaching para emprendedores". ' +
+    'Mínimo 5 caracteres. Si el usuario no dice un tema claro, pregúntale antes de llamar este tool.'
+  ),
   vida_no_quiero: z.string().min(MIN_INPUT_CHARS).describe(
-    'Texto crudo del usuario describiendo la vida que NO quiere, en escenas concretas (qué hace un martes, con quién, qué trabajo, a qué le dijo sí, a qué le dijo no). ' +
+    'Texto crudo del usuario describiendo cómo NO quiere que sea ese tema, en escenas concretas ' +
+    '(qué pasa, con quién, dónde, cuándo, qué se ve o se hace). ' +
     'NO sentimientos ni adjetivos abstractos. Si el usuario te escribe sentimientos, pásalos tal cual — la compuerta del LENTE los rechazará y te dirá qué pedirle.'
   ),
   vida_si_quiero: z.string().min(MIN_INPUT_CHARS).describe(
-    'Texto crudo del usuario describiendo la vida que SÍ quiere, mismo criterio que el campo anterior.'
+    'Texto crudo del usuario describiendo cómo SÍ quiere que sea ese tema, mismo criterio que el campo anterior.'
   ),
   prior_attempts: z.array(z.object({
     filter: z.enum(['fallo_1', 'fallo_2', 'fallo_3']).describe('Cuál de los tres fallos detectaste en el turno previo.'),
@@ -62,7 +69,7 @@ export const inputSchema = {
 
 export function makeHandler(/* user */) {
   return async (args) => {
-    const { vida_no_quiero, vida_si_quiero, prior_attempts } = args;
+    const { tema, vida_no_quiero, vida_si_quiero, prior_attempts } = args;
 
     // Contar intentos por filtro para informar al cliente cuántas le quedan.
     const counts = { fallo_1: 0, fallo_2: 0, fallo_3: 0 };
@@ -97,9 +104,11 @@ export function makeHandler(/* user */) {
       '─── FIN LENTE ───',
       '',
       '─── INPUTS ───',
-      `VIDA QUE NO QUIERO (lado izquierdo):\n${vida_no_quiero}`,
+      `TEMA SOBRE EL QUE EL USUARIO QUIERE SACAR IDEAS: ${tema}`,
       '',
-      `VIDA QUE SÍ QUIERO (lado derecho):\n${vida_si_quiero}`,
+      `CÓMO NO QUIERE QUE SEA "${tema}" (lado izquierdo):\n${vida_no_quiero}`,
+      '',
+      `CÓMO SÍ QUIERE QUE SEA "${tema}" (lado derecho):\n${vida_si_quiero}`,
       '',
       `ESTADO DEL MAPA: turno ${turn} de ${MAX_TOTAL_TURNS}. Intentos usados: fallo_1=${counts.fallo_1}, fallo_2=${counts.fallo_2}, fallo_3=${counts.fallo_3}. Quedan ${MAX_ATTEMPTS_PER_FILTER - counts.fallo_1}/${MAX_ATTEMPTS_PER_FILTER - counts.fallo_2}/${MAX_ATTEMPTS_PER_FILTER - counts.fallo_3} repreguntas por filtro.`,
       '',
@@ -131,7 +140,7 @@ export function makeHandler(/* user */) {
           fallo_3: MAX_ATTEMPTS_PER_FILTER - counts.fallo_3,
         },
         turns_remaining: MAX_TOTAL_TURNS - turn,
-        inputs: { vida_no_quiero, vida_si_quiero },
+        inputs: { tema, vida_no_quiero, vida_si_quiero },
         prior_attempts,
         executed_by: 'claude_in_chat',
         cost_usd: 0,

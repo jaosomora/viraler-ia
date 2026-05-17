@@ -10,15 +10,22 @@ const FILTER_LABEL = {
   fallo_3: 'La fuga',
 };
 
-const PLACEHOLDER_NO = `Ej: El martes me levanto a las 7, voy a una oficina en la que paso 9 horas, almuerzo solo frente a la pantalla, vuelvo a las 7 y solo tengo energía para mirar series. Los fines de semana le digo que sí a planes que no me interesan porque no quiero quedarme solo. Le dije sí al ascenso aunque significa viajar más, le dije no a mudarme cerca de mi familia.`;
+const PLACEHOLDER_TEMA = 'Ej: mi negocio de café de especialidad · ser papá con dos hijos chicos · mi curso de escritura · vivir con ansiedad sin medicarme';
 
-const PLACEHOLDER_SI = `Ej: El martes trabajo desde casa, hago una caminata al mediodía, almuerzo con mi pareja, termino a las 6 y leo dos horas. Los sábados veo a dos o tres amigos cercanos, no más. Le digo no a clientes que pagan poco aunque sean prestigiosos, le digo sí a proyectos de 3 meses en vez de relaciones de 2 años.`;
+const PLACEHOLDER_NO = `Escenas concretas, no sentimientos.
+Ej (negocio): Los lunes mando una propuesta y el cliente responde "lo pienso" y no vuelve. Mi web tiene 5 menús y un visitante nuevo no sabe a dónde ir. Cobro $200 por sesión, atiendo 8 personas a la semana y termino el viernes vacío.
+Ej (vida): El martes me levanto a las 7, voy a una oficina, almuerzo solo frente a la pantalla. Le dije sí al ascenso aunque significa viajar más.`;
+
+const PLACEHOLDER_SI = `Mismas escenas pero en cómo quieres que sea.
+Ej (negocio): Mando una propuesta y el cliente responde sí o no en 24 horas. Mi web tiene un solo botón y el visitante hace click en 10 segundos. Cobro $500 por programa de 3 meses, atiendo 3 personas y termino con energía.
+Ej (vida): El martes trabajo desde casa, hago una caminata, almuerzo con mi pareja, termino a las 6 y leo dos horas.`;
 
 export default function IdeaMapPage() {
   const { id: routeId } = useParams();
   const navigate = useNavigate();
 
   const [step, setStep] = useState(routeId ? 'loading' : 'form'); // form | loading | turn | success | exhausted
+  const [tema, setTema] = useState('');
   const [vidaNo, setVidaNo] = useState('');
   const [vidaSi, setVidaSi] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -34,6 +41,7 @@ export default function IdeaMapPage() {
         const res = await authFetch(`${API_BASE}/idea-maps/${routeId}`);
         if (!res.ok) throw new Error('No se pudo cargar el mapa');
         const data = await res.json();
+        setTema(data.tema || '');
         setVidaNo(data.vida_no_quiero);
         setVidaSi(data.vida_si_quiero);
         if (data.status === 'success') {
@@ -67,7 +75,7 @@ export default function IdeaMapPage() {
       const res = await authFetch(`${API_BASE}/idea-maps`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ vida_no_quiero: vidaNo, vida_si_quiero: vidaSi }),
+        body: JSON.stringify({ tema, vida_no_quiero: vidaNo, vida_si_quiero: vidaSi }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error al procesar');
@@ -108,7 +116,7 @@ export default function IdeaMapPage() {
   }
 
   function reset() {
-    setStep('form'); setVidaNo(''); setVidaSi(''); setMapState(null);
+    setStep('form'); setTema(''); setVidaNo(''); setVidaSi(''); setMapState(null);
     setResponse(''); setError(null);
     navigate('/mapa-de-ideas', { replace: true });
   }
@@ -119,8 +127,11 @@ export default function IdeaMapPage() {
         <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-violet-600 to-fuchsia-600 bg-clip-text text-transparent">
           Generador de Ideas
         </h1>
-        <p className="mt-3 text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-          Mapa de contraste → territorios → cruces → 4-5 frases crudas que suenan a ti. La compuerta se niega a generar si el insumo está roto.
+        <p className="mt-3 text-lg text-gray-700 dark:text-gray-200 max-w-2xl mx-auto font-medium">
+          Ideas para tus publicaciones que suenan a ti, no a cualquier otro creador.
+        </p>
+        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 max-w-2xl mx-auto">
+          Funciona para lo que quieras comunicar: tu vida, tu negocio, un producto, un servicio. La compuerta se niega a generar si el insumo está roto.
         </p>
       </div>
 
@@ -137,12 +148,27 @@ export default function IdeaMapPage() {
       {step === 'form' && (
         <form onSubmit={submitInitial} className="space-y-5">
           <div className="bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 p-4 rounded-lg text-sm text-violet-900 dark:text-violet-200">
-            <strong>Cómo escribir esto:</strong> escenas concretas. Martes a tal hora, qué haces, con quién, dónde. A qué le dijiste sí, a qué le dijiste no. No sentimientos ("me siento sin libertad"), no adjetivos ("amplitud", "paz"). Si la compuerta detecta sentimientos en vez de escenas, no genera y te pide reescribirlas.
+            <strong>Cómo escribir esto:</strong> primero el tema sobre el que quieres sacar ideas. Después dos columnas con escenas concretas — qué pasa, con quién, dónde, cuándo, qué se ve. No sentimientos ("me siento sin libertad", "quiero una marca con alma"), no adjetivos abstractos. Si la compuerta detecta sentimientos en vez de escenas, no genera y te pide reescribirlas.
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Vida que <strong className="text-rose-600 dark:text-rose-400">NO</strong> quiero
+              Tema sobre el que quieres sacar ideas
+            </label>
+            <input
+              type="text" value={tema} onChange={e => setTema(e.target.value)}
+              placeholder={PLACEHOLDER_TEMA}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-violet-500 focus:border-violet-500"
+              required minLength={5}
+            />
+            <div className="mt-1 text-xs text-gray-500">
+              Puede ser tu vida, tu negocio, un producto, un servicio, una práctica — lo que quieras comunicar.
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Cómo <strong className="text-rose-600 dark:text-rose-400">NO</strong> quieres que sea {tema ? <span className="text-violet-600 dark:text-violet-400">"{tema}"</span> : 'ese tema'}
             </label>
             <textarea
               value={vidaNo} onChange={e => setVidaNo(e.target.value)}
@@ -156,7 +182,7 @@ export default function IdeaMapPage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Vida que <strong className="text-emerald-600 dark:text-emerald-400">SÍ</strong> quiero
+              Cómo <strong className="text-emerald-600 dark:text-emerald-400">SÍ</strong> quieres que sea {tema ? <span className="text-violet-600 dark:text-violet-400">"{tema}"</span> : 'ese tema'}
             </label>
             <textarea
               value={vidaSi} onChange={e => setVidaSi(e.target.value)}
@@ -169,7 +195,7 @@ export default function IdeaMapPage() {
           </div>
 
           <button
-            type="submit" disabled={submitting || vidaNo.length < 80 || vidaSi.length < 80}
+            type="submit" disabled={submitting || tema.trim().length < 5 || vidaNo.length < 80 || vidaSi.length < 80}
             className="w-full px-4 py-3 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-lg transition"
           >
             {submitting ? 'Procesando…' : 'Empezar el mapa'}

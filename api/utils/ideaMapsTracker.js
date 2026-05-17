@@ -21,12 +21,12 @@ function safeParse(s, fallback) {
   try { return JSON.parse(s); } catch { return fallback; }
 }
 
-export function createIdeaMap({ userId, vida_no_quiero, vida_si_quiero }) {
+export function createIdeaMap({ userId, tema, vida_no_quiero, vida_si_quiero }) {
   return new Promise((resolve, reject) => {
     db.run(
-      `INSERT INTO idea_maps (user_id, vida_no_quiero, vida_si_quiero, status, turn, attempts_per_filter, history)
-       VALUES (?, ?, ?, 'awaiting_correction', 1, '{}', '[]')`,
-      [userId, vida_no_quiero, vida_si_quiero],
+      `INSERT INTO idea_maps (user_id, tema, vida_no_quiero, vida_si_quiero, status, turn, attempts_per_filter, history)
+       VALUES (?, ?, ?, ?, 'awaiting_correction', 1, '{}', '[]')`,
+      [userId, tema || null, vida_no_quiero, vida_si_quiero],
       function (err) {
         if (err) return reject(err);
         resolve(this.lastID);
@@ -48,7 +48,7 @@ export function getIdeaMap(id, userId) {
 export function listIdeaMaps(userId) {
   return new Promise((resolve, reject) => {
     db.all(
-      `SELECT id, status, turn, failed_filter, axis_mode, cost_usd, created_at, updated_at,
+      `SELECT id, tema, status, turn, failed_filter, axis_mode, cost_usd, created_at, updated_at,
               substr(vida_no_quiero, 1, 120) AS preview_no,
               substr(vida_si_quiero, 1, 120) AS preview_si
        FROM idea_maps WHERE user_id = ? ORDER BY created_at DESC LIMIT 200`,
@@ -61,7 +61,7 @@ export function listIdeaMaps(userId) {
 export function listAllIdeaMaps() {
   return new Promise((resolve, reject) => {
     db.all(
-      `SELECT m.id, m.user_id, m.status, m.turn, m.failed_filter, m.axis_mode, m.cost_usd,
+      `SELECT m.id, m.user_id, m.tema, m.status, m.turn, m.failed_filter, m.axis_mode, m.cost_usd,
               m.created_at, m.updated_at, u.email AS user_email
        FROM idea_maps m
        LEFT JOIN users u ON u.id = m.user_id
