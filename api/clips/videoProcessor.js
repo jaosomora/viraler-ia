@@ -3,6 +3,7 @@
 import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { facebookCookiesArgs } from '../utils/ytdlpCookies.js';
 
 // Una sola corrida de yt-dlp. Resuelve con outputPath o rechaza con el stderr.
@@ -180,6 +181,11 @@ export function buildCropExpr(aspectRatio, cropXPct = 50) {
 }
 
 // Hash de los parámetros que afectan al base.mp4 (cut + crop + zoom + transition). Si cambian → regenerar base.
+// BUG histórico: antes hacíamos `Buffer.from(h).toString('base64').slice(0,16)` lo cual truncaba
+// a los primeros ~12 chars del string crudo → start/end ocupaban todo el espacio y cualquier
+// cambio en crop_x_pct / transition / camera_motion / resolution NO afectaba el hash output.
+// Resultado: cambiar el encuadre no disparaba regen porque el hash "match" daba falso positivo.
+// Ahora usamos md5 (16 bytes raw → 32 hex chars, suficiente collision-resistance para esto).
 export function baseParamsHash(clip, resolution) {
   const h = [
     clip.start_seconds, clip.end_seconds,
@@ -189,7 +195,7 @@ export function baseParamsHash(clip, resolution) {
     clip.crop_x_pct ?? 50,
     resolution,
   ].join('|');
-  return Buffer.from(h).toString('base64').slice(0, 16);
+  return crypto.createHash('md5').update(h).digest('hex');
 }
 
 // Construye los filtros de transición (fade in/out, zoom in/out en bordes) según clip.transition.
@@ -224,7 +230,6 @@ export function renderClipBase({ sourceVideo, clip, outputPath, resolution = '10
     const dur = clip.end_seconds - clip.start_seconds;
 
     const cropExpr = buildCropExpr(aspect, clip.crop_x_pct ?? 50);
-    console.log(`[videoProcessor] renderClipBase clip=${clip.id} aspect=${aspect} crop_x_pct=${clip.crop_x_pct ?? '(null→50)'} → ${cropExpr}`);
 
     const fps = 30;
     const totalFrames = Math.ceil(dur * fps);

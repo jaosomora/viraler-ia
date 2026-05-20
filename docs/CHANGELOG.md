@@ -8,6 +8,16 @@ ordenado por fecha descendente. Para detalles del MCP server ver `docs/MCP.md`.
 
 ---
 
+## 2026-05-20 — Clips: fix crítico del encuadre horizontal (hash truncado + race condition)
+
+Tras desplegar `crop_x_pct` el día anterior, los presets Izq/Centro/Der no cambiaban el video. Diagnóstico completo con browser automation contra el dev local reveló 3 bugs:
+
+- **Hash truncado**: `baseParamsHash()` hacía `Buffer.from(h).toString('base64').slice(0,16)` lo cual solo cubría ~12 chars del string crudo. Resultado: `start_seconds + end_seconds` ocupaban todo el espacio y cambios en `crop_x_pct` / `transition` / `camera_motion` / `resolution` jamás afectaban el output → `ensureClipBase` siempre veía "match" y nunca regeneraba. Fix: `crypto.createHash('md5').digest('hex')` (32 hex chars, sin truncar).
+- **Race condition por StrictMode**: React dev hace double-mount → dos fetches simultáneos a `/base-video` → dos `renderClipBase` escribiendo al mismo path → mp4 corrupto con NAL units inválidos. Fix: `_baseRenderLocks` Map en `ensureClipBase` (clipId+resolution) — segundo request espera la promise del primero.
+- **`mode='base'` se pasaba solo en el editor, no en ClipCard**: la card del listado usa default `mode='final'` → `/download` (subs quemados). El editor sí usa `/base-video` (sin subs, overlay editable). Confirmado correcto, era falsa alarma durante el debug.
+
+Tests: 292/292 ✅. Validado en local con video de dos personas: crop_x_pct=0 enfoca a la persona izquierda, =100 a la derecha, =50 mantiene el centro histórico.
+
 ## 2026-05-19 — Clips: encuadre horizontal seleccionable (Izq/Centro/Der + ajuste fino)
 
 Para fuentes con dos personas lado a lado (entrevistas Zoom), el crop 9:16 centrado caía en el espacio entre ambas. Ahora cada clip tiene `crop_x_pct` (0=izq · 50=centro/default · 100=der).

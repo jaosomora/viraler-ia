@@ -397,6 +397,10 @@ const ClipEditor = ({ clip, onClose }) => {
                 clipId={clip.id}
                 resolution={clip.output_resolution || '1080'}
                 mode={isLegacy ? 'final' : 'base'}
+                // Después del primer mount, si el preview se remonta es porque cambiaron
+                // params del base (crop_x_pct, transición, etc). Auto-cargar para que
+                // el cambio sea visible sin que el usuario tenga que clickear play de nuevo.
+                autoPlayOnMount={previewKey > 0}
                 overlay={
                   isLegacy ? (
                     // Legacy: el video ya tiene subs quemados, no aplicamos overlay sincronizado.

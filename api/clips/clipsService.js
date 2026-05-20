@@ -609,34 +609,53 @@ export async function updateClip(clipId, userId, updates) {
   await run(`UPDATE clips SET ${sets.join(', ')} WHERE id=?`, params);
 }
 
+// Locks in-process por clipId+resolution. Si dos requests simultáneos llegan para el mismo
+// clip (React StrictMode dev hace double-mount, o el browser dispara request paralelos),
+// el segundo espera al primero en lugar de lanzar otro ffmpeg sobre el mismo path → evita
+// archivo corrupto por escrituras concurrentes.
+const _baseRenderLocks = new Map();
+
 // Asegura que el base.mp4 exista y corresponda a los params actuales (start/end/aspect/camera/res).
 // Si el hash cambió o no existe el archivo, lo regenera. Reusa si ya está válido.
 export async function ensureClipBase(clipId, resolution = '1080') {
-  const clip = await get('SELECT * FROM clips WHERE id=?', [clipId]);
-  if (!clip) throw new Error('Clip no encontrado');
-  if (clip.render_mode === 'burned-legacy') {
-    throw new Error('Este clip es legacy (subs quemados): no se puede previsualizar con overlay');
+  const lockKey = `${clipId}|${resolution}`;
+  if (_baseRenderLocks.has(lockKey)) {
+    // Hay un render en curso para este clip+res — esperá su resultado en lugar de duplicar.
+    return _baseRenderLocks.get(lockKey);
   }
-  const job = await get('SELECT * FROM clip_jobs WHERE id=?', [clip.job_id]);
-  if (!job || !job.source_video_path || !fs.existsSync(job.source_video_path)) {
-    throw new Error('Video fuente ya no disponible — el job fue purgado');
+  const promise = (async () => {
+    const clip = await get('SELECT * FROM clips WHERE id=?', [clipId]);
+    if (!clip) throw new Error('Clip no encontrado');
+    if (clip.render_mode === 'burned-legacy') {
+      throw new Error('Este clip es legacy (subs quemados): no se puede previsualizar con overlay');
+    }
+    const job = await get('SELECT * FROM clip_jobs WHERE id=?', [clip.job_id]);
+    if (!job || !job.source_video_path || !fs.existsSync(job.source_video_path)) {
+      throw new Error('Video fuente ya no disponible — el job fue purgado');
+    }
+    const c = { ...clip, keywords: JSON.parse(clip.keywords || '[]') };
+    const jobDir = path.dirname(job.source_video_path);
+    const basePath = path.join(jobDir, `${clipId}_base_${resolution}.mp4`);
+    const expected = baseParamsHash(c, resolution);
+    const valid = clip.base_video_path === basePath
+      && clip.base_params_hash === expected
+      && fs.existsSync(basePath);
+    if (!valid) {
+      log(clip.job_id, `regenerating base for ${clipId} @ ${resolution}p · stored_hash=${clip.base_params_hash} expected_hash=${expected} crop_x_pct=${clip.crop_x_pct ?? '(null)'}`);
+      await renderClipBase({ sourceVideo: job.source_video_path, clip: c, outputPath: basePath, resolution });
+      await run(
+        `UPDATE clips SET base_video_path=?, base_params_hash=?, output_resolution=?, render_mode='overlay', updated_at=CURRENT_TIMESTAMP WHERE id=?`,
+        [basePath, expected, resolution, clipId]
+      );
+    }
+    return basePath;
+  })();
+  _baseRenderLocks.set(lockKey, promise);
+  try {
+    return await promise;
+  } finally {
+    _baseRenderLocks.delete(lockKey);
   }
-  const c = { ...clip, keywords: JSON.parse(clip.keywords || '[]') };
-  const jobDir = path.dirname(job.source_video_path);
-  const basePath = path.join(jobDir, `${clipId}_base_${resolution}.mp4`);
-  const expected = baseParamsHash(c, resolution);
-  const valid = clip.base_video_path === basePath
-    && clip.base_params_hash === expected
-    && fs.existsSync(basePath);
-  if (!valid) {
-    log(clip.job_id, `regenerating base for ${clipId} @ ${resolution}p · stored_hash=${clip.base_params_hash} expected_hash=${expected} crop_x_pct=${clip.crop_x_pct ?? '(null)'}`);
-    await renderClipBase({ sourceVideo: job.source_video_path, clip: c, outputPath: basePath, resolution });
-    await run(
-      `UPDATE clips SET base_video_path=?, base_params_hash=?, output_resolution=?, render_mode='overlay', updated_at=CURRENT_TIMESTAMP WHERE id=?`,
-      [basePath, expected, resolution, clipId]
-    );
-  }
-  return basePath;
 }
 
 // Exporta MP4 final con subs quemados, partiendo del base.mp4 (rápido: solo burn-in).
