@@ -26,9 +26,9 @@ const KEYWORD_COLORS = [
 ];
 
 const TONES = [
-  { id: 'pregunta', label: 'Pregunta provocadora' },
-  { id: 'storytelling', label: 'Storytelling' },
-  { id: 'insight', label: 'Insight + CTA' },
+  { id: 'pregunta', label: 'Pregunta' },
+  { id: 'storytelling', label: 'Historia' },
+  { id: 'insight', label: 'Idea + llamada a la acción' },
 ];
 
 const ASPECT_RATIOS = [
@@ -62,6 +62,12 @@ const ClipEditor = ({ clip, onClose }) => {
   const [chunks, setChunks] = useState([]);
   const [renderMode, setRenderMode] = useState('overlay');
   const [captionsView, setCaptionsView] = useState('prose'); // 'prose' | 'list'
+  // Acordeón: solo una sección abierta a la vez. Default: Plantillas.
+  const [openSection, setOpenSection] = useState('plantillas');
+  const sectionProps = (id) => ({
+    open: openSection === id,
+    onToggle: () => setOpenSection(openSection === id ? null : id),
+  });
   const videoRef = useRef(null);
   const isLegacy = renderMode === 'burned-legacy';
 
@@ -356,7 +362,11 @@ const ClipEditor = ({ clip, onClose }) => {
   const fontStyleFor = (role, id) => {
     const f = (fontCatalog?.catalog?.[role] || []).find(x => x.id === id);
     if (!f) return {};
-    return { fontFamily: f.familyName || f.name, fontWeight: f.weight || 400 };
+    return {
+      fontFamily: f.familyName || f.name,
+      fontWeight: f.weight || 400,
+      fontStyle: f.italic ? 'italic' : 'normal',
+    };
   };
 
   const dur = draft.end_seconds - draft.start_seconds;
@@ -488,17 +498,19 @@ const ClipEditor = ({ clip, onClose }) => {
           <div className="lg:col-span-7 overflow-y-auto">
             <div className="p-6 space-y-6">
 
+              {/* 1 · Elegir un estilo base */}
+              <CollapsibleSection id="plantillas" icon="🎨" title="Elegir un estilo base" {...sectionProps('plantillas')}>
               <section>
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-xs uppercase tracking-wide text-gray-500 font-semibold">Plantillas</h4>
+                <div className="flex items-center justify-between mb-2">
+                  <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300">Plantillas listas para usar</h5>
                   <button type="button" onClick={handleSaveCustomTemplate}
                     title="Guarda los estilos actuales como una plantilla reutilizable"
                     className="text-[11px] px-2 py-1 rounded bg-purple-600 hover:bg-purple-500 text-white font-medium">
-                    + Guardar este estilo
+                    Guardar el estilo actual
                   </button>
                 </div>
                 <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2">
-                  Click = aplica al clip actual. Shift+click o el botón "→ todos" aplica a TODOS los clips del job.
+                  Click = solo este clip · Click + Shift = todos los clips del job.
                 </p>
                 <div className="grid grid-cols-3 gap-2">
                   {CAPTION_TEMPLATES.map(tpl => (
@@ -537,7 +549,7 @@ const ClipEditor = ({ clip, onClose }) => {
 
                 {userTemplates.length > 0 && (
                   <>
-                    <div className="text-[11px] text-gray-500 mt-4 mb-2 font-medium">Tus plantillas guardadas</div>
+                    <div className="text-[11px] text-gray-500 mt-4 mb-2 font-medium">Mis plantillas guardadas</div>
                     <div className="grid grid-cols-3 gap-2">
                       {userTemplates.map(tpl => (
                         <div key={tpl.id} className="relative group/tpl">
@@ -577,20 +589,135 @@ const ClipEditor = ({ clip, onClose }) => {
                   </>
                 )}
               </section>
+              </CollapsibleSection>
 
-              <CollapsibleSection id="texto" icon="📝" title="Texto" defaultOpen={true}>
+              {/* 2 · Definir el formato y el encuadre */}
+              <CollapsibleSection id="lienzo" icon="🎬" title="Definir el formato y el encuadre" badge={draft.aspect_ratio} {...sectionProps('lienzo')}>
+                <section className="mb-5">
+                  <h4 className="text-sm text-gray-500 mb-2 font-semibold">Formato del video</h4>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-3">
+                    Define la forma final. Cambiarlo después puede mover el texto y el encuadre fuera de lugar.
+                  </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {ASPECT_RATIOS.map(a => (
+                      <button key={a.id} type="button" onClick={() => update({ aspect_ratio: a.id })}
+                        className={`border rounded-lg p-3 text-center transition ${draft.aspect_ratio === a.id
+                          ? 'border-purple-500 bg-purple-500/10'
+                          : 'border-gray-300 dark:border-gray-700 hover:border-gray-400'}`}>
+                        <div className="text-xs font-medium text-gray-800 dark:text-gray-200">{a.label}</div>
+                        <div className="text-[10px] text-gray-500">{a.sub}</div>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+
+                <section>
+                  <Tooltip text="Útil cuando el video original tiene a una persona a un lado. Mueve el corte para mantenerla centrada.">
+                    <h4 className="text-sm text-gray-500 mb-2 font-semibold">Qué parte del cuadro mostrar</h4>
+                  </Tooltip>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-3">
+                    Útil cuando el video original tiene a una persona a un lado.
+                  </p>
+                  <div className="grid grid-cols-3 gap-2 mb-3">
+                    {[
+                      { id: 0, label: 'Lado izquierdo', icon: '◧' },
+                      { id: 50, label: 'Centro', icon: '▣' },
+                      { id: 100, label: 'Lado derecho', icon: '◨' },
+                    ].map(o => (
+                      <button key={o.id} type="button" onClick={() => update({ crop_x_pct: o.id })}
+                        className={`border rounded-lg p-3 text-center transition ${draft.crop_x_pct === o.id
+                          ? 'border-purple-500 bg-purple-500/10'
+                          : 'border-gray-300 dark:border-gray-700 hover:border-gray-400'}`}>
+                        <div className="text-2xl mb-1">{o.icon}</div>
+                        <div className="text-xs font-medium text-gray-800 dark:text-gray-200">{o.label}</div>
+                      </button>
+                    ))}
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-[11px] text-gray-500">Ajuste fino</label>
+                      <span className="text-[10px] text-gray-500 font-mono">{cropSliderValue}%</span>
+                    </div>
+                    <input type="range" min="0" max="100" step="1" value={cropSliderValue}
+                      onMouseDown={() => setCropPreviewActive(true)}
+                      onTouchStart={() => setCropPreviewActive(true)}
+                      onFocus={() => setCropPreviewActive(true)}
+                      onChange={e => setCropSliderValue(+e.target.value)}
+                      onMouseUp={e => { setCropPreviewActive(false); update({ crop_x_pct: +e.target.value }); }}
+                      onTouchEnd={e => { setCropPreviewActive(false); update({ crop_x_pct: +e.target.value }); }}
+                      onKeyUp={e => { setCropPreviewActive(false); update({ crop_x_pct: +e.target.value }); }}
+                      onBlur={e => { if (cropPreviewActive) { setCropPreviewActive(false); update({ crop_x_pct: +e.target.value }); } }}
+                      className="w-full accent-purple-500" />
+                    <div className="flex justify-between text-[10px] text-gray-500 mt-0.5">
+                      <span>← izquierda</span><span>centro</span><span>derecha →</span>
+                    </div>
+                    <p className="text-[10px] text-gray-500 mt-1.5 leading-snug">
+                      Mueve el deslizador para ver el encuadre en vivo. Al soltar, se aplica al video.
+                    </p>
+                  </div>
+                </section>
+              </CollapsibleSection>
+
+              {/* 3 · Revisar lo que se transcribió */}
+              {!isLegacy && (
+                <CollapsibleSection id="subtitulos" icon="💬" title="Revisar lo que se transcribió" badge={`${chunks.length} líneas`} {...sectionProps('subtitulos')}>
+                <section>
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm text-gray-500 font-semibold sr-only">
+                      Subtítulos del clip
+                    </h4>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-gray-400">{chunks.length} línea{chunks.length === 1 ? '' : 's'}</span>
+                      <div className="flex bg-gray-100 dark:bg-gray-800 rounded-md p-0.5 text-[11px]">
+                        <button type="button" onClick={() => setCaptionsView('prose')}
+                          className={`px-2 py-0.5 rounded ${captionsView === 'prose' ? 'bg-white dark:bg-gray-700 shadow text-gray-900 dark:text-white' : 'text-gray-500'}`}>
+                          Texto fluido
+                        </button>
+                        <button type="button" onClick={() => setCaptionsView('list')}
+                          className={`px-2 py-0.5 rounded ${captionsView === 'list' ? 'bg-white dark:bg-gray-700 shadow text-gray-900 dark:text-white' : 'text-gray-500'}`}>
+                          Lista editable
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2">
+                    {captionsView === 'prose'
+                      ? 'Click en cualquier palabra para saltar a ese momento del video. Para corregir el texto cambia a "Lista editable".'
+                      : 'Edita el texto de cada línea. Click en el tiempo para saltar a ese momento. Los cambios se previsualizan al instante.'}
+                  </p>
+                  {captionsView === 'prose' ? (
+                    <TranscriptProseView
+                      chunks={liveChunks}
+                      draft={draft}
+                      videoRef={videoRef}
+                      onSeek={seekVideo}
+                    />
+                  ) : (
+                    <CaptionChunkEditor
+                      chunks={chunks}
+                      overrides={draft.caption_overrides}
+                      onChange={(next) => update({ caption_overrides: next })}
+                      onSeek={seekVideo}
+                    />
+                  )}
+                </section>
+                </CollapsibleSection>
+              )}
+
+              {/* 4 · Escribir el texto del clip */}
+              <CollapsibleSection id="texto" icon="📝" title="Escribir el texto del clip" {...sectionProps('texto')}>
               <section>
-                <h4 className="text-xs uppercase tracking-wide text-gray-500 mb-3 font-semibold">Texto del clip</h4>
+                <h4 className="text-sm text-gray-500 mb-3 font-semibold">Texto sobre el video</h4>
                 <div className="space-y-3">
                   <div>
-                    <label className="text-[11px] text-gray-500 mb-1 block">Título</label>
+                    <label className="text-[11px] text-gray-500 mb-1 block">Título <span className="text-gray-400">· solo interno, no aparece en el video</span></label>
                     <input type="text" value={draft.title} onChange={e => update({ title: e.target.value })}
                       className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white" />
                   </div>
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <Tooltip text="Texto grande estilo gancho que aparece quemado en los primeros 4 segundos del video. Sirve para enganchar al espectador antes de que haga scroll.">
-                        <label className="text-[11px] text-gray-500">Hook (línea grande, fuente impacto)</label>
+                      <Tooltip text="Línea grande que aparece quemada en los primeros 4 segundos del video. Sirve para captar al espectador antes de que haga scroll.">
+                        <label className="text-[11px] text-gray-500">Gancho <span className="text-gray-400">· línea grande, primeros segundos</span></label>
                       </Tooltip>
                       <label className="flex items-center gap-1.5 cursor-pointer">
                         <input type="checkbox" checked={!!draft.hook_enabled}
@@ -608,21 +735,21 @@ const ClipEditor = ({ clip, onClose }) => {
                   </div>
                   <div>
                     <label className="text-[11px] text-gray-500 mb-1 block">
-                      Caption {isLegacy
+                      Nota {isLegacy
                         ? '(línea de soporte)'
-                        : <span className="text-gray-400">· nota interna · los subtítulos del video se editan abajo en "Subtítulos · texto por chunk"</span>}
+                        : <span className="text-gray-400">· resumen interno · los subtítulos del video se editan en "Revisar lo que se transcribió"</span>}
                     </label>
                     <textarea rows={2} value={draft.caption} onChange={e => update({ caption: e.target.value })}
                       className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm resize-none text-gray-900 dark:text-white" />
                   </div>
                   <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-800 rounded-lg p-3">
                     <div className="flex items-center justify-between mb-2">
-                      <Tooltip text="Palabras del subtítulo que se pintan con color/fondo de keyword. El LLM las detecta automáticamente; puedes editarlas o re-detectar.">
-                        <label className="text-[11px] text-gray-500">Palabras clave detectadas</label>
+                      <Tooltip text="Palabras del subtítulo que se pintan con color o fondo distinto. La IA las detecta automáticamente y se pueden editar o detectar de nuevo.">
+                        <label className="text-[11px] text-gray-500">Palabras destacadas</label>
                       </Tooltip>
                       <button type="button" onClick={handleRedetectKeywords} disabled={redetecting}
                         className="text-[11px] text-purple-600 dark:text-purple-400 hover:text-purple-500 disabled:opacity-50">
-                        {redetecting ? 'Detectando…' : 'Volver a detectar'}
+                        {redetecting ? 'Detectando…' : 'Detectar de nuevo'}
                       </button>
                     </div>
                     <div className="flex flex-wrap gap-1.5 mb-2">
@@ -633,12 +760,12 @@ const ClipEditor = ({ clip, onClose }) => {
                           {k} ✕
                         </span>
                       ))}
-                      {draft.keywords.length === 0 && <span className="text-[11px] text-gray-400">Sin keywords. Agrégalas manualmente o usa "Volver a detectar".</span>}
+                      {draft.keywords.length === 0 && <span className="text-[11px] text-gray-400">Sin palabras destacadas. Agrégalas manualmente o usa "Detectar de nuevo".</span>}
                     </div>
                     <div className="flex gap-1.5">
                       <input type="text" value={newKeyword} onChange={e => setNewKeyword(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addKeyword(); } }}
-                        placeholder="Agregar palabra clave manualmente…"
+                        placeholder="Agregar palabra manualmente…"
                         className="flex-1 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded px-2 py-1 text-xs text-gray-900 dark:text-white" />
                       <button type="button" onClick={addKeyword} disabled={!newKeyword.trim()}
                         className="px-3 py-1 bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white rounded text-xs font-medium">+</button>
@@ -649,12 +776,12 @@ const ClipEditor = ({ clip, onClose }) => {
 
               <section>
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-xs uppercase tracking-wide text-gray-500 font-semibold">
-                    Texto del post <span className="text-gray-400 normal-case">· para pegar al publicar</span>
+                  <h4 className="text-sm text-gray-500 font-semibold">
+                    Texto para publicar <span className="text-gray-400 normal-case">· lo que copias y pegas al subirlo</span>
                   </h4>
                   <button type="button" onClick={handleRegenerateCaption} disabled={regenerating}
                     className="text-[11px] px-2.5 py-1 rounded-md bg-purple-600 hover:bg-purple-500 text-white disabled:opacity-50 flex items-center gap-1 font-medium"
-                    title="Pide al LLM una nueva variación del texto en el tono seleccionado">
+                    title="Pide una nueva variación del texto en el tono seleccionado">
                     <svg className={`w-3 h-3 ${regenerating ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                     {regenerating ? 'Generando…' : 'Pedir otra versión'}
                   </button>
@@ -672,11 +799,11 @@ const ClipEditor = ({ clip, onClose }) => {
                   <button type="button" disabled
                     title="Próximamente: pega tu framework personal"
                     className="px-2.5 py-1 rounded-md font-medium border border-dashed border-gray-300 dark:border-gray-700 text-gray-400 italic cursor-not-allowed">
-                    + Mi prompt
+                    + Mi propio prompt
                   </button>
                 </div>
                 <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2">
-                  Click en un tono para ver su versión cacheada. "Pedir otra versión" te genera una nueva con el tono activo.
+                  Click en un tono para ver su versión guardada. "Pedir otra versión" genera una nueva con el tono activo.
                 </p>
                 <textarea rows={6} value={draft.post_caption} onChange={e => update({ post_caption: e.target.value })}
                   className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2.5 text-sm leading-relaxed resize-none text-gray-900 dark:text-white"
@@ -691,10 +818,11 @@ const ClipEditor = ({ clip, onClose }) => {
               </section>
               </CollapsibleSection>
 
-              <CollapsibleSection id="estilo" icon="🎨" title="Estilo de texto" defaultOpen={true}>
+              {/* 5 · Afinar la tipografía y los colores */}
+              <CollapsibleSection id="estilo" icon="🖌️" title="Afinar la tipografía y los colores" {...sectionProps('estilo')}>
               <section>
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-xs uppercase tracking-wide text-gray-500 font-semibold">Tipografías</h4>
+                  <h4 className="text-sm text-gray-500 font-semibold">Tipografías</h4>
                   <button type="button" onClick={handleApplyFontsToAll} disabled={applyingFonts}
                     className="text-[11px] text-purple-600 dark:text-purple-400 hover:text-purple-500 disabled:opacity-50">
                     {applyingFonts ? 'Aplicando…' : 'Aplicar a todos los clips'}
@@ -703,7 +831,17 @@ const ClipEditor = ({ clip, onClose }) => {
                 <div className="space-y-4">
                   {/* Hook */}
                   <div className="bg-gray-50 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-800 rounded-lg p-3 space-y-2">
-                    <label className="text-[11px] text-gray-500 block font-medium">Hook · fuente de impacto</label>
+                    <div className="flex items-center justify-between gap-2">
+                      <h5 className="text-sm text-gray-700 dark:text-gray-300 font-semibold">Gancho · línea de impacto</h5>
+                      <span className="inline-flex items-center justify-center min-w-[48px] h-8 rounded bg-gray-900 dark:bg-black px-2 shrink-0" title="Vista previa con la fuente y color actuales">
+                        <span style={{
+                          ...fontStyleFor('hook', draft.font_hook),
+                          color: draft.hook_color,
+                          fontStyle: draft.hook_italic ? 'italic' : (fontStyleFor('hook', draft.font_hook).fontStyle || 'normal'),
+                          textDecoration: draft.hook_underline ? 'underline' : 'none',
+                        }} className="text-lg leading-none">Aa</span>
+                      </span>
+                    </div>
                     <select value={draft.font_hook} onChange={e => update({ font_hook: e.target.value })}
                       style={{ ...fontStyleFor('hook', draft.font_hook), fontSize: '17px' }}
                       className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white">
@@ -754,7 +892,17 @@ const ClipEditor = ({ clip, onClose }) => {
 
                   {/* Caption */}
                   <div className="bg-gray-50 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-800 rounded-lg p-3 space-y-2">
-                    <label className="text-[11px] text-gray-500 block font-medium">Caption · cuerpo legible</label>
+                    <div className="flex items-center justify-between gap-2">
+                      <h5 className="text-sm text-gray-700 dark:text-gray-300 font-semibold">Cuerpo · subtítulos</h5>
+                      <span className="inline-flex items-center justify-center min-w-[48px] h-8 rounded bg-gray-900 dark:bg-black px-2 shrink-0" title="Vista previa con la fuente y color actuales">
+                        <span style={{
+                          ...fontStyleFor('caption', draft.font_caption),
+                          color: draft.caption_color,
+                          fontStyle: draft.caption_italic ? 'italic' : (fontStyleFor('caption', draft.font_caption).fontStyle || 'normal'),
+                          textDecoration: draft.caption_underline ? 'underline' : 'none',
+                        }} className="text-lg leading-none">Aa</span>
+                      </span>
+                    </div>
                     <select value={draft.font_caption} onChange={e => update({ font_caption: e.target.value })}
                       style={{ ...fontStyleFor('caption', draft.font_caption), fontSize: '15px' }}
                       className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white">
@@ -796,7 +944,18 @@ const ClipEditor = ({ clip, onClose }) => {
 
                   {/* Keyword */}
                   <div className="bg-gray-50 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-800 rounded-lg p-3 space-y-2">
-                    <label className="text-[11px] text-gray-500 block font-medium">Palabras clave · énfasis</label>
+                    <div className="flex items-center justify-between gap-2">
+                      <h5 className="text-sm text-gray-700 dark:text-gray-300 font-semibold">Palabras destacadas · énfasis</h5>
+                      <span className="inline-flex items-center justify-center min-w-[48px] h-8 rounded bg-gray-900 dark:bg-black px-2 shrink-0" title="Vista previa con la fuente, color y fondo actuales"
+                        style={draft.keyword_bg_color ? { backgroundColor: draft.keyword_bg_color } : undefined}>
+                        <span style={{
+                          ...fontStyleFor('keyword', draft.font_keyword),
+                          color: draft.keyword_color,
+                          fontStyle: draft.keyword_italic ? 'italic' : (fontStyleFor('keyword', draft.font_keyword).fontStyle || 'normal'),
+                          textDecoration: draft.keyword_underline ? 'underline' : 'none',
+                        }} className="text-lg leading-none">Aa</span>
+                      </span>
+                    </div>
                     <select value={draft.font_keyword} onChange={e => update({ font_keyword: e.target.value })}
                       style={{ ...fontStyleFor('keyword', draft.font_keyword), fontSize: '15px' }}
                       className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white">
@@ -863,7 +1022,7 @@ const ClipEditor = ({ clip, onClose }) => {
                             value={draft.keyword_bg_opacity}
                             onChange={e => update({ keyword_bg_opacity: +e.target.value })}
                             className="w-full accent-purple-500" />
-                          <p className="text-[10px] text-gray-500 mt-1">El fondo es estilo "marker": se quema en el video como un highlight detrás de cada keyword.</p>
+                          <p className="text-[10px] text-gray-500 mt-1">El fondo se quema en el video como un resaltado detrás de cada palabra destacada.</p>
                         </>
                       )}
                     </div>
@@ -872,12 +1031,12 @@ const ClipEditor = ({ clip, onClose }) => {
               </section>
 
               <section>
-                <Tooltip text="El borde (outline) garantiza que el texto se lea sobre cualquier fondo. La sombra suaviza la lectura. Si tu texto es oscuro, cambia el color del borde a claro o desactívalo.">
-                  <h4 className="text-xs uppercase tracking-wide text-gray-500 mb-3 font-semibold">Borde y sombra del texto</h4>
+                <Tooltip text="El borde ayuda a que el texto se lea sobre cualquier fondo. La sombra suaviza la lectura. Si el texto es oscuro, cambia el color del borde a claro o desactívalo.">
+                  <h4 className="text-sm text-gray-500 mb-3 font-semibold">Borde y sombra del texto</h4>
                 </Tooltip>
                 <div className="space-y-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-800 rounded-lg p-3">
                   <label className="flex items-center justify-between cursor-pointer">
-                    <span className="text-sm text-gray-900 dark:text-white">Borde negro alrededor del texto</span>
+                    <span className="text-sm text-gray-900 dark:text-white">Borde alrededor del texto</span>
                     <input type="checkbox" checked={!!draft.outline_enabled}
                       onChange={e => update({ outline_enabled: e.target.checked ? 1 : 0 })}
                       className="accent-purple-500 w-4 h-4" />
@@ -918,12 +1077,12 @@ const ClipEditor = ({ clip, onClose }) => {
                   </div>
                 </div>
 
-                <Tooltip text="Las palabras se 'iluminan' al ser dichas (estilo Submagic/Eddie). Las palabras no dichas aún se ven atenuadas; al pronunciarlas saltan al color full. Solo afecta al MP4 exportado, no al preview en vivo.">
-                  <h4 className="text-xs uppercase tracking-wide text-gray-500 mb-3 mt-4 font-semibold">Karaoke</h4>
+                <Tooltip text="Las palabras se iluminan al pronunciarse. Las que aún no se dijeron se ven atenuadas. Solo se ve en el MP4 exportado, no en la vista previa.">
+                  <h4 className="text-sm text-gray-500 mb-3 mt-4 font-semibold">Efecto karaoke</h4>
                 </Tooltip>
                 <div className="space-y-2 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-800 rounded-lg p-3">
                   <label className="flex items-center justify-between cursor-pointer">
-                    <span className="text-sm text-gray-900 dark:text-white">Iluminar palabra al ser dicha</span>
+                    <span className="text-sm text-gray-900 dark:text-white">Cada palabra se ilumina cuando se dice</span>
                     <input type="checkbox" checked={!!draft.karaoke_enabled}
                       onChange={e => update({ karaoke_enabled: e.target.checked ? 1 : 0 })}
                       className="accent-purple-500 w-4 h-4" />
@@ -937,7 +1096,7 @@ const ClipEditor = ({ clip, onClose }) => {
                         onChange={e => update({ karaoke_dim_opacity: +e.target.value })}
                         className="w-full accent-purple-500" />
                       <p className="text-[10px] text-gray-500 mt-1">
-                        Más bajo = más atenuado (efecto karaoke fuerte). Solo se ve al exportar el MP4.
+                        Más bajo = más atenuado. El efecto solo se ve en el MP4 exportado.
                       </p>
                     </div>
                   ) : null}
@@ -945,112 +1104,17 @@ const ClipEditor = ({ clip, onClose }) => {
               </section>
               </CollapsibleSection>
 
-              {!isLegacy && (
-                <CollapsibleSection id="subtitulos" icon="💬" title="Subtítulos · texto y sync" defaultOpen={false} badge={`${chunks.length} chunks`}>
-                <section>
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-xs uppercase tracking-wide text-gray-500 font-semibold sr-only">
-                      Subtítulos del clip
-                    </h4>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-gray-400">{chunks.length} chunk{chunks.length === 1 ? '' : 's'}</span>
-                      <div className="flex bg-gray-100 dark:bg-gray-800 rounded-md p-0.5 text-[11px]">
-                        <button type="button" onClick={() => setCaptionsView('prose')}
-                          className={`px-2 py-0.5 rounded ${captionsView === 'prose' ? 'bg-white dark:bg-gray-700 shadow text-gray-900 dark:text-white' : 'text-gray-500'}`}>
-                          Texto fluido
-                        </button>
-                        <button type="button" onClick={() => setCaptionsView('list')}
-                          className={`px-2 py-0.5 rounded ${captionsView === 'list' ? 'bg-white dark:bg-gray-700 shadow text-gray-900 dark:text-white' : 'text-gray-500'}`}>
-                          Lista editable
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2">
-                    {captionsView === 'prose'
-                      ? 'Click en cualquier palabra para saltar a ese momento del video. Para corregir el texto cambia a "Lista editable".'
-                      : 'Edita el texto de cada chunk. Click en el timestamp para saltar a ese momento. Los cambios se previsualizan al instante.'}
-                  </p>
-                  {captionsView === 'prose' ? (
-                    <TranscriptProseView
-                      chunks={liveChunks}
-                      draft={draft}
-                      videoRef={videoRef}
-                      onSeek={seekVideo}
-                    />
-                  ) : (
-                    <CaptionChunkEditor
-                      chunks={chunks}
-                      overrides={draft.caption_overrides}
-                      onChange={(next) => update({ caption_overrides: next })}
-                      onSeek={seekVideo}
-                    />
-                  )}
-                </section>
-                </CollapsibleSection>
-              )}
-
-              <CollapsibleSection id="movimiento" icon="🎬" title="Movimiento y transiciones" defaultOpen={false}>
-              <section className="mb-5">
-                <Tooltip text="Cuando la fuente es horizontal y el clip vertical, el recorte se hace por defecto desde el centro. Si tu video tiene dos personas lado a lado (entrevistas Zoom), el centro cae entre las dos: usá los presets o el slider para mover el encuadre hacia la persona que querés mostrar.">
-                  <h4 className="text-xs uppercase tracking-wide text-gray-500 mb-3 font-semibold">Encuadre horizontal</h4>
-                </Tooltip>
-                <div className="grid grid-cols-3 gap-2 mb-3">
-                  {[
-                    { id: 0, label: 'Izquierda', icon: '◧', sub: 'persona izq' },
-                    { id: 50, label: 'Centro', icon: '▣', sub: 'default' },
-                    { id: 100, label: 'Derecha', icon: '◨', sub: 'persona der' },
-                  ].map(o => (
-                    <button key={o.id} type="button" onClick={() => update({ crop_x_pct: o.id })}
-                      className={`border rounded-lg p-3 text-center transition ${draft.crop_x_pct === o.id
-                        ? 'border-purple-500 bg-purple-500/10'
-                        : 'border-gray-300 dark:border-gray-700 hover:border-gray-400'}`}>
-                      <div className="text-2xl mb-1">{o.icon}</div>
-                      <div className="text-xs font-medium text-gray-800 dark:text-gray-200">{o.label}</div>
-                      <div className="text-[10px] text-gray-500">{o.sub}</div>
-                    </button>
-                  ))}
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-[11px] text-gray-500">Ajuste fino</label>
-                    <span className="text-[10px] text-gray-500 font-mono">{cropSliderValue}%</span>
-                  </div>
-                  {/* Slider de encuadre con preview en vivo:
-                      - onMouseDown / onTouchStart / onFocus → activa el overlay con el still del source.
-                        El usuario ve EXACTAMENTE cómo va a quedar el crop mientras arrastra.
-                      - onChange (durante el drag) → solo actualiza cropSliderValue (state local + posición
-                        del overlay vía object-position). Cero requests al backend.
-                      - onMouseUp / onTouchEnd / onBlur → desactiva el overlay y commitea el valor a
-                        draft.crop_x_pct, lo que dispara UN solo regen del base.mp4 con el valor final. */}
-                  <input type="range" min="0" max="100" step="1" value={cropSliderValue}
-                    onMouseDown={() => setCropPreviewActive(true)}
-                    onTouchStart={() => setCropPreviewActive(true)}
-                    onFocus={() => setCropPreviewActive(true)}
-                    onChange={e => setCropSliderValue(+e.target.value)}
-                    onMouseUp={e => { setCropPreviewActive(false); update({ crop_x_pct: +e.target.value }); }}
-                    onTouchEnd={e => { setCropPreviewActive(false); update({ crop_x_pct: +e.target.value }); }}
-                    onKeyUp={e => { setCropPreviewActive(false); update({ crop_x_pct: +e.target.value }); }}
-                    onBlur={e => { if (cropPreviewActive) { setCropPreviewActive(false); update({ crop_x_pct: +e.target.value }); } }}
-                    className="w-full accent-purple-500" />
-                  <div className="flex justify-between text-[10px] text-gray-500 mt-0.5">
-                    <span>← izq</span><span>centro</span><span>der →</span>
-                  </div>
-                  <p className="text-[10px] text-gray-500 mt-1.5 leading-snug">
-                    Mové el slider para ver el encuadre en vivo — al soltar, se aplica al video.
-                  </p>
-                </div>
-              </section>
-
+              {/* 6 · Añadir movimiento y transiciones */}
+              <CollapsibleSection id="movimiento" icon="🎞️" title="Añadir movimiento y transiciones" {...sectionProps('movimiento')}>
               <section>
-                <Tooltip text="Movimiento lento que abarca todo el clip (zoom-in cinematográfico, zoom-out o estático). Distinto a las transiciones, que son punches en los bordes.">
-                  <h4 className="text-xs uppercase tracking-wide text-gray-500 mb-3 font-semibold">Cámara y composición</h4>
+                <Tooltip text="Movimiento lento que abarca todo el clip (acercamiento cinematográfico, alejamiento o sin movimiento). Distinto a las transiciones, que son golpes rápidos en los bordes.">
+                  <h4 className="text-sm text-gray-500 mb-3 font-semibold">Movimiento de cámara</h4>
                 </Tooltip>
                 <div className="grid grid-cols-3 gap-2">
                   {[
-                    { id: 'zoom-in', emoji: '🔍', label: 'Zoom in' },
-                    { id: 'zoom-out', emoji: '🔎', label: 'Zoom out' },
-                    { id: 'static', emoji: '⏸', label: 'Estático' },
+                    { id: 'zoom-in', emoji: '🔍', label: 'Acercar' },
+                    { id: 'zoom-out', emoji: '🔎', label: 'Alejar' },
+                    { id: 'static', emoji: '⏸', label: 'Sin movimiento' },
                   ].map(o => (
                     <button key={o.id} type="button" onClick={() => update({ camera_motion: o.id })}
                       className={`border rounded-lg p-3 text-center transition ${draft.camera_motion === o.id
@@ -1062,19 +1126,19 @@ const ClipEditor = ({ clip, onClose }) => {
                   ))}
                 </div>
                 <div className="mt-3">
-                  <label className="text-[11px] text-gray-500 mb-1.5 block">Altura del subtítulo</label>
+                  <label className="text-[11px] text-gray-500 mb-1.5 block">Posición del subtítulo</label>
                   <input type="range" min="40" max="90" value={draft.sub_position}
                     onChange={e => update({ sub_position: +e.target.value })}
                     className="w-full accent-purple-500" />
                   <div className="flex justify-between text-[10px] text-gray-500">
-                    <span>abajo</span><span className="text-yellow-500">zona segura IG</span><span>arriba</span>
+                    <span>abajo</span><span className="text-yellow-500">zona segura de Instagram</span><span>arriba</span>
                   </div>
                 </div>
               </section>
 
               <section>
-                <Tooltip text="Efecto en los primeros/últimos 0.5s del clip. Funciona junto al camera motion: el motion es lento y abarca todo, la transición es un punch rápido en los bordes.">
-                  <h4 className="text-xs uppercase tracking-wide text-gray-500 mb-3 font-semibold">Transiciones</h4>
+                <Tooltip text="Efecto en los primeros y últimos segundos del clip. Funciona junto al movimiento de cámara: el movimiento es lento y abarca todo el clip; la transición es un golpe rápido en los bordes.">
+                  <h4 className="text-sm text-gray-500 mb-3 font-semibold">Cómo entra y sale el clip</h4>
                 </Tooltip>
                 <div className="grid grid-cols-3 gap-2">
                   {[
@@ -1092,22 +1156,6 @@ const ClipEditor = ({ clip, onClose }) => {
                         : 'border-gray-300 dark:border-gray-700 hover:border-gray-400'}`}>
                       <div className="text-xl mb-0.5">{o.emoji}</div>
                       <div className="text-[10px] font-medium text-gray-700 dark:text-gray-300 leading-tight">{o.label}</div>
-                    </button>
-                  ))}
-                </div>
-              </section>
-              </CollapsibleSection>
-
-              <CollapsibleSection id="salida" icon="📐" title="Formato de salida" defaultOpen={false} badge={draft.aspect_ratio}>
-              <section>
-                <div className="grid grid-cols-3 gap-2">
-                  {ASPECT_RATIOS.map(a => (
-                    <button key={a.id} type="button" onClick={() => update({ aspect_ratio: a.id })}
-                      className={`border rounded-lg p-3 text-center transition ${draft.aspect_ratio === a.id
-                        ? 'border-purple-500 bg-purple-500/10'
-                        : 'border-gray-300 dark:border-gray-700 hover:border-gray-400'}`}>
-                      <div className="text-xs font-medium text-gray-800 dark:text-gray-200">{a.label}</div>
-                      <div className="text-[10px] text-gray-500">{a.sub}</div>
                     </button>
                   ))}
                 </div>

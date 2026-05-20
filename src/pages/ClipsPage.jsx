@@ -67,7 +67,7 @@ const ClipsPage = () => {
           AS Clips
         </h1>
         <p className="mt-3 text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-          Convierte videos largos en clips verticales con subtítulos estilo Instagram, hooks elegidos por IA y texto sugerido para publicar.
+          Convierte videos largos en clips verticales con subtítulos estilo Instagram, ganchos elegidos por IA y texto sugerido para publicar.
         </p>
       </div>
 
@@ -108,7 +108,7 @@ const ClipsPage = () => {
                     Gancho automático añadido a los {totalClips} clip{totalClips === 1 ? '' : 's'}
                   </div>
                   <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
-                    Cada clip lleva un texto de hook quemado en los primeros 4 segundos. Si no lo necesitas, desactívalo masivamente. Para refinar uno a uno, ve a "Editar clip".
+                    Cada clip lleva un gancho quemado en los primeros 4 segundos. Si no lo necesitas, desactívalo en todos a la vez. Para refinar uno por uno, abre "Editar" en cada clip.
                   </p>
                 </div>
                 <div className="flex gap-2 shrink-0">
@@ -126,7 +126,7 @@ const ClipsPage = () => {
             {allDisabled && (
               <div className="mb-4 p-2.5 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-800 rounded-lg flex items-center justify-between gap-3">
                 <span className="text-xs text-gray-600 dark:text-gray-400">
-                  Gancho desactivado en todos los clips de este job.
+                  Gancho desactivado en todos los clips de este video.
                 </span>
                 <button onClick={() => toggleAllHooks(true)}
                   className="text-xs px-2.5 py-1 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded hover:bg-gray-100 dark:hover:bg-gray-800">
@@ -140,12 +140,12 @@ const ClipsPage = () => {
                   {displayedJob.total_clips} clip{displayedJob.total_clips === 1 ? '' : 's'} de "{displayedJob.title}"
                 </h3>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  Costo: ${displayedJob.total_cost_usd.toFixed(4)} · {Math.round(displayedJob.duration_seconds / 60)}min de fuente
+                  {Math.round(displayedJob.duration_seconds / 60)} min de video original
                 </p>
               </div>
               <div className="flex gap-2">
                 <button onClick={() => handleReopenForSelection(displayedJob.id)}
-                  title="Vuelve a la pantalla de selección manual con la misma transcripción para agregar más fragmentos sin re-transcribir."
+                  title="Vuelve a la pantalla de selección manual con la misma transcripción para agregar más fragmentos sin volver a transcribir."
                   className="px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700/50 hover:bg-amber-100 dark:hover:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-lg text-sm font-medium">
                   ✂️ Agregar más clips
                 </button>
@@ -166,7 +166,7 @@ const ClipsPage = () => {
 
         {finished.length > 0 && (
           <section>
-            <h3 className="font-bold text-sm uppercase tracking-wide text-gray-500 mb-3">Jobs anteriores</h3>
+            <h3 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-3">Historial</h3>
             <div className="space-y-2">
               {finished.map(j => (
                 <button key={j.id} onClick={() => setActiveJobId(j.id)}
@@ -175,7 +175,7 @@ const ClipsPage = () => {
                     <div className="min-w-0 flex-1">
                       <div className="font-medium text-sm text-gray-900 dark:text-white truncate">{j.title || j.source_url || 'Sin título'}</div>
                       <div className="text-xs text-gray-500 mt-0.5">
-                        {j.clip_count} clips · ${(j.total_cost_usd || 0).toFixed(4)} · {new Date(j.created_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })}
+                        {j.clip_count} clips · {new Date(j.created_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })}
                       </div>
                     </div>
                     <span className="text-xs text-purple-600 dark:text-purple-400">Ver →</span>
@@ -188,7 +188,7 @@ const ClipsPage = () => {
 
         {jobs.length === 0 && (
           <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-            <p className="text-sm">Aún no has generado clips. Pega una URL arriba para empezar.</p>
+            <p className="text-sm">Todavía no has generado clips. Pega un enlace de video arriba para empezar.</p>
           </div>
         )}
       </div>

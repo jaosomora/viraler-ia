@@ -14,6 +14,8 @@ export const FONT_CATALOG = {
     { id: 'Oswald', name: 'Oswald Bold', familyName: 'Oswald', weight: 700 },
     { id: 'ArchivoBlack', name: 'Archivo Black', familyName: 'Archivo', weight: 900 },
     { id: 'BowlbyOne', name: 'Bowlby One', familyName: 'Bowlby One' },
+    { id: 'PlayfairDisplay', name: 'Playfair Display Bold · serif editorial', familyName: 'Playfair Display', weight: 700 },
+    { id: 'PlayfairDisplayItalic', name: 'Playfair Display Italic · serif editorial', familyName: 'Playfair Display', weight: 700, italic: true },
   ],
   caption: [
     // ─── Sans-serif neutras (TED, documental, default seguro) ───
@@ -38,6 +40,8 @@ export const FONT_CATALOG = {
     { id: 'EBGaramondSemiBold', name: 'EB Garamond SemiBold · serif clásica', familyName: 'EB Garamond', weight: 600 },
     { id: 'EBGaramondBold', name: 'EB Garamond Bold · serif clásica', familyName: 'EB Garamond', weight: 700 },
     { id: 'CormorantBold', name: 'Cormorant Garamond Bold · serif refinada', familyName: 'Cormorant Garamond', weight: 700 },
+    { id: 'PlayfairDisplay', name: 'Playfair Display Bold · serif editorial', familyName: 'Playfair Display', weight: 700 },
+    { id: 'PlayfairDisplayItalic', name: 'Playfair Display Italic · serif editorial', familyName: 'Playfair Display', weight: 700, italic: true },
   ],
   keyword: [
     // ─── Itálicas serif (acentos editoriales con clase) ───

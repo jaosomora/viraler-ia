@@ -75,7 +75,7 @@ export async function processJobUntilReview(jobId) {
 
   try {
     const job = await get('SELECT * FROM reel_jobs WHERE id=?', [jobId]);
-    if (!job) throw new Error('Job no encontrado');
+    if (!job) throw new Error('Reel no encontrado');
 
     await setStage(jobId, 0);
     const sourcePath = path.join(jobDir, 'source.mp4');
@@ -137,7 +137,7 @@ export async function processJobUntilReview(jobId) {
  */
 export async function applyCutsAndRenderBase(jobId, cuts) {
   const job = await get('SELECT * FROM reel_jobs WHERE id=?', [jobId]);
-  if (!job) throw new Error('Job no encontrado');
+  if (!job) throw new Error('Reel no encontrado');
   if (!['awaiting_review', 'awaiting_style_review', 'done', 'error'].includes(job.status)) {
     throw new Error(`Job en estado ${job.status}, no se puede aplicar cortes`);
   }
@@ -145,7 +145,7 @@ export async function applyCutsAndRenderBase(jobId, cuts) {
     throw new Error('El video fuente fue purgado');
   }
   if (!job.whisper_json_path || !fs.existsSync(job.whisper_json_path)) {
-    throw new Error('Falta el transcript del job');
+    throw new Error('Falta la transcripción del reel');
   }
 
   const transcript = JSON.parse(fs.readFileSync(job.whisper_json_path, 'utf8'));
@@ -201,7 +201,7 @@ async function _renderBaseAsync(jobId, job, keepSegments, remappedWords, finalDu
 
 async function _burnPreview(jobId) {
   const job = await get('SELECT * FROM reel_jobs WHERE id=?', [jobId]);
-  if (!job) throw new Error('Job no encontrado');
+  if (!job) throw new Error('Reel no encontrado');
   if (!job.base_video_path || !fs.existsSync(job.base_video_path)) {
     throw new Error('Base video no existe');
   }
@@ -241,7 +241,7 @@ async function _burnPreview(jobId) {
  */
 export async function renderPreview(jobId) {
   const job = await get('SELECT user_id, status FROM reel_jobs WHERE id=?', [jobId]);
-  if (!job) throw new Error('Job no encontrado');
+  if (!job) throw new Error('Reel no encontrado');
   if (!['awaiting_style_review', 'done', 'error'].includes(job.status)) {
     throw new Error(`Job en estado ${job.status}, no se puede re-renderizar el preview`);
   }
@@ -265,7 +265,7 @@ export async function renderPreview(jobId) {
  */
 export async function updateStyle(jobId, patch) {
   const job = await get('SELECT * FROM reel_jobs WHERE id=?', [jobId]);
-  if (!job) throw new Error('Job no encontrado');
+  if (!job) throw new Error('Reel no encontrado');
 
   const fields = [];
   const values = [];
@@ -300,7 +300,7 @@ export async function updateStyle(jobId, patch) {
  */
 export async function continueToMusicReview(jobId) {
   const job = await get('SELECT status, preview_dirty FROM reel_jobs WHERE id=?', [jobId]);
-  if (!job) throw new Error('Job no encontrado');
+  if (!job) throw new Error('Reel no encontrado');
   if (!['awaiting_style_review', 'awaiting_music_review', 'done'].includes(job.status)) {
     throw new Error(`No se puede pasar a música desde estado ${job.status}`);
   }
@@ -312,7 +312,7 @@ export async function continueToMusicReview(jobId) {
 
 export async function reopenStyleReview(jobId) {
   const job = await get('SELECT status FROM reel_jobs WHERE id=?', [jobId]);
-  if (!job) throw new Error('Job no encontrado');
+  if (!job) throw new Error('Reel no encontrado');
   if (!['awaiting_music_review', 'done'].includes(job.status)) {
     throw new Error(`No se puede volver a estilo desde ${job.status}`);
   }
@@ -346,7 +346,7 @@ export async function updateMusic(jobId, patch) {
  */
 export async function renderMusicMix(jobId) {
   const job = await get('SELECT * FROM reel_jobs WHERE id=?', [jobId]);
-  if (!job) throw new Error('Job no encontrado');
+  if (!job) throw new Error('Reel no encontrado');
   if (!['awaiting_music_review', 'done'].includes(job.status)) {
     throw new Error(`Estado ${job.status} no permite re-mezclar música`);
   }
@@ -391,9 +391,9 @@ export async function renderMusicMix(jobId) {
  */
 export async function suggestMusic(jobId) {
   const job = await get('SELECT * FROM reel_jobs WHERE id=?', [jobId]);
-  if (!job) throw new Error('Job no encontrado');
+  if (!job) throw new Error('Reel no encontrado');
   if (!job.whisper_json_path || !fs.existsSync(job.whisper_json_path)) {
-    throw new Error('Falta transcript del job');
+    throw new Error('Falta la transcripción del reel');
   }
   const tracks = await listMusicTracks({});
   if (tracks.length === 0) return { suggestions: [], reasoning: 'Tu biblioteca está vacía.' };
@@ -514,7 +514,7 @@ Devuelve EXACTAMENTE 3 sugerencias variadas en JSON.`;
  */
 export async function finalize(jobId) {
   const job = await get('SELECT * FROM reel_jobs WHERE id=?', [jobId]);
-  if (!job) throw new Error('Job no encontrado');
+  if (!job) throw new Error('Reel no encontrado');
 
   if (job.status === 'awaiting_style_review' || job.preview_dirty) {
     if (job.preview_dirty) await _burnPreview(jobId);
@@ -562,7 +562,7 @@ export async function finalize(jobId) {
  */
 export async function generateVoiceSample(jobId, { startSec = 0, autolevel, gainDb } = {}) {
   const job = await get('SELECT * FROM reel_jobs WHERE id=?', [jobId]);
-  if (!job) throw new Error('Job no encontrado');
+  if (!job) throw new Error('Reel no encontrado');
   if (!job.base_video_path || !fs.existsSync(job.base_video_path)) {
     throw new Error('Aún no hay base render para muestrear');
   }
@@ -597,7 +597,7 @@ export async function generateVoiceSample(jobId, { startSec = 0, autolevel, gain
  */
 export async function reopenSilenceReview(jobId) {
   const job = await get('SELECT status FROM reel_jobs WHERE id=?', [jobId]);
-  if (!job) throw new Error('Job no encontrado');
+  if (!job) throw new Error('Reel no encontrado');
   if (!['awaiting_style_review', 'done'].includes(job.status)) {
     throw new Error(`No se puede reabrir desde estado ${job.status}`);
   }
@@ -658,7 +658,7 @@ export async function listJobsForUser(userId) {
 
 export async function deleteJob(jobId, userId) {
   const job = await get('SELECT * FROM reel_jobs WHERE id=? AND user_id=?', [jobId, userId]);
-  if (!job) return { success: false, message: 'Job no encontrado' };
+  if (!job) return { success: false, message: 'Reel no encontrado' };
   const jobDir = path.join(REELS_ROOT, jobId);
   try { if (fs.existsSync(jobDir)) fs.rmSync(jobDir, { recursive: true, force: true }); } catch {}
   await run('DELETE FROM reel_jobs WHERE id=?', [jobId]);

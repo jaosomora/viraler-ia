@@ -429,7 +429,7 @@ const ManualClipSelection = ({ job }) => {
               {submitting ? 'Enviando…' : `✨ Generar ${ranges.length} clip${ranges.length === 1 ? '' : 's'}`}
             </button>
             <div className="text-[10px] text-gray-500 dark:text-gray-400 text-center mt-1.5">
-              {ranges.length > 0 && <>~{Math.round(totalDuration)}s totales · estimado ${estimatedCost.toFixed(3)}</>}
+              {ranges.length > 0 && <>~{Math.round(totalDuration)}s totales</>}
             </div>
           </div>
         </div>

@@ -105,12 +105,11 @@ const ReelsCleanerPage = () => {
   return (
     <div className="flex flex-col space-y-8">
       <div className="text-center">
-        <div className="text-xs uppercase tracking-widest text-gray-500 mb-1">AS Tools</div>
         <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-amber-600 to-rose-600 bg-clip-text text-transparent">
           Reels Cleaner
         </h1>
         <p className="mt-3 text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-          Sube una toma vertical corta. Detectamos los silencios, tú validas qué cortar, y te entregamos el reel limpio con subtítulos.
+          Sube un video vertical corto. Detectamos los silencios, tú decides cuáles cortar, y te entregamos el reel limpio con subtítulos.
         </p>
       </div>
 
@@ -214,7 +213,7 @@ const UploadForm = ({ onUpload, uploading, progress }) => {
         ) : (
           <>
             <div className="text-4xl mb-3">🎬</div>
-            <div className="font-medium text-gray-900 dark:text-white mb-1">Arrastra tu toma o haz click</div>
+            <div className="font-medium text-gray-900 dark:text-white mb-1">Arrastra tu video o haz click</div>
             <p className="text-sm text-gray-500">MP4, MOV, MKV, WEBM, M4V · máximo 10 minutos · 500 MB</p>
           </>
         )}
@@ -230,12 +229,12 @@ const ProgressView = ({ job, onBack }) => {
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-8 text-center">
       <div className="text-5xl mb-4">{currentStage.emoji}</div>
       <h3 className="font-medium text-lg text-gray-900 dark:text-white mb-1">{currentStage.msg}</h3>
-      <p className="text-sm text-gray-500 mb-4">{job.title || 'Tu toma'}</p>
+      <p className="text-sm text-gray-500 mb-4">{job.title || 'Tu video'}</p>
       <div className="max-w-md mx-auto h-2 bg-gray-200 dark:bg-gray-700 rounded overflow-hidden mb-4">
         <div className="h-full bg-gradient-to-r from-amber-500 to-rose-500 transition-all" style={{ width: `${currentStage.percent}%` }} />
       </div>
       <button onClick={onBack} className="text-xs text-gray-500 hover:text-gray-700 underline">
-        ← Subir otra toma
+        ← Subir otro video
       </button>
     </div>
   );
@@ -247,10 +246,10 @@ const ErrorView = ({ job, onBack, onDelete }) => (
     <p className="text-sm text-rose-700 dark:text-rose-300 mb-3">{job.error_message || 'Error desconocido'}</p>
     <div className="flex gap-2">
       <button onClick={onBack} className="px-3 py-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded hover:bg-gray-50">
-        Subir otra toma
+        Subir otro video
       </button>
       <button onClick={onDelete} className="px-3 py-1.5 text-sm text-rose-700 hover:bg-rose-100 rounded">
-        Eliminar este job
+        Eliminar este reel
       </button>
     </div>
   </div>
@@ -264,13 +263,17 @@ const ReviewView = ({ job, onSubmitted, onError }) => {
   const [overrides, setOverrides] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [playWithCuts, setPlayWithCuts] = useState(false);
+  // Firma del set de cortes en el último "Escuchar". Sirve para destacar el botón
+  // cuando hay cambios pendientes de previsualizar.
+  const [lastListenedSig, setLastListenedSig] = useState('init');
   const [videoTime, setVideoTime] = useState(0);
   const [autoScrollPaused, setAutoScrollPaused] = useState(false);
   // Trim cabeza/cola: segundos a descartar al inicio y al final del video original.
   // Se modela como dos cortes adicionales que pasan por el mismo pipeline (padding,
-  // snap, render). El input es texto para permitir typing libre tipo "0:07".
-  const [trimHeadStr, setTrimHeadStr] = useState('');
-  const [trimTailStr, setTrimTailStr] = useState('');
+  // Trim cabeza/cola en segundos. 0 = sin recorte. Se setean haciendo click en
+  // "Empezar/Terminar el reel aquí" usando el currentTime del player — sin typing.
+  const [trimHeadSec, setTrimHeadSec] = useState(0);
+  const [trimTailSec, setTrimTailSec] = useState(0);
   const videoRef = useRef();
   const transcriptContainerRef = useRef();
   const activeWordRef = useRef();
@@ -292,16 +295,14 @@ const ReviewView = ({ job, onSubmitted, onError }) => {
   // generamos cut (sin error visible, simplemente no aplica).
   const trimCuts = useMemo(() => {
     const out = [];
-    const head = parseTimeInput(trimHeadStr);
-    const tail = parseTimeInput(trimTailStr);
-    if (head != null && head > 0.05) {
-      out.push({ start: 0, end: Math.min(head, totalDur) });
+    if (trimHeadSec > 0.05) {
+      out.push({ start: 0, end: Math.min(trimHeadSec, totalDur) });
     }
-    if (tail != null && tail > 0.05 && totalDur > 0) {
-      out.push({ start: Math.max(0, totalDur - tail), end: totalDur });
+    if (trimTailSec > 0.05 && totalDur > 0) {
+      out.push({ start: Math.max(0, totalDur - trimTailSec), end: totalDur });
     }
     return out;
-  }, [trimHeadStr, trimTailStr, totalDur]);
+  }, [trimHeadSec, trimTailSec, totalDur]);
 
   const cuts = useMemo(() => {
     const fromGaps = gapsWithState
@@ -309,6 +310,14 @@ const ReviewView = ({ job, onSubmitted, onError }) => {
       .map(g => ({ start: g.start, end: g.end }));
     return [...fromGaps, ...trimCuts];
   }, [gapsWithState, trimCuts]);
+
+  // Firma estable del set actual de cortes. Si difiere de la del último "Escuchar",
+  // hay cambios sin previsualizar.
+  const cutsSignature = useMemo(() =>
+    cuts.map(c => `${c.start.toFixed(2)}-${c.end.toFixed(2)}`).sort().join('|'),
+    [cuts],
+  );
+  const previewStale = cuts.length > 0 && cutsSignature !== lastListenedSig;
 
   const removedSeconds = cuts.reduce((a, c) => a + (c.end - c.start), 0);
   const finalDuration = Math.max(0, totalDur - removedSeconds);
@@ -458,49 +467,51 @@ const ReviewView = ({ job, onSubmitted, onError }) => {
 
   return (
     <div>
-      {/* Barra superior */}
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 mb-6 grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
-        <div className="md:col-span-4">
-          <div className="text-xs uppercase tracking-wider text-gray-500 mb-1">Duración</div>
-          <div className="flex items-baseline gap-3">
-            <span className="text-2xl font-mono text-gray-400 line-through">{fmtTime(totalDur)}</span>
+      <div className="mb-4 flex items-end justify-between gap-4 flex-wrap">
+        <div>
+          <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Paso 1 de 3 · Decidir qué cortar</div>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Revisa los silencios detectados y marca cuáles eliminar
+          </h2>
+          <p className="text-xs text-gray-500 mt-1">
+            Mueve el deslizador para ajustar la sensibilidad, o haz click en cada chip para alternar entre cortar y mantener.
+          </p>
+        </div>
+        <div className="text-right shrink-0">
+          <div className="text-[11px] uppercase tracking-wide text-gray-500 mb-1">Duración del reel</div>
+          <div className="flex items-baseline gap-2 justify-end">
+            <span className="text-base font-mono text-gray-400 line-through">{fmtTime(totalDur)}</span>
             <span className="text-gray-400">→</span>
-            <span className="text-3xl font-mono font-semibold text-gray-900 dark:text-white">{fmtTime(finalDuration)}</span>
+            <span className="text-2xl font-mono font-semibold text-gray-900 dark:text-white">{fmtTime(finalDuration)}</span>
             {removedSeconds > 0 && (
-              <span className="text-sm text-rose-600 font-medium">−{Math.round(removedSeconds)}s</span>
+              <span className="text-xs text-rose-600 font-medium">−{Math.round(removedSeconds)}s</span>
             )}
           </div>
         </div>
+      </div>
 
-        <div className="md:col-span-5">
-          <div className="flex items-baseline justify-between mb-1 gap-2">
-            <label className="text-xs text-gray-600 dark:text-gray-300">
-              Voy a cortar cualquier silencio mayor a{' '}
-              <span className="font-mono font-semibold text-gray-900 dark:text-white text-sm">{threshold.toFixed(1)}s</span>
-            </label>
-          </div>
-          <input
-            type="range" min="0.2" max="2.0" step="0.1"
-            value={threshold}
-            onChange={e => { setThreshold(parseFloat(e.target.value)); setOverrides({}); }}
-            className="w-full accent-gray-900 dark:accent-amber-500"
-          />
-          <div className="flex justify-between text-[10px] text-gray-400 mt-0.5">
-            <span>← corto más (incluso pausas cortas)</span>
-            <span>corto menos (solo pausas muy largas) →</span>
+      {/* Barra superior — único control global: el deslizador de sensibilidad */}
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 mb-6">
+        <div className="flex items-baseline justify-between mb-2 gap-3 flex-wrap">
+          <label className="text-sm text-gray-800 dark:text-gray-100">
+            Cortar silencios mayores a{' '}
+            <span className="font-mono font-semibold text-gray-900 dark:text-white">{threshold.toFixed(1)}s</span>
+          </label>
+          <div className="text-xs text-gray-500">
+            <span className="text-rose-700 dark:text-rose-400 font-semibold">{cutCount} corte{cutCount === 1 ? '' : 's'}</span>
+            <span className="mx-1.5 text-gray-300">·</span>
+            <span>{keepCount} pausa{keepCount === 1 ? '' : 's'} conservada{keepCount === 1 ? '' : 's'}</span>
           </div>
         </div>
-
-        <div className="md:col-span-3">
-          <div className="text-xs uppercase tracking-wider text-gray-500 mb-1">Resumen</div>
-          <div className="text-sm text-gray-700 dark:text-gray-200 leading-snug">
-            Voy a cortar <span className="text-rose-700 dark:text-rose-400 font-semibold">{cutCount} silencio{cutCount === 1 ? '' : 's'}</span>
-            {removedSeconds > 0.1 && (
-              <> <span className="text-gray-500">({Math.round(removedSeconds)}s menos)</span></>
-            )}
-            <br />
-            y mantener <span className="font-semibold">{keepCount} pausa{keepCount === 1 ? '' : 's'}</span> tal cual.
-          </div>
+        <input
+          type="range" min="0.2" max="2.0" step="0.1"
+          value={threshold}
+          onChange={e => { setThreshold(parseFloat(e.target.value)); setOverrides({}); }}
+          className="w-full accent-gray-900 dark:accent-amber-500"
+        />
+        <div className="flex justify-between text-[10px] text-gray-600 dark:text-gray-400 mt-0.5">
+          <span>← cortar más (incluso pausas cortas)</span>
+          <span>cortar menos (solo pausas muy largas) →</span>
         </div>
       </div>
 
@@ -518,115 +529,115 @@ const ReviewView = ({ job, onSubmitted, onError }) => {
                 />
               </div>
               <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-                {/* Toggle: previsualizar el resultado final saltando los cortes en vivo */}
-                <button
-                  onClick={() => setPlayWithCuts(v => !v)}
-                  className={`w-full mb-3 px-3 py-2 rounded-lg text-sm font-medium transition flex items-center justify-center gap-2 ${
-                    playWithCuts
-                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md'
-                      : 'bg-gray-900 hover:bg-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 text-white'
-                  }`}
-                  title={playWithCuts ? 'Click para volver a reproducción normal (sin saltos)' : 'Reproduce saltando los cortes para escuchar cómo queda el reel final'}
-                >
-                  {playWithCuts
-                    ? <>● Reproduciendo como queda final · click para volver al original</>
-                    : <>▶ Escuchar cómo queda con los cortes aplicados</>}
-                </button>
-                {playWithCuts && (
-                  <p className="text-[10px] text-emerald-700 dark:text-emerald-400 text-center -mt-1 mb-2">
-                    Si una palabra se oye cortada, marca esa pausa como "Mantener" en el transcript.
-                  </p>
-                )}
-
-                {/* Trim cabeza/cola: dos cortes anclados a los extremos.
-                    Funcionan exactamente igual que los chips del transcript pero los marca el usuario manualmente. */}
-                <div className="mb-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700">
-                  <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-2">
+                {/* Trim cabeza/cola estilo "play + click":
+                    el usuario pausa el video en el momento que quiere usar como corte
+                    y pulsa el botón. Sin teclado, sin formatos de tiempo. */}
+                <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700">
+                  <div className="text-sm font-medium text-gray-800 dark:text-gray-100 mb-1">
                     Recortar inicio y final
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-[10px] text-gray-500 mb-1">Quitar al inicio</label>
-                      <div className="flex gap-1">
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          placeholder="0:00"
-                          value={trimHeadStr}
-                          onChange={e => setTrimHeadStr(e.target.value)}
-                          className="w-full px-2 py-1 text-sm font-mono rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                        />
+                  <p className="text-[11px] text-gray-600 dark:text-gray-400 mb-3 leading-snug">
+                    Reproduce el video, pausa en el momento donde quieres que empiece (o termine) el reel, y pulsa el botón.
+                  </p>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setTrimHeadSec(Math.max(0, videoRef.current?.currentTime || 0))}
+                        className="flex-1 px-3 py-2 text-xs font-medium rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:border-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 text-gray-800 dark:text-gray-100 text-left"
+                      >
+                        📍 Empezar el reel desde aquí
+                      </button>
+                      {trimHeadSec > 0.05 && (
                         <button
                           type="button"
-                          onClick={() => setTrimHeadStr(fmtTime(videoRef.current?.currentTime || 0))}
-                          className="px-2 py-1 text-[10px] rounded bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 whitespace-nowrap"
-                          title="Usar el tiempo actual del player"
+                          onClick={() => setTrimHeadSec(0)}
+                          title="Quitar este recorte"
+                          className="px-2 py-2 text-[11px] rounded bg-gray-200 hover:bg-rose-100 dark:bg-gray-700 dark:hover:bg-rose-900/30 text-gray-700 dark:text-gray-200 hover:text-rose-700"
                         >
-                          Aquí
+                          ↺
                         </button>
-                      </div>
+                      )}
                     </div>
-                    <div>
-                      <label className="block text-[10px] text-gray-500 mb-1">Quitar al final</label>
-                      <div className="flex gap-1">
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          placeholder="0:00"
-                          value={trimTailStr}
-                          onChange={e => setTrimTailStr(e.target.value)}
-                          className="w-full px-2 py-1 text-sm font-mono rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                        />
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const t = videoRef.current?.currentTime;
+                          if (t != null && totalDur > 0) setTrimTailSec(Math.max(0, totalDur - t));
+                        }}
+                        className="flex-1 px-3 py-2 text-xs font-medium rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:border-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 text-gray-800 dark:text-gray-100 text-left"
+                      >
+                        📍 Terminar el reel aquí
+                      </button>
+                      {trimTailSec > 0.05 && (
                         <button
                           type="button"
-                          onClick={() => {
-                            const t = videoRef.current?.currentTime;
-                            if (t != null && totalDur > 0) setTrimTailStr(fmtTime(Math.max(0, totalDur - t)));
-                          }}
-                          className="px-2 py-1 text-[10px] rounded bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 whitespace-nowrap"
-                          title="Cortar desde el tiempo actual hasta el final"
+                          onClick={() => setTrimTailSec(0)}
+                          title="Quitar este recorte"
+                          className="px-2 py-2 text-[11px] rounded bg-gray-200 hover:bg-rose-100 dark:bg-gray-700 dark:hover:bg-rose-900/30 text-gray-700 dark:text-gray-200 hover:text-rose-700"
                         >
-                          Aquí
+                          ↺
                         </button>
-                      </div>
+                      )}
                     </div>
                   </div>
-                  {trimCuts.length > 0 && (
-                    <div className="mt-2 text-[11px] text-rose-700 dark:text-rose-400">
-                      {trimCuts[0]?.start === 0 && (
-                        <>Inicio: <span className="font-mono">0:00 → {fmtTime(trimCuts[0].end)}</span></>
-                      )}
-                      {trimCuts.length === 2 && <span className="mx-1.5 text-gray-400">·</span>}
-                      {trimCuts[trimCuts.length - 1]?.end === totalDur && (
-                        <>Final: <span className="font-mono">{fmtTime(trimCuts[trimCuts.length - 1].start)} → {fmtTime(totalDur)}</span></>
-                      )}
+
+                  {(trimHeadSec > 0.05 || trimTailSec > 0.05) && (
+                    <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 text-xs">
+                      <div className="text-gray-700 dark:text-gray-300">
+                        El reel empieza en{' '}
+                        <span className="font-mono font-semibold text-gray-900 dark:text-white">{fmtTime(trimHeadSec)}</span>
+                        {' '}y termina en{' '}
+                        <span className="font-mono font-semibold text-gray-900 dark:text-white">{fmtTime(Math.max(0, totalDur - trimTailSec))}</span>
+                      </div>
                     </div>
                   )}
-                  <p className="text-[10px] text-gray-500 mt-1.5 leading-snug">
-                    Pulsa "▶ Escuchar cómo queda" para oír el resultado en vivo (sin renderizar).
-                  </p>
-                </div>
-
-                <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-2">
-                  Timeline (gris = mantener · rosa = cortar)
-                </div>
-                <TimelineBar totalDur={totalDur} gaps={gapsWithState} onSeek={seek} />
-                <div className="flex justify-between text-[10px] text-gray-400 mt-1 font-mono">
-                  <span>0:00</span><span>{fmtTime(totalDur)}</span>
                 </div>
               </div>
             </div>
 
-            <button
-              onClick={handleSubmit}
-              disabled={submitting || cuts.length === 0 && removedSeconds < 0.1}
-              className="w-full mt-4 bg-gradient-to-r from-amber-600 to-rose-600 hover:from-amber-700 hover:to-rose-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 rounded-lg font-medium transition"
-            >
-              {submitting ? 'Procesando…' : 'Generar reel limpio →'}
-            </button>
-            <p className="text-xs text-gray-500 text-center mt-2">
-              Render 9:16 · subs · cortes aplicados
-            </p>
+            {/* Acciones: previsualizar antes de comprometerse, después aplicar */}
+            <div className="mt-4 space-y-2">
+              <button
+                onClick={() => { setPlayWithCuts(v => !v); setLastListenedSig(cutsSignature); }}
+                className={`w-full px-3 py-2.5 rounded-lg text-sm font-medium transition flex items-center justify-center gap-2 ${
+                  playWithCuts
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md'
+                    : previewStale
+                      ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-md ring-2 ring-amber-300 dark:ring-amber-700 animate-pulse'
+                      : 'bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:border-gray-400 text-gray-800 dark:text-gray-100'
+                }`}
+                title={playWithCuts
+                  ? 'Click para volver a reproducción normal (sin saltos)'
+                  : previewStale
+                    ? 'Hay cambios sin previsualizar · click para escuchar cómo queda'
+                    : 'Reproduce saltando los cortes para escuchar cómo queda el reel final'}
+              >
+                {playWithCuts
+                  ? <>● Sonando como queda · click para volver al original</>
+                  : previewStale
+                    ? <>▶ Escuchar cómo queda con los cambios</>
+                    : <>▶ Escuchar cómo queda antes de aplicar</>}
+              </button>
+              {playWithCuts && (
+                <p className="text-[10px] text-emerald-700 dark:text-emerald-400 text-center">
+                  Si una palabra se oye cortada, marca esa pausa como "Mantener" en el transcript.
+                </p>
+              )}
+              <button
+                onClick={handleSubmit}
+                disabled={submitting || (cuts.length === 0 && removedSeconds < 0.1)}
+                className="w-full bg-gradient-to-r from-amber-600 to-rose-600 hover:from-amber-700 hover:to-rose-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 rounded-lg font-medium transition"
+              >
+                {submitting ? 'Procesando…' : 'Aplicar cortes y continuar →'}
+              </button>
+              <p className="text-xs text-gray-500 text-center">
+                Siguiente paso: elegir el estilo de los subtítulos
+              </p>
+            </div>
           </div>
         </div>
 
@@ -635,15 +646,15 @@ const ReviewView = ({ job, onSubmitted, onError }) => {
           <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
             <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
               <h2 className="font-semibold text-lg text-gray-900 dark:text-white">Transcripción</h2>
-              <div className="text-xs text-gray-500 flex items-center gap-2 flex-wrap">
+              <div className="text-xs text-gray-700 dark:text-gray-300 flex items-center gap-2 flex-wrap">
                 <span className="inline-block px-2 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-semibold uppercase tracking-wide">✂ Cortar</span>
-                <span className="text-gray-400">se elimina</span>
-                <span className="text-gray-600">·</span>
+                <span>se elimina</span>
+                <span className="text-gray-400 dark:text-gray-600">·</span>
                 <span className="inline-block px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-900/40 dark:text-amber-200 dark:border-amber-700/60 text-[10px] font-semibold uppercase tracking-wide">⚠ Revisar</span>
-                <span className="text-gray-400">pausa larga NO cortada</span>
-                <span className="text-gray-600">·</span>
-                <span className="inline-block px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-200 dark:bg-gray-700/40 dark:text-gray-400 dark:border-gray-700 text-[10px]">Mantener</span>
-                <span className="text-gray-400">se conserva</span>
+                <span>pausa larga NO cortada</span>
+                <span className="text-gray-400 dark:text-gray-600">·</span>
+                <span className="inline-block px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 border border-gray-300 dark:bg-gray-700/40 dark:text-gray-300 dark:border-gray-700 text-[10px]">Mantener</span>
+                <span>se conserva</span>
               </div>
             </div>
 
@@ -708,7 +719,7 @@ const ReviewView = ({ job, onSubmitted, onError }) => {
                   <span
                     key={item.key}
                     onClick={() => toggleGap(item.gap.idx)}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 mx-1 rounded-full text-[10px] cursor-pointer select-none align-middle transition bg-gray-100 text-gray-500 border border-gray-200 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 dark:bg-gray-700/40 dark:text-gray-400 dark:border-gray-700 dark:hover:bg-rose-900/30 dark:hover:text-rose-300"
+                    className="inline-flex items-center gap-1 px-2 py-0.5 mx-1 rounded-full text-[10px] cursor-pointer select-none align-middle transition bg-gray-100 text-gray-700 border border-gray-300 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 dark:bg-gray-700/40 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-rose-900/30 dark:hover:text-rose-300"
                     title="Pausa corta · click para cortarla"
                   >
                     Mantener · {item.gap.duration.toFixed(1)}s
@@ -718,16 +729,9 @@ const ReviewView = ({ job, onSubmitted, onError }) => {
             </div>
           </div>
 
-          <div className="mt-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/50 rounded-lg p-4 text-sm text-amber-900 dark:text-amber-200">
-            <strong className="font-semibold">Tres estados:</strong>
-            <span className="inline-block mx-1 px-1.5 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-semibold uppercase tracking-wide">✂ Cortar</span>
-            se elimina del video.
-            <span className="inline-block mx-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 text-[10px] font-semibold uppercase tracking-wide">⚠ Revisar</span>
-            pausa larga (≥1s) que NO se está cortando — revisa si realmente la quieres conservar.
-            <span className="inline-block mx-1 px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-200 text-[10px]">Mantener</span>
-            pausa corta que se conserva tal cual.
-            Click sobre cualquier chip para cambiar su estado. Click en una palabra reproduce el video desde ahí.
-          </div>
+          <p className="mt-4 text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+            Click sobre cualquier chip para cambiar su estado. Click en una palabra reproduce el video desde ese instante.
+          </p>
         </div>
       </div>
     </div>
@@ -880,7 +884,7 @@ const VoicePanel = ({ jobId, autolevel, gainDb, onAutolevelChange, onGainChange,
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
       <div className="flex items-start justify-between gap-3 mb-3">
         <div>
-          <h3 className="font-semibold text-sm uppercase tracking-wide text-gray-500 flex items-center gap-2">
+          <h3 className="font-semibold text-sm text-gray-700 dark:text-gray-300 flex items-center gap-2">
             <span>🎙️</span> Voz
           </h3>
           <p className="text-xs text-gray-500 mt-1">
@@ -908,7 +912,7 @@ const VoicePanel = ({ jobId, autolevel, gainDb, onAutolevelChange, onGainChange,
             <span className="text-[10px] uppercase tracking-wider text-rose-700 bg-rose-50 dark:bg-rose-900/30 dark:text-rose-300 px-1.5 py-0.5 rounded">recomendado</span>
           </div>
           <div className="text-xs text-gray-500 mt-0.5">
-            Lleva tu voz al volumen estándar de Instagram y TikTok (−16 LUFS), sin distorsión.
+            Lleva tu voz al volumen estándar de Instagram y TikTok, sin distorsión.
           </div>
         </div>
       </label>
@@ -1186,31 +1190,19 @@ const StyleReviewView = ({ job, onChange, onError }) => {
 
   return (
     <div>
-      {/* Header con resumen y CTAs primarios */}
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 mb-6 flex items-center justify-between gap-4 flex-wrap">
+      <div className="mb-4 flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <div className="text-xs uppercase tracking-wider text-gray-500 mb-1">Paso 2 de 3 · Revisar estilo</div>
+          <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Paso 2 de 3 · Vestir los subtítulos</div>
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Verifica fuente, colores y texto antes de la música
+            Ajusta cómo se ven los subtítulos y cómo suena la voz
           </h2>
           <p className="text-xs text-gray-500 mt-1">
-            Reel de {fmtTime(finalDur)} · si un corte se llevó una palabra, vuelve atrás.
+            Si un corte se llevó parte de una palabra, vuelve atrás a ajustar los silencios.
           </p>
         </div>
-        <div className="flex gap-2 flex-wrap">
-          <button
-            onClick={handleReopen}
-            className="px-3 py-2 text-sm text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg border border-amber-300 dark:border-amber-700/50"
-          >
-            ← Ajustar silencios
-          </button>
-          <button
-            onClick={handleContinueToMusic}
-            disabled={finalizing || rendering}
-            className="px-4 py-2 text-sm bg-gradient-to-r from-amber-600 to-rose-600 hover:from-amber-700 hover:to-rose-700 disabled:opacity-50 text-white rounded-lg font-medium"
-          >
-            {finalizing ? 'Avanzando…' : 'Continuar a música →'}
-          </button>
+        <div className="text-right shrink-0">
+          <div className="text-[11px] uppercase tracking-wide text-gray-500 mb-1">Duración del reel</div>
+          <div className="text-2xl font-mono font-semibold text-gray-900 dark:text-white">{fmtTime(finalDur)}</div>
         </div>
       </div>
 
@@ -1230,110 +1222,44 @@ const StyleReviewView = ({ job, onChange, onError }) => {
               />
               <div className="p-3 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-500 flex items-center justify-between gap-3">
                 <span className="text-emerald-700 dark:text-emerald-400">
-                  ✓ Vista previa en vivo · los cambios se ven al instante
+                  Los cambios se ven al instante
                 </span>
                 <label className="flex items-center gap-1.5 cursor-pointer shrink-0">
                   <input type="checkbox" checked={showSafeZones} onChange={e => setShowSafeZones(e.target.checked)}
                     className="accent-rose-600" />
-                  <span className="text-[11px]">Zonas IG/TikTok</span>
+                  <span className="text-[11px]">Mostrar zonas seguras de Instagram y TikTok</span>
                 </label>
               </div>
+            </div>
+
+            <div className="mt-4 space-y-2">
+              <button
+                onClick={handleContinueToMusic}
+                disabled={finalizing || rendering}
+                className="w-full bg-gradient-to-r from-amber-600 to-rose-600 hover:from-amber-700 hover:to-rose-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 rounded-lg font-medium transition"
+              >
+                {finalizing ? 'Avanzando…' : 'Continuar a música →'}
+              </button>
+              <button
+                onClick={handleReopen}
+                className="w-full px-3 py-2 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg border border-gray-300 dark:border-gray-600"
+              >
+                ← Volver a ajustar los silencios
+              </button>
+              <p className="text-xs text-gray-500 text-center">
+                Siguiente paso: agregar música de fondo (opcional)
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Panel de edición */}
+        {/* Panel de edición — orden: Subtítulos (verifica texto) → Estilo (vístelo) → Voz (afina audio) */}
         <div className="lg:col-span-7 space-y-5">
-          {/* Voz — auto-nivelar + ajuste fino */}
-          <VoicePanel
-            jobId={job.id}
-            autolevel={!!localStyle.voice_autolevel}
-            gainDb={localStyle.voice_gain_db}
-            onAutolevelChange={v => setStyleField('voice_autolevel', v ? 1 : 0)}
-            onGainChange={v => setStyleField('voice_gain_db', v)}
-            onError={onError}
-          />
 
-          {/* Estilo */}
-          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
-            <h3 className="font-semibold text-sm uppercase tracking-wide text-gray-500 mb-4">Estilo de subtítulos</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Fuente</label>
-                <select
-                  value={localStyle.font_caption}
-                  onChange={e => setStyleField('font_caption', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm"
-                >
-                  {fontOptions.map(f => (
-                    <option key={f.id} value={f.id}>
-                      {f.name}{f.recommended ? ' · recomendada' : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Tamaño · {localStyle.caption_font_size}px</label>
-                <input
-                  type="range" min="40" max="100" step="2"
-                  value={localStyle.caption_font_size}
-                  onChange={e => setStyleField('caption_font_size', parseInt(e.target.value))}
-                  className="w-full accent-gray-900 dark:accent-amber-500"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-xs text-gray-500 mb-1">Color del texto</label>
-                <ColorPicker
-                  value={localStyle.caption_color}
-                  onChange={v => setStyleField('caption_color', v)}
-                  presets={COLOR_PRESETS}
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-xs text-gray-500 mb-1">Color del borde</label>
-                <ColorPicker
-                  value={localStyle.outline_color}
-                  onChange={v => setStyleField('outline_color', v)}
-                  presets={OUTLINE_COLOR_PRESETS}
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-xs text-gray-500 mb-1">
-                  Grosor del borde · {localStyle.outline_thickness === 0 ? 'sin borde' : `${localStyle.outline_thickness}px`}
-                </label>
-                <input
-                  type="range" min="0" max="10" step="1"
-                  value={localStyle.outline_thickness}
-                  onChange={e => setStyleField('outline_thickness', parseInt(e.target.value))}
-                  className="w-full accent-gray-900 dark:accent-amber-500"
-                />
-                <div className="flex justify-between text-[10px] text-gray-400 mt-0.5">
-                  <span>0 · sin borde</span>
-                  <span>4 · default</span>
-                  <span>10 · muy grueso</span>
-                </div>
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-xs text-gray-500 mb-2">
-                  ¿Dónde aparecen los subtítulos?
-                </label>
-                <SubPositionPicker
-                  value={localStyle.sub_position}
-                  onChange={v => setStyleField('sub_position', v)}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Subtítulos editables */}
+          {/* Subtítulos editables — primero: verificar que las palabras estén bien escritas */}
           <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
             <div className="flex items-start justify-between gap-3 mb-1">
-              <h3 className="font-semibold text-sm uppercase tracking-wide text-gray-500">Subtítulos línea por línea</h3>
+              <h3 className="font-semibold text-sm text-gray-700 dark:text-gray-300">Revisar y corregir los subtítulos</h3>
               <button
                 onClick={handleCopyTranscript}
                 className={`text-xs px-2.5 py-1.5 rounded-lg border transition ${
@@ -1347,7 +1273,7 @@ const StyleReviewView = ({ job, onChange, onError }) => {
               </button>
             </div>
             <p className="text-xs text-gray-500 mb-4">
-              Edita el texto si Whisper se equivocó. Oculta una línea si no quieres que aparezca. Los tiempos se conservan.
+              Edita el texto si la transcripción tiene un error. Oculta una línea si no quieres que aparezca. Los tiempos se conservan.
             </p>
             <div ref={chunksContainerRef} className="space-y-2 max-h-[640px] overflow-y-auto pr-2">
               {autoScrollPaused && (
@@ -1383,7 +1309,7 @@ const StyleReviewView = ({ job, onChange, onError }) => {
                     type="button"
                     onClick={() => seekToChunk(ch)}
                     title="Saltar a este momento del video"
-                    className="text-[10px] font-mono text-gray-400 hover:text-amber-700 dark:hover:text-amber-400 pt-1.5 w-12 shrink-0 text-left cursor-pointer hover:underline"
+                    className="text-[11px] font-mono text-gray-600 dark:text-gray-300 hover:text-amber-700 dark:hover:text-amber-400 pt-1.5 w-12 shrink-0 text-left cursor-pointer hover:underline"
                   >
                     ▶ {fmtTime(ch.start)}
                   </button>
@@ -1407,20 +1333,110 @@ const StyleReviewView = ({ job, onChange, onError }) => {
                     )}
                     <button
                       onClick={() => toggleChunkHidden(ch.idx)}
-                      className={`text-[10px] px-1.5 py-1 rounded ${ch.hidden ? 'text-emerald-700 hover:bg-emerald-50' : 'text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30'}`}
-                      title={ch.hidden ? 'Volver a mostrar' : 'Ocultar esta línea'}
+                      className={`text-[10px] px-1.5 py-1 rounded ${ch.hidden ? 'text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30' : 'text-gray-600 dark:text-gray-300 hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-900/30 dark:hover:text-rose-300'}`}
+                      title={ch.hidden ? 'Volver a mostrar esta línea' : 'Ocultar esta línea'}
                     >
-                      {ch.hidden ? '👁 mostrar' : '🚫 ocultar'}
+                      {ch.hidden ? '👁 Mostrar' : '👁‍🗨 Ocultar'}
                     </button>
                   </div>
                 </div>
                 );
               })}
               {localChunks.length === 0 && (
-                <p className="text-xs text-gray-500">Sin subtítulos detectados (¿transcript vacío?)</p>
+                <p className="text-xs text-gray-500">Sin subtítulos detectados (¿transcripción vacía?)</p>
               )}
             </div>
           </div>
+
+          {/* Estilo — segundo: decidir cómo se ven */}
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
+            <h3 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-4">Estilo visual</h3>
+
+            {/* Sub-bloque: Texto */}
+            <div className="bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700 rounded-lg p-3 mb-3 space-y-3">
+              <div className="text-xs font-medium text-gray-700 dark:text-gray-300">Texto</div>
+              <div>
+                <label className="block text-[11px] text-gray-600 dark:text-gray-400 mb-1">Fuente</label>
+                <select
+                  value={localStyle.font_caption}
+                  onChange={e => setStyleField('font_caption', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm"
+                >
+                  {fontOptions.map(f => (
+                    <option key={f.id} value={f.id}>
+                      {f.name}{f.recommended ? ' · recomendada' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] text-gray-600 dark:text-gray-400 mb-1">Tamaño · {localStyle.caption_font_size}px</label>
+                <input
+                  type="range" min="40" max="100" step="2"
+                  value={localStyle.caption_font_size}
+                  onChange={e => setStyleField('caption_font_size', parseInt(e.target.value))}
+                  className="w-full accent-gray-900 dark:accent-amber-500"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-gray-600 dark:text-gray-400 mb-1">Color del texto</label>
+                <ColorPicker
+                  value={localStyle.caption_color}
+                  onChange={v => setStyleField('caption_color', v)}
+                  presets={COLOR_PRESETS}
+                />
+              </div>
+            </div>
+
+            {/* Sub-bloque: Borde */}
+            <div className="bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700 rounded-lg p-3 mb-3 space-y-3">
+              <div className="text-xs font-medium text-gray-700 dark:text-gray-300">Borde alrededor del texto</div>
+              <p className="text-[11px] text-gray-600 dark:text-gray-400">Sirve para que el texto se lea sobre cualquier fondo del video.</p>
+              <div>
+                <label className="block text-[11px] text-gray-600 dark:text-gray-400 mb-1">Color del borde</label>
+                <ColorPicker
+                  value={localStyle.outline_color}
+                  onChange={v => setStyleField('outline_color', v)}
+                  presets={OUTLINE_COLOR_PRESETS}
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-gray-600 dark:text-gray-400 mb-1">
+                  Grosor · {localStyle.outline_thickness === 0 ? 'sin borde' : `${localStyle.outline_thickness}px`}
+                </label>
+                <input
+                  type="range" min="0" max="10" step="1"
+                  value={localStyle.outline_thickness}
+                  onChange={e => setStyleField('outline_thickness', parseInt(e.target.value))}
+                  className="w-full accent-gray-900 dark:accent-amber-500"
+                />
+                <div className="flex justify-between text-[10px] text-gray-600 dark:text-gray-400 mt-0.5">
+                  <span>0 · sin borde</span>
+                  <span>4 · estándar</span>
+                  <span>10 · muy grueso</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Sub-bloque: Posición */}
+            <div className="bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+              <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Posición en pantalla</div>
+              <SubPositionPicker
+                value={localStyle.sub_position}
+                onChange={v => setStyleField('sub_position', v)}
+              />
+            </div>
+          </div>
+
+          {/* Voz — tercero: pulir audio si hace falta */}
+          <VoicePanel
+            jobId={job.id}
+            autolevel={!!localStyle.voice_autolevel}
+            gainDb={localStyle.voice_gain_db}
+            onAutolevelChange={v => setStyleField('voice_autolevel', v ? 1 : 0)}
+            onGainChange={v => setStyleField('voice_gain_db', v)}
+            onError={onError}
+          />
         </div>
       </div>
     </div>
@@ -1660,7 +1676,7 @@ const MusicReviewView = ({ job, onChange, onError }) => {
 
   const handleCurate = async () => {
     if (providers && !providers.jamendo?.configured) {
-      onError('Falta configurar JAMENDO_CLIENT_ID en .env del servidor. Regístrate gratis en devportal.jamendo.com y reinicia.');
+      onError('El catálogo externo está temporalmente fuera de servicio. Sube tu propia música usando el botón "Subir canción".');
       return;
     }
     const filtered = activeTags.length > 0;
@@ -1672,8 +1688,8 @@ const MusicReviewView = ({ job, onChange, onError }) => {
       return id;
     }).join(', ');
     const msg = filtered
-      ? `Voy a traer más tracks de Jamendo SOLO con estos tags: ${tagLabels}. ¿Continuar?`
-      : 'Voy a traer ~200 tracks variados (todos los moods/géneros) de Jamendo. Tarda ~40s. ¿Continuar?';
+      ? `Se traerán más canciones de Jamendo SOLO con estas etiquetas: ${tagLabels}. ¿Continuar?`
+      : 'Se traerán ~200 canciones variadas desde Jamendo. Tarda alrededor de 40 segundos. ¿Continuar?';
     if (!confirm(msg)) return;
     setCurating(true);
     setCurateResult(null);
@@ -1817,7 +1833,7 @@ const MusicReviewView = ({ job, onChange, onError }) => {
   };
 
   const handleBackToStyle = async () => {
-    if (!confirm('¿Volver a editar fuente/subtítulos? Tu selección de música se conserva.')) return;
+    if (!confirm('¿Volver al paso de subtítulos y estilo? Tu selección de música se conserva.')) return;
     try {
       await reopenStyle(job.id);
       onChange();
@@ -1845,32 +1861,19 @@ const MusicReviewView = ({ job, onChange, onError }) => {
 
   return (
     <div>
-      {/* Header */}
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 mb-6 flex items-center justify-between gap-4 flex-wrap">
+      <div className="mb-4 flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <div className="text-xs uppercase tracking-wider text-gray-500 mb-1">Paso 3 de 3 · Música de fondo (opcional)</div>
+          <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Paso 3 de 3 · Música de fondo (opcional)</div>
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Elige una canción y mezcla bajo la voz
+            Elige una canción que acompañe la voz
           </h2>
           <p className="text-xs text-gray-500 mt-1">
-            Tu reel dura {fmtTime(finalDur)} · si no quieres música, salta este paso.
+            Si no quieres música, puedes saltar este paso.
           </p>
         </div>
-        <div className="flex gap-2 flex-wrap">
-          <button onClick={handleBackToStyle}
-            className="px-3 py-2 text-sm text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg border border-amber-300 dark:border-amber-700/50">
-            ← Volver a estilo
-          </button>
-          <button onClick={handleSkip} disabled={finalizing}
-            className="px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg border border-gray-300 dark:border-gray-600">
-            Saltar música →
-          </button>
-          <button onClick={handleFinalize}
-            disabled={finalizing || mixing || !selectedId}
-            title={!selectedId ? 'Selecciona un track primero o usa "Saltar música"' : ''}
-            className="px-4 py-2 text-sm bg-gradient-to-r from-amber-600 to-rose-600 hover:from-amber-700 hover:to-rose-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium">
-            {finalizing ? 'Finalizando…' : 'Exportar reel con música →'}
-          </button>
+        <div className="text-right shrink-0">
+          <div className="text-[11px] uppercase tracking-wide text-gray-500 mb-1">Duración del reel</div>
+          <div className="text-2xl font-mono font-semibold text-gray-900 dark:text-white">{fmtTime(finalDur)}</div>
         </div>
       </div>
 
@@ -1883,28 +1886,62 @@ const MusicReviewView = ({ job, onChange, onError }) => {
                 <video key={previewKey} src={previewSrc} controls className="max-h-full max-w-full" />
                 {selectedTrack && job.has_music_mix && !dirty && (
                   <div className="absolute top-3 right-3 px-2 py-1 rounded-full bg-black/70 text-white text-[10px] flex items-center gap-1">
-                    🎵 {selectedTrack.name} · {music.music_volume_db}dB
+                    🎵 {selectedTrack.name}
                   </div>
                 )}
               </div>
               <div className="p-3 border-t border-gray-200 dark:border-gray-700 text-xs">
                 {!selectedId
-                  ? <span className="text-gray-500">Selecciona un track de la lista para mezclar</span>
+                  ? <span className="text-gray-500">Selecciona una canción de la lista para mezclar</span>
                   : dirty
-                    ? <span className="text-amber-700 dark:text-amber-400">⚠ Preview sin la mezcla actual · pulsa "Mezclar preview"</span>
-                    : <span className="text-emerald-700 dark:text-emerald-400">✓ Preview con la música al día</span>}
+                    ? <span className="text-amber-700 dark:text-amber-400">⚠ Hay cambios sin previsualizar. Pulsa el botón naranja para escuchar.</span>
+                    : <span className="text-emerald-700 dark:text-emerald-400">✓ Vista previa actualizada</span>}
               </div>
             </div>
-            <button
-              onClick={persistAndMix}
-              disabled={mixing || !selectedId || !dirty}
-              className="w-full mt-3 px-4 py-2.5 bg-gray-900 hover:bg-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium text-sm"
-            >
-              {mixing ? 'Mezclando…' : 'Mezclar preview con esta música'}
-            </button>
-            <p className="text-xs text-gray-500 text-center mt-2">
-              ~20s · re-mezcla audio sin re-cortar video
-            </p>
+
+            <div className="mt-4 space-y-2">
+              {/* Mezclar — llama atención cuando hay cambios sin previsualizar */}
+              {selectedId && (
+                <button
+                  onClick={persistAndMix}
+                  disabled={mixing || !dirty}
+                  className={`w-full px-3 py-2.5 rounded-lg text-sm font-medium transition flex items-center justify-center gap-2 ${
+                    !dirty
+                      ? 'bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-500 cursor-not-allowed'
+                      : mixing
+                        ? 'bg-gray-900 dark:bg-gray-700 text-white opacity-70'
+                        : 'bg-amber-500 hover:bg-amber-600 text-white shadow-md ring-2 ring-amber-300 dark:ring-amber-700 animate-pulse'
+                  }`}
+                  title={!dirty ? 'No hay cambios para previsualizar' : 'Escuchar el reel con la canción y los ajustes actuales'}
+                >
+                  {mixing ? 'Mezclando…' : '▶ Escuchar con esta canción'}
+                </button>
+              )}
+
+              <button
+                onClick={handleFinalize}
+                disabled={finalizing || mixing || !selectedId}
+                title={!selectedId ? 'Selecciona una canción primero o usa "Saltar música"' : ''}
+                className="w-full bg-gradient-to-r from-amber-600 to-rose-600 hover:from-amber-700 hover:to-rose-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 rounded-lg font-medium transition"
+              >
+                {finalizing ? 'Finalizando…' : 'Exportar el reel →'}
+              </button>
+
+              <button
+                onClick={handleSkip}
+                disabled={finalizing}
+                className="w-full px-3 py-2 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg border border-gray-300 dark:border-gray-600"
+              >
+                Exportar sin música
+              </button>
+
+              <button
+                onClick={handleBackToStyle}
+                className="w-full px-3 py-2 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+              >
+                ← Volver al paso anterior
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1914,9 +1951,9 @@ const MusicReviewView = ({ job, onChange, onError }) => {
           <div className="bg-gradient-to-r from-amber-50 to-rose-50 dark:from-amber-900/20 dark:to-rose-900/20 border border-amber-200 dark:border-amber-700/50 rounded-xl p-4">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="flex-1 min-w-0">
-                <strong className="font-medium text-gray-900 dark:text-white">✨ ¿No sabes cuál escoger?</strong>
+                <strong className="font-medium text-gray-900 dark:text-white">✨ ¿No sabes cuál elegir?</strong>
                 <p className="text-xs text-gray-600 dark:text-gray-300 mt-0.5">
-                  Que la IA lea tu transcript y te sugiera 3 opciones de tu biblioteca.
+                  La IA lee la transcripción y sugiere 3 opciones de tu biblioteca.
                 </p>
               </div>
               <button onClick={handleSuggest} disabled={suggesting || tracks.length === 0}
@@ -1967,27 +2004,27 @@ const MusicReviewView = ({ job, onChange, onError }) => {
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium text-gray-900 dark:text-white">
-                  📚 {activeTags.length > 0 ? `Traer más tracks de los tags filtrados (${activeTags.length})` : 'Ampliar tu biblioteca con tracks gratis'}
+                  📚 {activeTags.length > 0 ? `Traer más canciones para las etiquetas marcadas (${activeTags.length})` : 'Ampliar la biblioteca de música'}
                 </div>
                 <p className="text-xs text-gray-500 mt-0.5">
                   {activeTags.length > 0
-                    ? <>Trae más tracks de Jamendo <strong>solo</strong> para los tags que marcaste abajo. Cada pulsada trae la siguiente página, no los mismos.</>
-                    : <>Trae ~200 tracks variados (todos los moods/géneros) desde <strong>Jamendo</strong> — Creative Commons, instrumentales. Para un mood específico, marca tags abajo y pulsa otra vez.</>}
+                    ? <>Trae más canciones de Jamendo <strong>solo</strong> para las etiquetas marcadas abajo. Cada click trae nuevas, sin repetir las ya descargadas.</>
+                    : <>Trae ~200 canciones variadas desde <strong>Jamendo</strong>. Para un estilo específico, marca etiquetas abajo y vuelve a pulsar.</>}
                   {providers && !providers.jamendo?.configured && (
                     <span className="block text-rose-600 dark:text-rose-400 mt-1">
-                      ⚠ Falta <code className="bg-rose-50 dark:bg-rose-900/30 px-1 rounded">JAMENDO_CLIENT_ID</code> en .env. Regístrate gratis en devportal.jamendo.com.
+                      ⚠ El catálogo externo está temporalmente fuera de servicio. Mientras tanto, sube tu propia música con el botón de abajo.
                     </span>
                   )}
                 </p>
               </div>
               <button onClick={handleCurate} disabled={curating}
                 className="px-3 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg whitespace-nowrap font-medium">
-                {curating ? 'Buscando…' : activeTags.length > 0 ? `+ Traer más de estos tags` : '+ Ampliar catálogo'}
+                {curating ? 'Buscando…' : activeTags.length > 0 ? `+ Traer más de estas etiquetas` : '+ Ampliar catálogo'}
               </button>
             </div>
             {curateResult && (
               <div className="mt-3 text-xs bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-200 rounded p-2 border border-emerald-200 dark:border-emerald-800/50">
-                ✓ {curateResult.added} tracks nuevos · {curateResult.skipped} ya estaban
+                ✓ {curateResult.added} canciones nuevas · {curateResult.skipped} ya estaban
                 {curateResult.errors?.length > 0 && (
                   <details className="mt-1">
                     <summary className="cursor-pointer text-rose-600 dark:text-rose-400">{curateResult.errors.length} errores</summary>
@@ -2015,7 +2052,7 @@ const MusicReviewView = ({ job, onChange, onError }) => {
               </div>
               <button onClick={() => setShowUpload(true)}
                 className="px-3 py-2 text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg whitespace-nowrap">
-                ⬆ Subir track
+                ⬆ Subir canción
               </button>
             </div>
 
@@ -2040,8 +2077,8 @@ const MusicReviewView = ({ job, onChange, onError }) => {
 
           {/* Lista */}
           <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
-            <div className="px-4 py-2.5 border-b border-gray-200 dark:border-gray-700 text-xs uppercase tracking-wider text-gray-500 flex justify-between">
-              <span>{loadingTracks ? 'Cargando…' : `${tracks.length} track${tracks.length === 1 ? '' : 's'} en tu biblioteca · scroll para ver más`}</span>
+            <div className="px-4 py-2.5 border-b border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 flex justify-between">
+              <span>{loadingTracks ? 'Cargando…' : `${tracks.length} canci${tracks.length === 1 ? 'ón' : 'ones'} en tu biblioteca · desplázate para ver más`}</span>
               {activeTags.length > 0 && (
                 <button onClick={() => setActiveTags([])} className="hover:text-gray-700 dark:hover:text-gray-200">
                   Limpiar filtros
@@ -2052,8 +2089,8 @@ const MusicReviewView = ({ job, onChange, onError }) => {
             {tracks.length === 0 && !loadingTracks && (
               <div className="p-8 text-center text-sm text-gray-500">
                 {query || activeTags.length
-                  ? 'Sin resultados con esos filtros. Prueba con otra búsqueda o limpia los tags.'
-                  : <>Tu biblioteca está vacía. <button onClick={() => setShowUpload(true)} className="underline text-amber-700 hover:text-amber-800">Sube tu primer track</button>.</>}
+                  ? 'Sin resultados con esos filtros. Prueba con otra búsqueda o limpia las etiquetas.'
+                  : <>Tu biblioteca está vacía. <button onClick={() => setShowUpload(true)} className="underline text-amber-700 hover:text-amber-800">Sube tu primera canción</button>.</>}
               </div>
             )}
             {tracks.map(t => (
@@ -2081,11 +2118,11 @@ const MusicReviewView = ({ job, onChange, onError }) => {
           {/* Controles del track seleccionado */}
           {selectedTrack && (
             <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
-              <h3 className="font-semibold text-sm uppercase tracking-wide text-gray-500 mb-1">
+              <h3 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-1">
                 Mezcla de "{selectedTrack.name}"
               </h3>
               <p className="text-xs text-gray-500 mb-4">
-                Cualquier cambio aquí marca el preview como pendiente — pulsa "Mezclar preview" para escuchar.
+                Cualquier cambio aquí deja la vista previa desactualizada. Pulsa "Mezclar" para escuchar el resultado.
               </p>
               <div className="space-y-5">
                 <div>
@@ -2134,7 +2171,7 @@ const MusicReviewView = ({ job, onChange, onError }) => {
 
                 <div>
                   <div className="flex items-baseline justify-between mb-1">
-                    <label className="text-sm text-gray-700 dark:text-gray-200">Empezar el track desde</label>
+                    <label className="text-sm text-gray-700 dark:text-gray-200">Empezar la canción desde</label>
                     <span className="text-xs font-mono text-gray-500">{fmtTime(music.music_start_offset)} {music.music_start_offset > 0 ? '(salta intro)' : ''}</span>
                   </div>
                   <input type="range" min="0" max={Math.max(0, (selectedTrack.duration_seconds || 60) - finalDur - 1)} step="1"
@@ -2142,12 +2179,12 @@ const MusicReviewView = ({ job, onChange, onError }) => {
                     onChange={e => setMusicField('music_start_offset', parseFloat(e.target.value))}
                     className="w-full accent-gray-900 dark:accent-amber-500" />
                   <div className="text-[10px] text-gray-400 mt-0.5">
-                    Si el track empieza con silencio o intro pesada, salta unos segundos.
+                    Si la canción empieza con silencio o intro pesada, salta unos segundos.
                   </div>
                 </div>
 
                 <div className="text-xs text-gray-500 bg-gray-50 dark:bg-gray-900/50 rounded p-3 border border-gray-200 dark:border-gray-700">
-                  💡 El track dura {fmtTime(selectedTrack.duration_seconds || 0)} y tu reel {fmtTime(finalDur)}.
+                  💡 La canción dura {fmtTime(selectedTrack.duration_seconds || 0)} y tu reel {fmtTime(finalDur)}.
                   {(selectedTrack.duration_seconds || 0) >= finalDur
                     ? ' La música se recorta a la duración del reel con fade-out.'
                     : ' La música hace loop con crossfade hasta cubrir el reel completo.'}
@@ -2275,8 +2312,8 @@ const TagsPicker = ({ catalog, activeTags, onToggle, onClear }) => {
     <div className="space-y-2">
       {Object.entries(groups).map(([groupKey, items]) => (
         <div key={groupKey}>
-          <div className="text-[10px] uppercase tracking-wider text-gray-400 mb-1">
-            {groupKey === 'mood' ? 'Mood' : groupKey === 'energy' ? 'Energía' : 'Género'}
+          <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+            {groupKey === 'mood' ? 'Estado de ánimo' : groupKey === 'energy' ? 'Energía' : 'Género'}
           </div>
           <div className="flex flex-wrap gap-1.5">
             {items.map(t => {
@@ -2556,7 +2593,7 @@ const DoneView = ({ job, onBack, onReopen, onError }) => {
           />
         </div>
         <div>
-          <div className="text-xs uppercase tracking-widest text-gray-500 mb-1">Reel listo</div>
+          <div className="text-xs font-medium text-emerald-700 dark:text-emerald-400 mb-1">✓ Reel listo</div>
           <EditableTitle
             jobId={job.id}
             value={job.title || 'Tu reel'}
@@ -2594,7 +2631,7 @@ const DoneView = ({ job, onBack, onReopen, onError }) => {
               onClick={onBack}
               className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg text-sm"
             >
-              Subir otra toma
+              Subir otro video
             </button>
           </div>
         </div>
@@ -2605,7 +2642,7 @@ const DoneView = ({ job, onBack, onReopen, onError }) => {
 
 const JobsList = ({ jobs, activeId, onSelect, onDelete, onTitleChanged }) => (
   <section>
-    <h3 className="font-bold text-sm uppercase tracking-wide text-gray-500 mb-3">Tus reels</h3>
+    <h3 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-3">Historial</h3>
     <div className="space-y-2">
       {jobs.map(j => (
         <div key={j.id} className={`bg-white dark:bg-gray-800 border rounded-lg px-4 py-3 flex items-center gap-3 ${activeId === j.id ? 'border-amber-500' : 'border-gray-200 dark:border-gray-700'}`}>

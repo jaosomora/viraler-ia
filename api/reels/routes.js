@@ -78,7 +78,7 @@ export async function adminListJobsHandler(req, res) {
 export async function getJobHandler(req, res) {
   try {
     const job = await getJobForUser(req.params.id, req.user.id);
-    if (!job) return res.status(404).json({ error: 'Job no encontrado' });
+    if (!job) return res.status(404).json({ error: 'Reel no encontrado' });
     res.json(job);
   } catch (err) { res.status(500).json({ error: err.message }); }
 }
@@ -87,7 +87,7 @@ export async function getJobHandler(req, res) {
 export async function applyCutsHandler(req, res) {
   try {
     const job = await get('SELECT user_id FROM reel_jobs WHERE id=?', [req.params.id]);
-    if (!job || job.user_id !== req.user.id) return res.status(404).json({ error: 'Job no encontrado' });
+    if (!job || job.user_id !== req.user.id) return res.status(404).json({ error: 'Reel no encontrado' });
 
     const { cuts } = req.body || {};
     if (!Array.isArray(cuts)) return res.status(400).json({ error: 'cuts debe ser un array' });
@@ -107,7 +107,7 @@ export async function applyCutsHandler(req, res) {
 export async function updateStyleHandler(req, res) {
   try {
     const job = await get('SELECT user_id FROM reel_jobs WHERE id=?', [req.params.id]);
-    if (!job || job.user_id !== req.user.id) return res.status(404).json({ error: 'Job no encontrado' });
+    if (!job || job.user_id !== req.user.id) return res.status(404).json({ error: 'Reel no encontrado' });
     await updateStyle(req.params.id, req.body || {});
     res.json({ ok: true });
   } catch (err) { res.status(400).json({ error: err.message }); }
@@ -117,7 +117,7 @@ export async function updateStyleHandler(req, res) {
 export async function renderPreviewHandler(req, res) {
   try {
     const job = await get('SELECT user_id FROM reel_jobs WHERE id=?', [req.params.id]);
-    if (!job || job.user_id !== req.user.id) return res.status(404).json({ error: 'Job no encontrado' });
+    if (!job || job.user_id !== req.user.id) return res.status(404).json({ error: 'Reel no encontrado' });
     await renderPreview(req.params.id);
     res.json({ ok: true });
   } catch (err) { res.status(400).json({ error: err.message }); }
@@ -127,7 +127,7 @@ export async function renderPreviewHandler(req, res) {
 export async function finalizeHandler(req, res) {
   try {
     const job = await get('SELECT user_id FROM reel_jobs WHERE id=?', [req.params.id]);
-    if (!job || job.user_id !== req.user.id) return res.status(404).json({ error: 'Job no encontrado' });
+    if (!job || job.user_id !== req.user.id) return res.status(404).json({ error: 'Reel no encontrado' });
     await finalize(req.params.id);
     res.json({ ok: true });
   } catch (err) { res.status(400).json({ error: err.message }); }
@@ -137,7 +137,7 @@ export async function finalizeHandler(req, res) {
 export async function updateTitleHandler(req, res) {
   try {
     const job = await get('SELECT user_id FROM reel_jobs WHERE id=?', [req.params.id]);
-    if (!job || job.user_id !== req.user.id) return res.status(404).json({ error: 'Job no encontrado' });
+    if (!job || job.user_id !== req.user.id) return res.status(404).json({ error: 'Reel no encontrado' });
     const title = (req.body?.title || '').toString().trim().slice(0, 200);
     if (!title) return res.status(400).json({ error: 'Título vacío' });
     await new Promise((resolve, reject) =>
@@ -152,7 +152,7 @@ export async function updateTitleHandler(req, res) {
 export async function reopenSilencesHandler(req, res) {
   try {
     const job = await get('SELECT user_id FROM reel_jobs WHERE id=?', [req.params.id]);
-    if (!job || job.user_id !== req.user.id) return res.status(404).json({ error: 'Job no encontrado' });
+    if (!job || job.user_id !== req.user.id) return res.status(404).json({ error: 'Reel no encontrado' });
     await reopenSilenceReview(req.params.id);
     res.json({ ok: true });
   } catch (err) { res.status(400).json({ error: err.message }); }
@@ -162,7 +162,7 @@ export async function reopenSilencesHandler(req, res) {
 export async function continueToMusicHandler(req, res) {
   try {
     const job = await get('SELECT user_id FROM reel_jobs WHERE id=?', [req.params.id]);
-    if (!job || job.user_id !== req.user.id) return res.status(404).json({ error: 'Job no encontrado' });
+    if (!job || job.user_id !== req.user.id) return res.status(404).json({ error: 'Reel no encontrado' });
     await continueToMusicReview(req.params.id);
     res.json({ ok: true });
   } catch (err) { res.status(400).json({ error: err.message }); }
@@ -172,7 +172,7 @@ export async function continueToMusicHandler(req, res) {
 export async function reopenStyleHandler(req, res) {
   try {
     const job = await get('SELECT user_id FROM reel_jobs WHERE id=?', [req.params.id]);
-    if (!job || job.user_id !== req.user.id) return res.status(404).json({ error: 'Job no encontrado' });
+    if (!job || job.user_id !== req.user.id) return res.status(404).json({ error: 'Reel no encontrado' });
     await reopenStyleReview(req.params.id);
     res.json({ ok: true });
   } catch (err) { res.status(400).json({ error: err.message }); }
@@ -182,7 +182,7 @@ export async function reopenStyleHandler(req, res) {
 export async function updateMusicHandler(req, res) {
   try {
     const job = await get('SELECT user_id FROM reel_jobs WHERE id=?', [req.params.id]);
-    if (!job || job.user_id !== req.user.id) return res.status(404).json({ error: 'Job no encontrado' });
+    if (!job || job.user_id !== req.user.id) return res.status(404).json({ error: 'Reel no encontrado' });
     await updateMusic(req.params.id, req.body || {});
     res.json({ ok: true });
   } catch (err) { res.status(400).json({ error: err.message }); }
@@ -192,7 +192,7 @@ export async function updateMusicHandler(req, res) {
 export async function mixMusicHandler(req, res) {
   try {
     const job = await get('SELECT user_id FROM reel_jobs WHERE id=?', [req.params.id]);
-    if (!job || job.user_id !== req.user.id) return res.status(404).json({ error: 'Job no encontrado' });
+    if (!job || job.user_id !== req.user.id) return res.status(404).json({ error: 'Reel no encontrado' });
     await renderMusicMix(req.params.id);
     res.json({ ok: true });
   } catch (err) { res.status(400).json({ error: err.message }); }
@@ -202,7 +202,7 @@ export async function mixMusicHandler(req, res) {
 export async function suggestMusicHandler(req, res) {
   try {
     const job = await get('SELECT user_id FROM reel_jobs WHERE id=?', [req.params.id]);
-    if (!job || job.user_id !== req.user.id) return res.status(404).json({ error: 'Job no encontrado' });
+    if (!job || job.user_id !== req.user.id) return res.status(404).json({ error: 'Reel no encontrado' });
     const out = await suggestMusic(req.params.id);
     res.json(out);
   } catch (err) {
@@ -216,7 +216,7 @@ export async function outputWithMusicHandler(req, res) {
   try {
     const job = await get('SELECT * FROM reel_jobs WHERE id=? AND user_id=?',
       [req.params.id, req.user.id]);
-    if (!job) return res.status(404).json({ error: 'Job no encontrado' });
+    if (!job) return res.status(404).json({ error: 'Reel no encontrado' });
     const REELS_ROOT = process.env.NODE_ENV === 'production' ? '/opt/data/reels' : path.resolve(process.cwd(), 'data/reels');
     const mixed = path.join(REELS_ROOT, req.params.id, 'reel_with_music.mp4');
     if (!fs.existsSync(mixed)) return res.status(404).json({ error: 'Mezcla con música no existe' });
@@ -229,7 +229,7 @@ export async function outputWithMusicHandler(req, res) {
 export async function voiceSampleHandler(req, res) {
   try {
     const job = await get('SELECT user_id FROM reel_jobs WHERE id=?', [req.params.id]);
-    if (!job || job.user_id !== req.user.id) return res.status(404).json({ error: 'Job no encontrado' });
+    if (!job || job.user_id !== req.user.id) return res.status(404).json({ error: 'Reel no encontrado' });
     const { startSec, autolevel, gainDb } = req.body || {};
     const samplePath = await generateVoiceSample(req.params.id, {
       startSec: Number(startSec) || 0,
@@ -284,7 +284,7 @@ export async function downloadHandler(req, res) {
   try {
     const job = await get('SELECT * FROM reel_jobs WHERE id=? AND user_id=?',
       [req.params.id, req.user.id]);
-    if (!job) return res.status(404).json({ error: 'Job no encontrado' });
+    if (!job) return res.status(404).json({ error: 'Reel no encontrado' });
     const REELS_ROOT = process.env.NODE_ENV === 'production' ? '/opt/data/reels' : path.resolve(process.cwd(), 'data/reels');
     const mixed = path.join(REELS_ROOT, req.params.id, 'reel_with_music.mp4');
     // Si hay mezcla con música y el usuario no la saltó, esa es la versión final.

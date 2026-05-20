@@ -4,25 +4,33 @@ import React, { useState, useEffect } from 'react';
  * Sección colapsable con persistencia en localStorage. Reduce el scroll del editor
  * agrupando controles relacionados.
  */
-const CollapsibleSection = ({ id, title, icon, badge, defaultOpen = true, children }) => {
+const CollapsibleSection = ({ id, title, icon, badge, defaultOpen = true, open: controlledOpen, onToggle, children }) => {
+  const isControlled = controlledOpen !== undefined;
   const storageKey = `clipeditor.section.${id}`;
-  const [open, setOpen] = useState(() => {
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(() => {
     try {
       const stored = localStorage.getItem(storageKey);
       if (stored === null) return defaultOpen;
       return stored === '1';
     } catch { return defaultOpen; }
   });
+  const open = isControlled ? controlledOpen : uncontrolledOpen;
 
   useEffect(() => {
-    try { localStorage.setItem(storageKey, open ? '1' : '0'); } catch {}
-  }, [open, storageKey]);
+    if (isControlled) return;
+    try { localStorage.setItem(storageKey, uncontrolledOpen ? '1' : '0'); } catch {}
+  }, [uncontrolledOpen, storageKey, isControlled]);
+
+  const handleClick = () => {
+    if (isControlled) { onToggle?.(); }
+    else { setUncontrolledOpen(!uncontrolledOpen); }
+  };
 
   return (
     <section className="border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden bg-white dark:bg-gray-900/50">
       <button
         type="button"
-        onClick={() => setOpen(!open)}
+        onClick={handleClick}
         className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition text-left"
       >
         {icon && <span className="text-base shrink-0">{icon}</span>}
