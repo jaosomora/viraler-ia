@@ -8,6 +8,15 @@ ordenado por fecha descendente. Para detalles del MCP server ver `docs/MCP.md`.
 
 ---
 
+## 2026-05-20 — Clips: preview en vivo del encuadre mientras arrastrás el slider
+
+Antes el slider solo mostraba el `%` numérico mientras arrastrabas — había que soltar y esperar el regen de ffmpeg (~7s) para ver el resultado. Ahora hay preview WYSIWYG instantáneo.
+
+- Nuevo endpoint `GET /api/clips/:id/source-thumbnail` que extrae un frame JPG (640×360) del source video al midpoint del clip. Cacheado en disco (`<clipId>_source_thumb.jpg`), 1 día de browser cache.
+- `ClipEditor.jsx`: prefetch del thumbnail al abrir el editor (vía Bearer token → blob URL). Mientras `cropPreviewActive=true` (entre `onMouseDown`/`onTouchStart`/`onFocus` y el correspondiente release), se monta un `<img>` overlay sobre el VideoPreview con `object-fit: cover; object-position: ${slider}% center`. El usuario ve EXACTAMENTE qué porción del source va a quedar antes de soltar.
+- Al soltar: overlay desaparece + commit a `draft.crop_x_pct` → regen del base.mp4 con el valor final.
+- MCP: no aplica — endpoint dedicado al editor UI.
+
 ## 2026-05-20 — Clips: slider de encuadre solo persiste al soltar (evita 502s en prod)
 
 Tras desplegar el fix del encuadre, el slider de "Ajuste fino" disparaba un PATCH+regen ffmpeg en CADA micro-movimiento. Mover el slider de 0 a 50 generaba decenas de renders encolados → gateway de Render devolvía 502.

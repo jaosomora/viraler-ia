@@ -41,6 +41,7 @@ import {
   redetectKeywordsHandler as clipsRedetectKeywords,
   captionsHandler as clipsCaptions,
   baseVideoHandler as clipsBaseVideo,
+  sourceThumbnailHandler as clipsSourceThumb,
   exportClipHandler as clipsExport,
   disableAllHooksHandler as clipsDisableHooks,
   applyStyleToAllHandler as clipsApplyStyleAll,
@@ -320,6 +321,7 @@ app.patch('/api/clips/:id', authMiddleware, clipsUpdateClip);
 app.get('/api/clips/:id/download', authMiddleware, clipsDownload);
 app.get('/api/clips/:id/captions', authMiddleware, clipsCaptions);
 app.get('/api/clips/:id/base-video', authMiddleware, clipsBaseVideo);
+app.get('/api/clips/:id/source-thumbnail', authMiddleware, clipsSourceThumb);
 app.post('/api/clips/:id/export', authMiddleware, clipsExport);
 app.post('/api/clips/:id/regenerate-caption', authMiddleware, clipsRegenCaption);
 app.post('/api/clips/:id/redetect-keywords', authMiddleware, clipsRedetectKeywords);

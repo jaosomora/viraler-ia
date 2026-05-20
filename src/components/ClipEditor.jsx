@@ -57,6 +57,8 @@ const ClipEditor = ({ clip, onClose }) => {
   const [newKeyword, setNewKeyword] = useState('');
   const [previewKey, setPreviewKey] = useState(0); // remount VideoPreview si cambian params del base
   const [cropSliderValue, setCropSliderValue] = useState(50); // state local del slider de encuadre, se commitea a draft.crop_x_pct al soltar
+  const [cropPreviewActive, setCropPreviewActive] = useState(false); // true mientras arrastrás el slider → muestra overlay con still del source
+  const [cropThumbUrl, setCropThumbUrl] = useState(null); // blob URL del still del source (fetched con Bearer token)
   const [chunks, setChunks] = useState([]);
   const [renderMode, setRenderMode] = useState('overlay');
   const [captionsView, setCaptionsView] = useState('prose'); // 'prose' | 'list'
@@ -124,6 +126,25 @@ const ClipEditor = ({ clip, onClose }) => {
       setCropSliderValue(draft.crop_x_pct);
     }
   }, [draft?.crop_x_pct]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Prefetch del thumbnail del source (con Bearer token) para preview en vivo del slider.
+  // Se descarga 1 sola vez por clip; las modificaciones del slider solo cambian object-position CSS.
+  useEffect(() => {
+    if (!clip?.id) return;
+    let revokeUrl = null;
+    let cancelled = false;
+    const token = localStorage.getItem('token');
+    fetch(`/api/clips/${clip.id}/source-thumbnail`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.blob() : null)
+      .then(blob => {
+        if (cancelled || !blob) return;
+        const url = URL.createObjectURL(blob);
+        revokeUrl = url;
+        setCropThumbUrl(url);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; if (revokeUrl) URL.revokeObjectURL(revokeUrl); };
+  }, [clip?.id]);
 
   // Carga los chunks de subtítulos cuando se abre el editor.
   useEffect(() => {
@@ -402,6 +423,24 @@ const ClipEditor = ({ clip, onClose }) => {
                 title={`Cámara: ${draft.camera_motion}`}>
                 {draft.camera_motion === 'zoom-in' ? '🔍 zoom in' : draft.camera_motion === 'zoom-out' ? '🔎 zoom out' : '⏸ estático'}
               </div>
+              {/* Preview en vivo durante el drag del slider de encuadre.
+                  Tapa el video con un still del source (16:9 sin crop) y aplica
+                  object-position con el valor del slider — el usuario ve EXACTAMENTE
+                  cómo va a quedar el crop antes de soltar. Al soltar, el state oculta
+                  el overlay y arranca el regen del base.mp4 con el valor final. */}
+              {cropPreviewActive && cropThumbUrl && (
+                <div className="absolute inset-0 z-30 bg-black">
+                  <img
+                    src={cropThumbUrl}
+                    alt="preview de encuadre"
+                    className="w-full h-full"
+                    style={{ objectFit: 'cover', objectPosition: `${cropSliderValue}% center` }}
+                  />
+                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-black/80 text-white text-[10px] rounded-full font-mono pointer-events-none">
+                    encuadre {cropSliderValue}%
+                  </div>
+                </div>
+              )}
               <VideoPreview
                 key={baseParamsKey}
                 ref={videoRef}
@@ -977,21 +1016,28 @@ const ClipEditor = ({ clip, onClose }) => {
                     <label className="text-[11px] text-gray-500">Ajuste fino</label>
                     <span className="text-[10px] text-gray-500 font-mono">{cropSliderValue}%</span>
                   </div>
-                  {/* El slider tiene state local (cropSliderValue) que cambia mientras arrastrás
-                      para feedback visual. Solo al SOLTAR (onMouseUp / onTouchEnd / onPointerUp)
-                      lo commiteamos a draft.crop_x_pct, lo que dispara el regen del base.mp4.
-                      Sin esto, cada micro-movimiento encolaba un render ffmpeg → 502s. */}
+                  {/* Slider de encuadre con preview en vivo:
+                      - onMouseDown / onTouchStart / onFocus → activa el overlay con el still del source.
+                        El usuario ve EXACTAMENTE cómo va a quedar el crop mientras arrastra.
+                      - onChange (durante el drag) → solo actualiza cropSliderValue (state local + posición
+                        del overlay vía object-position). Cero requests al backend.
+                      - onMouseUp / onTouchEnd / onBlur → desactiva el overlay y commitea el valor a
+                        draft.crop_x_pct, lo que dispara UN solo regen del base.mp4 con el valor final. */}
                   <input type="range" min="0" max="100" step="1" value={cropSliderValue}
+                    onMouseDown={() => setCropPreviewActive(true)}
+                    onTouchStart={() => setCropPreviewActive(true)}
+                    onFocus={() => setCropPreviewActive(true)}
                     onChange={e => setCropSliderValue(+e.target.value)}
-                    onMouseUp={e => update({ crop_x_pct: +e.target.value })}
-                    onTouchEnd={e => update({ crop_x_pct: +e.target.value })}
-                    onKeyUp={e => update({ crop_x_pct: +e.target.value })}
+                    onMouseUp={e => { setCropPreviewActive(false); update({ crop_x_pct: +e.target.value }); }}
+                    onTouchEnd={e => { setCropPreviewActive(false); update({ crop_x_pct: +e.target.value }); }}
+                    onKeyUp={e => { setCropPreviewActive(false); update({ crop_x_pct: +e.target.value }); }}
+                    onBlur={e => { if (cropPreviewActive) { setCropPreviewActive(false); update({ crop_x_pct: +e.target.value }); } }}
                     className="w-full accent-purple-500" />
                   <div className="flex justify-between text-[10px] text-gray-500 mt-0.5">
                     <span>← izq</span><span>centro</span><span>der →</span>
                   </div>
                   <p className="text-[10px] text-gray-500 mt-1.5 leading-snug">
-                    Mové el slider para ajustar fino — se aplica al soltar. Aplica solo si la fuente es más ancha que el formato del clip.
+                    Mové el slider para ver el encuadre en vivo — al soltar, se aplica al video.
                   </p>
                 </div>
               </section>

@@ -272,6 +272,51 @@ export async function captionsHandler(req, res) {
   }
 }
 
+// GET /api/clips/:id/source-thumbnail
+// Devuelve un frame JPG del SOURCE video (sin crop) al midpoint del clip.
+// Lo usa el editor para preview en vivo mientras arrastrás el slider de encuadre:
+// es la única forma de mostrar "qué pasaría si el crop estuviera en X%" sin re-renderizar
+// el base.mp4 cada vez. Cacheado en disco junto al base.
+export async function sourceThumbnailHandler(req, res) {
+  try {
+    const clipId = req.params.id;
+    const clip = await get(
+      `SELECT c.id, c.job_id, c.start_seconds, c.end_seconds, j.user_id, j.source_video_path
+       FROM clips c JOIN clip_jobs j ON j.id=c.job_id WHERE c.id=?`,
+      [clipId]
+    );
+    if (!clip) return res.status(404).json({ error: 'Clip no encontrado' });
+    if (clip.user_id !== req.user.id && req.user.role !== 'owner') {
+      return res.status(403).json({ error: 'No autorizado' });
+    }
+    if (!clip.source_video_path || !fs.existsSync(clip.source_video_path)) {
+      return res.status(404).json({ error: 'Source no disponible' });
+    }
+    const jobDir = path.dirname(clip.source_video_path);
+    const thumbPath = path.join(jobDir, `${clipId}_source_thumb.jpg`);
+    if (!fs.existsSync(thumbPath)) {
+      const midpoint = (clip.start_seconds + clip.end_seconds) / 2;
+      const { spawn } = await import('child_process');
+      const ffmpeg = process.env.FFMPEG_PATH || 'ffmpeg';
+      await new Promise((resolve, reject) => {
+        const p = spawn(ffmpeg, [
+          '-y', '-ss', String(midpoint), '-i', clip.source_video_path,
+          '-frames:v', '1', '-vf', 'scale=640:-2', '-q:v', '4', thumbPath,
+        ]);
+        let err = '';
+        p.stderr.on('data', d => { err += d.toString(); });
+        p.on('close', code => code === 0 && fs.existsSync(thumbPath) ? resolve() : reject(new Error(err.slice(-500))));
+      });
+    }
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Cache-Control', 'private, max-age=86400'); // 1 día: el source no cambia
+    fs.createReadStream(thumbPath).pipe(res);
+  } catch (err) {
+    console.error('[clips] source-thumbnail error:', err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
 // GET /api/clips/:id/base-video?resolution=1080
 // Sirve el MP4 sin subs (capa de fondo del editor). Genera el base si falta o si los params cambiaron.
 export async function baseVideoHandler(req, res) {
