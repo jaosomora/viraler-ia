@@ -629,7 +629,7 @@ export async function ensureClipBase(clipId, resolution = '1080') {
     && clip.base_params_hash === expected
     && fs.existsSync(basePath);
   if (!valid) {
-    log(clip.job_id, `regenerating base for ${clipId} @ ${resolution}p (params changed or missing)`);
+    log(clip.job_id, `regenerating base for ${clipId} @ ${resolution}p · stored_hash=${clip.base_params_hash} expected_hash=${expected} crop_x_pct=${clip.crop_x_pct ?? '(null)'}`);
     await renderClipBase({ sourceVideo: job.source_video_path, clip: c, outputPath: basePath, resolution });
     await run(
       `UPDATE clips SET base_video_path=?, base_params_hash=?, output_resolution=?, render_mode='overlay', updated_at=CURRENT_TIMESTAMP WHERE id=?`,

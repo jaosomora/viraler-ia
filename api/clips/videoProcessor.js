@@ -224,6 +224,7 @@ export function renderClipBase({ sourceVideo, clip, outputPath, resolution = '10
     const dur = clip.end_seconds - clip.start_seconds;
 
     const cropExpr = buildCropExpr(aspect, clip.crop_x_pct ?? 50);
+    console.log(`[videoProcessor] renderClipBase clip=${clip.id} aspect=${aspect} crop_x_pct=${clip.crop_x_pct ?? '(null→50)'} → ${cropExpr}`);
 
     const fps = 30;
     const totalFrames = Math.ceil(dur * fps);
