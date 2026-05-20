@@ -8,6 +8,10 @@ ordenado por fecha descendente. Para detalles del MCP server ver `docs/MCP.md`.
 
 ---
 
+## 2026-05-19 — Mensajes de error claros cuando ffmpeg rechaza el video
+
+Cuando el archivo subido está corrupto (típicamente `.mov` con grabación cortada antes de cerrarse → falta el `moov atom`), Clips/Reels/Transcribir mostraban el stderr crudo de ffmpeg al usuario, que era incomprensible. Ahora `describeFfmpegError()` en `videoProcessor.js` detecta los 3 patrones más comunes (moov faltante, data inválida, archivo no encontrado) y devuelve un mensaje en español con qué hacer al respecto (reexportar, usar untrunc, etc). Si no reconoce el patrón cae al stderr crudo como fallback. Test cubre los 4 casos.
+
 ## 2026-05-19 — Fix: uploads de video truncados en prod ("moov atom not found")
 
 Multer escribía a `os.tmpdir()` (= `/tmp`, tmpfs/RAM en el contenedor de Render). Videos grandes (Clips/Reels/transcribeUpload) llenaban tmpfs y se truncaban silenciosamente; el `moov` atom al final del MP4 se perdía y ffmpeg fallaba con `moov atom not found` al extraer audio. Síntoma reportado: `copied uploaded file (0.1s)` — copia instantánea = archivo truncado.

@@ -5,6 +5,7 @@ import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import { describeFfmpegError } from './clips/videoProcessor.js';
 
 /**
  * Extrae audio de un archivo de video local usando ffmpeg
@@ -34,7 +35,8 @@ function extractAudioFromFile(videoPath) {
 
     proc.on('close', (code) => {
       if (code !== 0) {
-        return reject(new Error(`FFmpeg falló: ${stderr}`));
+        const friendly = describeFfmpegError(stderr);
+        return reject(new Error(friendly || `FFmpeg falló: ${stderr}`));
       }
 
       if (!fs.existsSync(outputPath)) {

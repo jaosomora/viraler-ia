@@ -107,6 +107,21 @@ export function getVideoMetadata(url) {
   });
 }
 
+// Traduce errores comunes de ffmpeg a mensajes que el usuario pueda entender.
+// Devuelve null si no reconoce el error (el caller usa el stderr crudo).
+export function describeFfmpegError(stderr) {
+  if (/moov atom not found/i.test(stderr)) {
+    return 'Este archivo de video está dañado: le falta la tabla de índices interna (moov atom). Suele pasar cuando la grabación se cortó antes de cerrarse (apagón, app que crasheó, descarga incompleta). Pedile a quien te lo envió que lo reexporte desde el dispositivo original, o intentá repararlo con una herramienta como "untrunc" o restore.media antes de volver a subirlo.';
+  }
+  if (/Invalid data found when processing input/i.test(stderr)) {
+    return 'El archivo no parece ser un video válido. Verificá que sea un MP4, MOV, MKV o WEBM real y no esté corrupto.';
+  }
+  if (/No such file or directory/i.test(stderr)) {
+    return 'No se encontró el archivo del video en el servidor. Volvé a subirlo.';
+  }
+  return null;
+}
+
 export function extractAudioFromVideo(videoPath, audioPath) {
   return new Promise((resolve, reject) => {
     const ffmpeg = process.env.FFMPEG_PATH || 'ffmpeg';
@@ -114,8 +129,9 @@ export function extractAudioFromVideo(videoPath, audioPath) {
     let stderr = '';
     p.stderr.on('data', d => { stderr += d.toString(); });
     p.on('close', code => {
-      if (code === 0) resolve(audioPath);
-      else reject(new Error(`ffmpeg audio extract exit ${code}: ${stderr.slice(-500)}`));
+      if (code === 0) return resolve(audioPath);
+      const friendly = describeFfmpegError(stderr);
+      reject(new Error(friendly || `ffmpeg audio extract exit ${code}: ${stderr.slice(-500)}`));
     });
     p.on('error', reject);
   });
