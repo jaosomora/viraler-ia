@@ -8,6 +8,13 @@ ordenado por fecha descendente. Para detalles del MCP server ver `docs/MCP.md`.
 
 ---
 
+## 2026-05-20 — Clips: slider de encuadre solo persiste al soltar (evita 502s en prod)
+
+Tras desplegar el fix del encuadre, el slider de "Ajuste fino" disparaba un PATCH+regen ffmpeg en CADA micro-movimiento. Mover el slider de 0 a 50 generaba decenas de renders encolados → gateway de Render devolvía 502.
+
+- `ClipEditor.jsx`: state local `cropSliderValue` cambia en vivo mientras arrastrás (feedback visual), pero `draft.crop_x_pct` (que dispara el regen) solo se actualiza al soltar — `onMouseUp` / `onTouchEnd` / `onKeyUp`. Los presets Izq/Centro/Der siguen siendo instantáneos.
+- Validado en local: drag de 8 valores → 0 requests al backend. Release → exactamente 1 regen con el valor final.
+
 ## 2026-05-20 — Clips: fix crítico del encuadre horizontal (hash truncado + race condition)
 
 Tras desplegar `crop_x_pct` el día anterior, los presets Izq/Centro/Der no cambiaban el video. Diagnóstico completo con browser automation contra el dev local reveló 3 bugs:

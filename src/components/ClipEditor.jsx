@@ -56,6 +56,7 @@ const ClipEditor = ({ clip, onClose }) => {
   const [applyingFonts, setApplyingFonts] = useState(false);
   const [newKeyword, setNewKeyword] = useState('');
   const [previewKey, setPreviewKey] = useState(0); // remount VideoPreview si cambian params del base
+  const [cropSliderValue, setCropSliderValue] = useState(50); // state local del slider de encuadre, se commitea a draft.crop_x_pct al soltar
   const [chunks, setChunks] = useState([]);
   const [renderMode, setRenderMode] = useState('overlay');
   const [captionsView, setCaptionsView] = useState('prose'); // 'prose' | 'list'
@@ -112,7 +113,17 @@ const ClipEditor = ({ clip, onClose }) => {
     };
     setDraft(initial);
     setOriginal(initial);
+    setCropSliderValue(initial.crop_x_pct);
   }, [clip]);
+
+  // Mantiene el slider sincronizado cuando draft.crop_x_pct cambia desde fuera
+  // (clicks en presets Izq/Centro/Der, reset, o reload del clip). NO se ejecuta
+  // mientras arrastrás el slider porque ahí solo cambia cropSliderValue, no draft.
+  useEffect(() => {
+    if (draft && draft.crop_x_pct !== cropSliderValue) {
+      setCropSliderValue(draft.crop_x_pct);
+    }
+  }, [draft?.crop_x_pct]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Carga los chunks de subtítulos cuando se abre el editor.
   useEffect(() => {
@@ -964,16 +975,23 @@ const ClipEditor = ({ clip, onClose }) => {
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-[11px] text-gray-500">Ajuste fino</label>
-                    <span className="text-[10px] text-gray-500 font-mono">{draft.crop_x_pct}%</span>
+                    <span className="text-[10px] text-gray-500 font-mono">{cropSliderValue}%</span>
                   </div>
-                  <input type="range" min="0" max="100" step="1" value={draft.crop_x_pct}
-                    onChange={e => update({ crop_x_pct: +e.target.value })}
+                  {/* El slider tiene state local (cropSliderValue) que cambia mientras arrastrás
+                      para feedback visual. Solo al SOLTAR (onMouseUp / onTouchEnd / onPointerUp)
+                      lo commiteamos a draft.crop_x_pct, lo que dispara el regen del base.mp4.
+                      Sin esto, cada micro-movimiento encolaba un render ffmpeg → 502s. */}
+                  <input type="range" min="0" max="100" step="1" value={cropSliderValue}
+                    onChange={e => setCropSliderValue(+e.target.value)}
+                    onMouseUp={e => update({ crop_x_pct: +e.target.value })}
+                    onTouchEnd={e => update({ crop_x_pct: +e.target.value })}
+                    onKeyUp={e => update({ crop_x_pct: +e.target.value })}
                     className="w-full accent-purple-500" />
                   <div className="flex justify-between text-[10px] text-gray-500 mt-0.5">
                     <span>← izq</span><span>centro</span><span>der →</span>
                   </div>
                   <p className="text-[10px] text-gray-500 mt-1.5 leading-snug">
-                    Aplica solo si la fuente es más ancha que el formato del clip. Si la fuente ya es vertical, este ajuste no se nota.
+                    Mové el slider para ajustar fino — se aplica al soltar. Aplica solo si la fuente es más ancha que el formato del clip.
                   </p>
                 </div>
               </section>
