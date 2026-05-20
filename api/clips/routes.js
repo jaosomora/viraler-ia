@@ -22,11 +22,24 @@ export async function generateHandler(req, res) {
   try {
     const userId = req.user.id;
     const body = req.body || {};
-    const { url } = body;
-    const sourceFilename = req.file ? req.file.path : null;
+    const { url, uploadId } = body;
+    let sourceFilename = null;
+
+    // Modo chunked: el frontend ya subió el archivo en trozos vía /api/uploads/*
+    // y solo nos pasa el uploadId. Finalizamos (concatena chunks) y obtenemos
+    // el path al archivo final reensamblado en /opt/data/uploads-tmp/<id>/final.<ext>
+    if (uploadId) {
+      const { finalizeUpload, readMeta } = await import('../uploads/service.js');
+      const meta = readMeta(uploadId);
+      if (!meta) return res.status(404).json({ error: 'upload no encontrado' });
+      if (meta.userId !== userId) return res.status(403).json({ error: 'No autorizado' });
+      const result = await finalizeUpload({ uploadId, userId });
+      sourceFilename = result.path;
+      console.log(`[clips] using chunked upload · user=${userId} · ${meta.filename} · ${(result.size / 1024 / 1024).toFixed(1)}MB`);
+    }
 
     if (!url && !sourceFilename) {
-      return res.status(400).json({ error: 'Falta url o archivo' });
+      return res.status(400).json({ error: 'Falta url o uploadId' });
     }
 
     // Parse options (JSON string si vino multipart, objeto si vino JSON)

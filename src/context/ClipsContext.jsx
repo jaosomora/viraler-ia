@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { authFetch } from './AuthContext';
+import { chunkedUpload } from '../services/chunkedUpload';
 
 // Usamos URL relativa siempre para que Vite proxie /api desde cualquier IP (LAN, móvil, etc.)
 const API_BASE = '/api';
@@ -15,6 +16,7 @@ export const ClipsProvider = ({ children }) => {
   const [stages, setStages] = useState([]);
   const [error, setError] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(null); // {loaded, total, pct} | null
   const pollRef = useRef(null);
 
   const loadFonts = useCallback(async () => {
@@ -65,26 +67,31 @@ export const ClipsProvider = ({ children }) => {
   const generate = useCallback(async ({ url, file, options = {} }) => {
     setError(null);
     setIsGenerating(true);
+    setUploadProgress(null);
     try {
-      let res;
+      let body;
       if (file) {
-        const fd = new FormData();
-        fd.append('video', file);
-        fd.append('options', JSON.stringify(options));
-        res = await authFetch(`${API_BASE}/clips/generate`, { method: 'POST', body: fd });
+        // Upload chunked: parte el archivo y sube en trozos de 5MB.
+        // Reemplaza el single-shot multipart porque Render mata requests >100s.
+        setUploadProgress({ loaded: 0, total: file.size, pct: 0 });
+        const { uploadId } = await chunkedUpload(file, (p) => setUploadProgress(p));
+        body = { uploadId, options };
       } else {
-        res = await authFetch(`${API_BASE}/clips/generate`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url, options }),
-        });
+        body = { url, options };
       }
+      const res = await authFetch(`${API_BASE}/clips/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
       const data = await res.json();
+      setUploadProgress(null);
       if (!res.ok) throw new Error(data.error || 'Error al generar clips');
       setActiveJobId(data.jobId);
       await loadJobs();
       return data.jobId;
     } catch (err) {
+      setUploadProgress(null);
       setError(err.message);
       setIsGenerating(false);
       throw err;
@@ -294,7 +301,7 @@ export const ClipsProvider = ({ children }) => {
   return (
     <ClipsContext.Provider value={{
       activeJob, activeJobId, setActiveJobId,
-      jobs, fontCatalog, stages, error, isGenerating,
+      jobs, fontCatalog, stages, error, isGenerating, uploadProgress,
       loadFonts, loadStages, loadJobs, loadJob,
       generate, updateClip, regenerateCaption, downloadClip, deleteJob,
       applyFontsToAll, redetectKeywords,

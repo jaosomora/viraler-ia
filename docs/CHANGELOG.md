@@ -8,6 +8,21 @@ ordenado por fecha descendente. Para detalles del MCP server ver `docs/MCP.md`.
 
 ---
 
+## 2026-05-19 — Upload chunked (Clips + Reels) para sortear timeout de Render
+
+Render mata las requests HTTP a ~100s. Un upload single-shot de 590MB sobre conexión hogareña típica tardaba ~5 min y el proxy cortaba la conexión a la mitad (`Error: Request aborted` en multer). La barra de progreso que agregamos justo antes confirmó el patrón.
+
+**Solución**: nuevo módulo genérico `api/uploads/{service,routes}.js` que recibe el archivo en chunks de 5MB. Cada chunk es un POST chico que cabe sobradamente en cualquier timeout. El backend concatena al finalizar.
+
+- 3 endpoints nuevos: `POST /api/uploads/init` (devuelve uploadId), `POST /api/uploads/chunk` (multipart, max 10MB), `POST /api/uploads/finalize` (concatena).
+- Storage en `/opt/data/uploads-tmp/<uploadId>/`. Cron de cleanup ya existente cubre huérfanos (TTL 24h).
+- `POST /api/clips/generate` y `POST /api/reels/upload` ahora aceptan `{uploadId}` además de los flujos previos (clips quedó JSON-only; reels mantiene compat con multipart legacy).
+- Frontend: nuevo helper `src/services/chunkedUpload.js` que parte el archivo y reporta progreso. `ClipsContext.generate()` y `reelsApi.uploadReel()` lo usan automáticamente.
+- 10 tests unitarios cubren validaciones, auth cross-user, orden de chunks, idempotencia de finalize y TTL.
+- **No es resumable en v1**: si un chunk falla, el usuario reintenta el upload completo; los chunks ya subidos quedan en disco y son re-sobrescritos. Cron limpia huérfanos a las 24h.
+
+Para "direct-to-storage" con R2/S3 + presigned URLs (que bypasea Render por completo) ver roadmap — esto cubre hasta que tengamos volumen alto de clientes.
+
 ## 2026-05-19 — UI de Clips ahora muestra el error_message al usuario
 
 Dos bugs en el frontend de Clips hacían que los errores quedaran invisibles aunque el backend los guardara:

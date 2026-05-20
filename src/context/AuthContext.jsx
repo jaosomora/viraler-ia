@@ -17,6 +17,7 @@ export const authFetch = (url, options = {}) => {
   });
 };
 
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('token'));

@@ -9,7 +9,7 @@ const RESOLUTIONS = [
 ];
 
 const ClipsForm = () => {
-  const { generate, loadFonts, fontCatalog, isGenerating, error } = useClips();
+  const { generate, loadFonts, fontCatalog, isGenerating, uploadProgress, error } = useClips();
   const [mode, setMode] = useState('url');
   const [url, setUrl] = useState('');
   const [file, setFile] = useState(null);
@@ -237,8 +237,18 @@ const ClipsForm = () => {
           <button type="submit"
             disabled={isGenerating || (mode === 'url' ? !url.trim() : !file)}
             className="w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-semibold text-white text-sm">
-            {isGenerating ? 'Procesando…' : '✨ Generar clips'}
+            {isGenerating
+              ? (uploadProgress
+                  ? `Subiendo… ${Math.round(uploadProgress.pct * 100)}% (${(uploadProgress.loaded / 1024 / 1024).toFixed(1)}/${(uploadProgress.total / 1024 / 1024).toFixed(1)} MB)`
+                  : 'Procesando…')
+              : '✨ Generar clips'}
           </button>
+          {isGenerating && uploadProgress && (
+            <div className="h-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden -mt-1">
+              <div className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 transition-all duration-200"
+                   style={{ width: `${Math.round(uploadProgress.pct * 100)}%` }} />
+            </div>
+          )}
           <p className="text-[11px] text-gray-500 dark:text-gray-400 text-center">~$0.46 / hora de video procesado</p>
         </div>
       </form>

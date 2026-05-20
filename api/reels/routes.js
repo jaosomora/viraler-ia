@@ -17,11 +17,34 @@ const get = (sql, params = []) => new Promise((res, rej) => {
 
 export async function uploadHandler(req, res) {
   try {
-    if (!req.file) return res.status(400).json({ error: 'No se subió ningún archivo' });
-    const title = req.body?.title || req.file.originalname;
+    let sourceFilename = null;
+    let originalName = null;
+
+    if (req.body?.uploadId) {
+      // Modo chunked (default desde 2026-05-19): el frontend ya subió el archivo
+      // en trozos vía /api/uploads/*. Acá solo finalizamos.
+      const { finalizeUpload, readMeta } = await import('../uploads/service.js');
+      const meta = readMeta(req.body.uploadId);
+      if (!meta) return res.status(404).json({ error: 'upload no encontrado' });
+      if (meta.userId !== req.user.id) return res.status(403).json({ error: 'No autorizado' });
+      const result = await finalizeUpload({ uploadId: req.body.uploadId, userId: req.user.id });
+      sourceFilename = result.path;
+      originalName = result.originalName;
+      console.log(`[reels] using chunked upload · user=${req.user.id} · ${meta.filename} · ${(result.size / 1024 / 1024).toFixed(1)}MB`);
+    } else if (req.file) {
+      // Compat: upload single-shot multipart (legacy, frágil para >100MB en Render)
+      sourceFilename = req.file.path;
+      originalName = req.file.originalname;
+      const mb = (req.file.size / 1024 / 1024).toFixed(1);
+      console.log(`[reels] upload received (legacy single-shot) · user=${req.user.id} · ${req.file.originalname} · ${mb}MB`);
+    } else {
+      return res.status(400).json({ error: 'Falta uploadId o archivo' });
+    }
+
+    const title = req.body?.title || originalName;
     const jobId = await createJob({
       userId: req.user.id,
-      sourceFilename: req.file.path,
+      sourceFilename,
       title,
     });
     processJobUntilReview(jobId);

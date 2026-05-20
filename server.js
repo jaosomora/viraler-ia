@@ -89,6 +89,11 @@ import {
   providersHandler as musicProviders,
 } from './api/reels/musicRoutes.js';
 import { recoverZombieReels } from './api/reels/reelsService.js';
+import {
+  initHandler as uploadsInit,
+  chunkHandler as uploadsChunk,
+  finalizeHandler as uploadsFinalize,
+} from './api/uploads/routes.js';
 import { authMiddleware, authMiddlewareMedia, ownerOnly, registerUser, loginUser, listUsers, adminResetPassword, generateTempPassword, requestMagicLink, verifyMagicLink, setUserAccessExpiry } from './api/auth.js';
 import {
   generateUsageReport,
@@ -285,18 +290,25 @@ const documentUpload = multer({
 app.post('/api/convert', authMiddleware, documentUpload.single('document'), convertDocument);
 
 // --- AS Clips ---
-const clipsUpload = multer({
-  dest: UPLOADS_TMP,
-  limits: { fileSize: 1024 * 1024 * 1024 }, // 1GB
-  fileFilter: (req, file, cb) => {
-    const allowed = /\.(mp4|mov|avi|mkv|webm|m4v)$/i;
-    if (allowed.test(file.originalname)) cb(null, true);
-    else cb(new Error('Formato no soportado para clips. Usa MP4, MOV, MKV, WEBM.'));
-  },
-});
+// Nota: el multer single-shot para Clips fue retirado el 2026-05-19. Los uploads
+// ahora van por /api/uploads/* en chunks (ver más arriba). /api/clips/generate
+// solo acepta JSON: {url} o {uploadId}.
 app.get('/api/clips/fonts', authMiddleware, clipsFonts);
 app.get('/api/clips/stages', authMiddleware, clipsStages);
-app.post('/api/clips/generate', authMiddleware, clipsUpload.single('video'), clipsGenerate);
+// /api/clips/generate ahora es JSON-only: recibe {url} o {uploadId} (chunked).
+// El upload multipart single-shot fue retirado por el timeout de 100s de Render
+// que mataba archivos grandes a mitad de subida.
+app.post('/api/clips/generate', authMiddleware, clipsGenerate);
+
+// Uploads chunked genéricos (compartidos por Clips y Reels). Cada chunk es <=10MB
+// para que el POST individual termine bien antes de cualquier timeout de proxy.
+const chunksUpload = multer({
+  dest: UPLOADS_TMP,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB por chunk (cliente manda de 5MB)
+});
+app.post('/api/uploads/init', authMiddleware, uploadsInit);
+app.post('/api/uploads/chunk', authMiddleware, chunksUpload.single('chunk'), uploadsChunk);
+app.post('/api/uploads/finalize', authMiddleware, uploadsFinalize);
 app.get('/api/clips/jobs', authMiddleware, clipsListJobs);
 app.get('/api/clips/jobs/:id', authMiddleware, clipsGetJob);
 app.delete('/api/clips/jobs/:id', authMiddleware, clipsDeleteJob);

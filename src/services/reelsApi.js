@@ -1,5 +1,6 @@
 // src/services/reelsApi.js
 import { API_BASE_URL } from './api';
+import { chunkedUpload } from './chunkedUpload';
 
 function authHeaders(extra = {}) {
   const token = localStorage.getItem('token');
@@ -9,28 +10,21 @@ function authHeaders(extra = {}) {
   };
 }
 
+// Reemplaza el single-shot multipart por upload chunked (5MB por trozo).
+// onProgress(pct) recibe un entero 0-100 — mantenemos la firma vieja para no
+// tocar el llamador. uploadReel devuelve {jobId} como antes.
 export async function uploadReel(file, title, onProgress) {
-  const token = localStorage.getItem('token');
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    const fd = new FormData();
-    fd.append('video', file);
-    if (title) fd.append('title', title);
-    xhr.open('POST', `${API_BASE_URL}/reels/upload`);
-    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-    xhr.upload.onprogress = e => {
-      if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100));
-    };
-    xhr.onload = () => {
-      try {
-        const data = JSON.parse(xhr.responseText);
-        if (xhr.status >= 200 && xhr.status < 300) resolve(data);
-        else reject(new Error(data.error || 'Error subiendo el video'));
-      } catch { reject(new Error('Respuesta inválida del servidor')); }
-    };
-    xhr.onerror = () => reject(new Error('Error de red'));
-    xhr.send(fd);
+  const { uploadId } = await chunkedUpload(file, (p) => {
+    if (onProgress) onProgress(Math.round(p.pct * 100));
   });
+  const res = await fetch(`${API_BASE_URL}/reels/upload`, {
+    method: 'POST',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ uploadId, title: title || undefined }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Error subiendo el video');
+  return data;
 }
 
 export async function listReelJobs() {
