@@ -291,7 +291,10 @@ export async function baseVideoHandler(req, res) {
     }
     const basePath = await ensureClipBase(clipId, resolution);
     res.setHeader('Content-Type', 'video/mp4');
-    res.setHeader('Cache-Control', 'private, max-age=3600');
+    // no-store: el base.mp4 cambia cada vez que el usuario edita params (crop_x_pct,
+    // start/end, camera_motion, transition, aspect). Cachearlo provoca ver el render
+    // viejo aunque el backend ya generó el nuevo. Sin caché es la opción correcta.
+    res.setHeader('Cache-Control', 'no-store');
     fs.createReadStream(basePath).pipe(res);
   } catch (err) {
     console.error('[clips] base-video error:', err);

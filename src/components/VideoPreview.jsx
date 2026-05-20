@@ -28,7 +28,11 @@ const VideoPreview = forwardRef(({ clipId, resolution = '1080', overlay, autoPla
     setError(null);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(endpoint, { headers: { Authorization: `Bearer ${token}` } });
+      // Cache buster defensivo: aunque el backend ahora manda no-store, garantizamos
+      // que un edit de params (cuyo único cambio externo es que el componente se remonta)
+      // siempre dispare un fetch fresco al servidor, sin reusar blob cacheado del browser.
+      const bust = `${endpoint.includes('?') ? '&' : '?'}_=${Date.now()}`;
+      const res = await fetch(endpoint + bust, { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) {
         const msg = await res.json().catch(() => ({}));
         throw new Error(msg.error || `Error ${res.status}`);
