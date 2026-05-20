@@ -32,7 +32,17 @@ async function postJson(url, body) {
   return data;
 }
 
-function postChunk(uploadId, chunkIndex, blob) {
+// Indica si vale la pena reintentar este error. 4xx con código específico (auth,
+// validación) NO se reintentan. 5xx, network drops y aborts sí.
+class ChunkError extends Error {
+  constructor(message, { retryable = true, status = 0 } = {}) {
+    super(message);
+    this.retryable = retryable;
+    this.status = status;
+  }
+}
+
+function postChunkOnce(uploadId, chunkIndex, blob) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     const fd = new FormData();
@@ -43,17 +53,38 @@ function postChunk(uploadId, chunkIndex, blob) {
     const token = localStorage.getItem('token');
     if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
     xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) resolve();
-      else {
-        let msg = `chunk ${chunkIndex} falló (HTTP ${xhr.status})`;
-        try { msg = JSON.parse(xhr.responseText).error || msg; } catch {}
-        reject(new Error(msg));
-      }
+      if (xhr.status >= 200 && xhr.status < 300) return resolve();
+      let msg = `HTTP ${xhr.status}`;
+      try { msg = JSON.parse(xhr.responseText).error || msg; } catch {}
+      // 401/403/404 = no tiene sentido reintentar. 400 con validación tampoco.
+      const retryable = xhr.status >= 500 || xhr.status === 408 || xhr.status === 429;
+      reject(new ChunkError(`chunk ${chunkIndex}: ${msg}`, { retryable, status: xhr.status }));
     };
-    xhr.onerror = () => reject(new Error(`Red caída al subir chunk ${chunkIndex}`));
-    xhr.onabort = () => reject(new Error(`Subida cancelada en chunk ${chunkIndex}`));
+    xhr.onerror = () => reject(new ChunkError(`chunk ${chunkIndex}: red caída`));
+    xhr.onabort = () => reject(new ChunkError(`chunk ${chunkIndex}: subida cancelada`));
     xhr.send(fd);
   });
+}
+
+// Retry con backoff exponencial. 562MB / 5MB = 113 chunks; sin retry, un solo
+// parpadeo de red mata el upload entero. Con 3 reintentos por chunk y backoff
+// (1s, 3s, 9s), absorbemos blips comunes y solo abortamos si el problema persiste.
+async function postChunk(uploadId, chunkIndex, blob, maxAttempts = 4) {
+  let lastErr;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await postChunkOnce(uploadId, chunkIndex, blob);
+      return;
+    } catch (err) {
+      lastErr = err;
+      if (!(err instanceof ChunkError) || !err.retryable || attempt === maxAttempts) {
+        throw new Error(`${err.message} (después de ${attempt} intento${attempt > 1 ? 's' : ''})`);
+      }
+      const delayMs = Math.min(1000 * Math.pow(3, attempt - 1), 15000);
+      await new Promise(r => setTimeout(r, delayMs));
+    }
+  }
+  throw lastErr;
 }
 
 export async function chunkedUpload(file, onProgress) {

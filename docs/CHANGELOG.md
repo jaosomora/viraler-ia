@@ -8,6 +8,13 @@ ordenado por fecha descendente. Para detalles del MCP server ver `docs/MCP.md`.
 
 ---
 
+## 2026-05-19 — Retry per-chunk en uploads para sobrevivir blips de red
+
+Tras desplegar el chunked upload, un solo chunk fallando (network blip) mataba el upload completo. Para 562MB / 113 chunks sobre conexión hogareña, casi imposible llegar al 100% al primer intento.
+
+- `chunkedUpload.js`: `postChunk` ahora reintenta hasta 4 veces con backoff exponencial (1s, 3s, 9s). Diferencia entre errores retryable (5xx, 408, 429, network/abort) y no-retryable (4xx específicos). Sin esto, cada parpadeo = restart desde cero.
+- Error final al usuario incluye el conteo de intentos: `chunk N: HTTP 502 (después de 4 intentos)`.
+
 ## 2026-05-19 — Hotfix: peak de disco al subir bajado de 3x a 1x file size
 
 Tras desplegar el upload chunked, una subida de 562MB se cortó al 95% con `ENOSPC: no space left on device`. El disco persistente en Render starter es **1GB** y mi pipeline gastaba ~3x el tamaño del archivo: chunks (562MB) + final.mp4 reensamblado (562MB) + copia a jobDir (562MB) = ~1.7GB. Imposible.
