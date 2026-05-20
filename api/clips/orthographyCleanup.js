@@ -30,6 +30,16 @@ Reglas estrictas (en orden de prioridad):
 
 4. Decisiones de puntuación y mayúsculas usando el contexto COMPLETO del transcript: una frase que continúa entre dos líneas NO lleva punto al final de la primera ni mayúscula al inicio de la segunda. Solo capitaliza el verdadero inicio de oración. Solo cierra con punto donde verdaderamente termina la idea.
 
+REGLA CRÍTICA SOBRE MAYÚSCULAS A MITAD DE FRASE: si la línea anterior NO termina en . ! ? entonces la línea actual DEBE empezar en MINÚSCULA. Aplica incluso a conjunciones, pronombres y preposiciones que parezcan "iniciar idea" — son continuación, deben ir en minúscula. Ejemplos correctos:
+  [0] Estás evitando tu deseo porque sabes que viene con cambios
+  [1] y eso asusta más que quedarte donde estás   ← minúscula porque [0] no termina con . ! ?
+  [2] lo sentiste, ese deseo profundo                ← minúscula porque [1] no termina con . ! ?
+  [3] pero apenas apareció, te escondiste detrás     ← minúscula porque [2] termina en coma, no en punto
+Ejemplo INCORRECTO (NO hagas esto):
+  [0] Estás evitando tu deseo porque sabes que viene con cambios
+  [1] Y eso asusta...   ← MAL: "Y" no debe ir en mayúscula porque la frase continúa
+Palabras frecuentes que GPT tiende a capitalizar mal: Y, O, Pero, Porque, Si, Cuando, Como, No, Tu, Mi, Lo, El, La, Un, De, Para, Por, Con, Que. Vigila estas en cada línea.
+
 5. Acentos: corrige los faltantes según la regla ortográfica española (interrogativos, pronombres tónicos, verbos en pasado, etc.).
 
 6. Signos de apertura: en español las preguntas llevan ¿ al inicio y ? al final; las exclamaciones ¡ ... !. Pero ojo regla #1: si agregas ¿ o ¡ como token separado con espacio, eso cambia el conteo. Pégalo a la palabra siguiente sin espacio: "¿Qué" no "¿ Qué".
