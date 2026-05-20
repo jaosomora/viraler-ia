@@ -8,6 +8,18 @@ ordenado por fecha descendente. Para detalles del MCP server ver `docs/MCP.md`.
 
 ---
 
+## 2026-05-19 — Clips: encuadre horizontal seleccionable (Izq/Centro/Der + ajuste fino)
+
+Para fuentes con dos personas lado a lado (entrevistas Zoom), el crop 9:16 centrado caía en el espacio entre ambas. Ahora cada clip tiene `crop_x_pct` (0=izq · 50=centro/default · 100=der).
+
+- `schema.js`: nueva columna `crop_x_pct INTEGER DEFAULT 50` en `clips` (migration idempotente).
+- `videoProcessor.js`: nueva función pura exportada `buildCropExpr(aspect, cropXPct)` usada por `renderClipBase` y `renderClip`. Incluida en `baseParamsHash` para forzar re-render del base al cambiar el encuadre.
+- `clipsService.js#updateClip`: whitelistea `crop_x_pct` y lo clampea a 0-100.
+- `routes.js#applyStyleToAllHandler`: permite propagar el encuadre a todos los clips del job.
+- `ClipEditor.jsx`: nueva sub-sección "Encuadre horizontal" dentro de "Movimiento y transiciones" con 3 presets + slider. Auto-persiste y regenera el base al cambiar.
+- Backwards-compatible: clips antiguos sin valor usan 50% (= comportamiento histórico de `crop=ih*9/16:ih` centrado).
+- Tests: 8 tests nuevos en `videoProcessor.test.js` cubren la expresión generada por aspect, valores fuera de rango y defaults.
+
 ## 2026-05-19 — Retry per-chunk en uploads para sobrevivir blips de red
 
 Tras desplegar el chunked upload, un solo chunk fallando (network blip) mataba el upload completo. Para 562MB / 113 chunks sobre conexión hogareña, casi imposible llegar al 100% al primer intento.

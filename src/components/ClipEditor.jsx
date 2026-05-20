@@ -104,6 +104,7 @@ const ClipEditor = ({ clip, onClose }) => {
       outline_color: clip.outline_color || '#000000',
       karaoke_enabled: clip.karaoke_enabled ? 1 : 0,
       karaoke_dim_opacity: clip.karaoke_dim_opacity ?? 50,
+      crop_x_pct: clip.crop_x_pct ?? 50,
       caption_overrides: (() => {
         try { return clip.caption_overrides ? (typeof clip.caption_overrides === 'string' ? JSON.parse(clip.caption_overrides) : clip.caption_overrides) : []; }
         catch { return []; }
@@ -150,8 +151,8 @@ const ClipEditor = ({ clip, onClose }) => {
   // Params que afectan el base.mp4. Si cambian, debemos persistir + regenerar antes de remontar el preview.
   const baseParamsSig = useMemo(() => {
     if (!draft) return '';
-    return `${draft.start_seconds}|${draft.end_seconds}|${draft.aspect_ratio}|${draft.camera_motion}|${draft.transition}`;
-  }, [draft?.start_seconds, draft?.end_seconds, draft?.aspect_ratio, draft?.camera_motion, draft?.transition]); // eslint-disable-line react-hooks/exhaustive-deps
+    return `${draft.start_seconds}|${draft.end_seconds}|${draft.aspect_ratio}|${draft.camera_motion}|${draft.transition}|${draft.crop_x_pct}`;
+  }, [draft?.start_seconds, draft?.end_seconds, draft?.aspect_ratio, draft?.camera_motion, draft?.transition, draft?.crop_x_pct]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const lastSyncedSigRef = useRef(null);
 
@@ -171,6 +172,7 @@ const ClipEditor = ({ clip, onClose }) => {
           aspect_ratio: draft.aspect_ratio,
           camera_motion: draft.camera_motion,
           transition: draft.transition,
+          crop_x_pct: draft.crop_x_pct,
         });
         lastSyncedSigRef.current = baseParamsSig;
         setPreviewKey(k => k + 1);
@@ -930,6 +932,43 @@ const ClipEditor = ({ clip, onClose }) => {
               )}
 
               <CollapsibleSection id="movimiento" icon="🎬" title="Movimiento y transiciones" defaultOpen={false}>
+              <section className="mb-5">
+                <Tooltip text="Cuando la fuente es horizontal y el clip vertical, el recorte se hace por defecto desde el centro. Si tu video tiene dos personas lado a lado (entrevistas Zoom), el centro cae entre las dos: usá los presets o el slider para mover el encuadre hacia la persona que querés mostrar.">
+                  <h4 className="text-xs uppercase tracking-wide text-gray-500 mb-3 font-semibold">Encuadre horizontal</h4>
+                </Tooltip>
+                <div className="grid grid-cols-3 gap-2 mb-3">
+                  {[
+                    { id: 0, label: 'Izquierda', icon: '◧', sub: 'persona izq' },
+                    { id: 50, label: 'Centro', icon: '▣', sub: 'default' },
+                    { id: 100, label: 'Derecha', icon: '◨', sub: 'persona der' },
+                  ].map(o => (
+                    <button key={o.id} type="button" onClick={() => update({ crop_x_pct: o.id })}
+                      className={`border rounded-lg p-3 text-center transition ${draft.crop_x_pct === o.id
+                        ? 'border-purple-500 bg-purple-500/10'
+                        : 'border-gray-300 dark:border-gray-700 hover:border-gray-400'}`}>
+                      <div className="text-2xl mb-1">{o.icon}</div>
+                      <div className="text-xs font-medium text-gray-800 dark:text-gray-200">{o.label}</div>
+                      <div className="text-[10px] text-gray-500">{o.sub}</div>
+                    </button>
+                  ))}
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-[11px] text-gray-500">Ajuste fino</label>
+                    <span className="text-[10px] text-gray-500 font-mono">{draft.crop_x_pct}%</span>
+                  </div>
+                  <input type="range" min="0" max="100" step="1" value={draft.crop_x_pct}
+                    onChange={e => update({ crop_x_pct: +e.target.value })}
+                    className="w-full accent-purple-500" />
+                  <div className="flex justify-between text-[10px] text-gray-500 mt-0.5">
+                    <span>← izq</span><span>centro</span><span>der →</span>
+                  </div>
+                  <p className="text-[10px] text-gray-500 mt-1.5 leading-snug">
+                    Aplica solo si la fuente es más ancha que el formato del clip. Si la fuente ya es vertical, este ajuste no se nota.
+                  </p>
+                </div>
+              </section>
+
               <section>
                 <Tooltip text="Movimiento lento que abarca todo el clip (zoom-in cinematográfico, zoom-out o estático). Distinto a las transiciones, que son punches en los bordes.">
                   <h4 className="text-xs uppercase tracking-wide text-gray-500 mb-3 font-semibold">Cámara y composición</h4>

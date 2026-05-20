@@ -521,6 +521,7 @@ export async function applyStyleToAllHandler(req, res) {
       'keyword_italic', 'keyword_underline',
       'camera_motion', 'sub_position', 'aspect_ratio', 'transition',
       'hook_enabled',
+      'crop_x_pct',
     ];
     const body = req.body || {};
     const sets = [];

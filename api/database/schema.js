@@ -299,6 +299,13 @@ db.serialize(() => {
   db.run(`ALTER TABLE clips ADD COLUMN karaoke_enabled INTEGER DEFAULT 0`, () => {});
   db.run(`ALTER TABLE clips ADD COLUMN karaoke_dim_opacity INTEGER DEFAULT 50`, () => {});
 
+  // Encuadre horizontal del recorte 9:16/1:1/4:5 sobre la fuente horizontal.
+  // 0 = pegado al borde izquierdo · 50 = centro (default histórico) · 100 = pegado al borde derecho.
+  // Útil cuando el video fuente tiene dos personas lado a lado (entrevistas Zoom) y la cara
+  // del speaker queda fuera del crop centrado. Aplica solo cuando hay sobrante horizontal
+  // (i.e. fuente más ancha que el aspect del clip).
+  db.run(`ALTER TABLE clips ADD COLUMN crop_x_pct INTEGER DEFAULT 50`, () => {});
+
   // Plantillas de estilo guardadas por el usuario. Cada plantilla = snapshot de ~25 params del editor.
   db.run(`
     CREATE TABLE IF NOT EXISTS clip_templates (

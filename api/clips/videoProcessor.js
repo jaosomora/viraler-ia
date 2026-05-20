@@ -161,6 +161,24 @@ function getOutputDimensions(resolution, aspectRatio) {
   return { w, h: h % 2 === 0 ? h : h + 1 }; // h2v requiere par
 }
 
+// Construye la expresión `crop=...` de ffmpeg para un aspect determinado y un porcentaje
+// horizontal del recorte sobre la fuente. cropXPct: 0=borde izq, 50=centro (default), 100=borde der.
+// Útil para fuentes con dos personas lado a lado: el centro cae en el espacio entre ambas.
+// Aplica solo si la fuente es más ancha que el crop (caso típico: 16:9 → 9:16). Si la fuente
+// es vertical o el crop coincide con su ancho, el offset queda 0 y no afecta.
+// Exportada para poder testearla en aislamiento (función pura).
+export function buildCropExpr(aspectRatio, cropXPct = 50) {
+  let widthExpr;
+  if (aspectRatio === '1:1') widthExpr = 'ih';
+  else if (aspectRatio === '4:5') widthExpr = 'ih*4/5';
+  else widthExpr = 'ih*9/16'; // 9:16 default
+  // null/undefined → default centro. Number(null) === 0 (no NaN), por eso el chequeo explícito.
+  const raw = cropXPct === null || cropXPct === undefined ? 50 : Number(cropXPct);
+  const pct = Math.max(0, Math.min(100, Number.isFinite(raw) ? raw : 50)) / 100;
+  const xExpr = `(iw-${widthExpr})*${pct.toFixed(4)}`;
+  return `crop=${widthExpr}:ih:${xExpr}:0`;
+}
+
 // Hash de los parámetros que afectan al base.mp4 (cut + crop + zoom + transition). Si cambian → regenerar base.
 export function baseParamsHash(clip, resolution) {
   const h = [
@@ -168,6 +186,7 @@ export function baseParamsHash(clip, resolution) {
     clip.aspect_ratio || '9:16',
     clip.camera_motion || 'zoom-in',
     clip.transition || 'none',
+    clip.crop_x_pct ?? 50,
     resolution,
   ].join('|');
   return Buffer.from(h).toString('base64').slice(0, 16);
@@ -204,11 +223,7 @@ export function renderClipBase({ sourceVideo, clip, outputPath, resolution = '10
     const { w, h } = getOutputDimensions(resolution, aspect);
     const dur = clip.end_seconds - clip.start_seconds;
 
-    let cropExpr;
-    if (aspect === '9:16') cropExpr = 'crop=ih*9/16:ih';
-    else if (aspect === '1:1') cropExpr = 'crop=ih:ih';
-    else if (aspect === '4:5') cropExpr = 'crop=ih*4/5:ih';
-    else cropExpr = 'crop=ih*9/16:ih';
+    const cropExpr = buildCropExpr(aspect, clip.crop_x_pct ?? 50);
 
     const fps = 30;
     const totalFrames = Math.ceil(dur * fps);
@@ -331,15 +346,9 @@ export function renderClip({ sourceVideo, clip, assPath, outputPath, resolution 
     const { w, h } = getOutputDimensions(resolution, aspect);
     const dur = clip.end_seconds - clip.start_seconds;
 
-    // Crop expression según aspect ratio: tomamos del centro la proporción correcta.
-    // Para 9:16 vertical desde 16:9 fuente: crop=ih*9/16:ih (recorta laterales).
-    // Para 1:1 cuadrado: crop=ih:ih (centro cuadrado).
-    // Para 4:5: crop=ih*4/5:ih (cuadrado ligeramente alto).
-    let cropExpr;
-    if (aspect === '9:16') cropExpr = 'crop=ih*9/16:ih';
-    else if (aspect === '1:1') cropExpr = 'crop=ih:ih';
-    else if (aspect === '4:5') cropExpr = 'crop=ih*4/5:ih';
-    else cropExpr = 'crop=ih*9/16:ih';
+    // Crop expression según aspect ratio. El offset horizontal viene de clip.crop_x_pct
+    // (0=izq, 50=centro/default, 100=der) — clave para fuentes con dos personas lado a lado.
+    const cropExpr = buildCropExpr(aspect, clip.crop_x_pct ?? 50);
 
     // Camera motion: zoom-in / zoom-out / static via zoompan filter
     const fps = 30;

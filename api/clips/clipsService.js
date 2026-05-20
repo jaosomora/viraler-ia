@@ -577,7 +577,15 @@ export async function updateClip(clipId, userId, updates) {
     'keyword_bg_color', 'keyword_bg_opacity',
     'transition', 'hook_enabled',
     'hook_color', 'caption_color', 'outline_color',
-    'karaoke_enabled', 'karaoke_dim_opacity'];
+    'karaoke_enabled', 'karaoke_dim_opacity',
+    'crop_x_pct'];
+  // Clampeos defensivos: valores fuera de rango podrían romper ffmpeg silenciosamente.
+  if (updates.crop_x_pct !== undefined && updates.crop_x_pct !== null) {
+    const n = Number(updates.crop_x_pct);
+    if (!Number.isFinite(n)) throw new Error('crop_x_pct debe ser un número 0-100');
+    updates.crop_x_pct = Math.max(0, Math.min(100, Math.round(n)));
+  }
+
   const sets = [];
   const params = [];
   for (const k of allowed) {
