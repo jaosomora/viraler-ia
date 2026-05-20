@@ -7,7 +7,15 @@ import { dirname } from 'path';
 import dotenv from 'dotenv';
 import multer from 'multer';
 import os from 'os';
+import fs from 'fs';
 import { spawn } from 'child_process';
+
+// Uploads grandes (videos) van al disco persistente en prod para no llenar tmpfs (/tmp en Render es RAM).
+// Si el archivo se trunca a mitad de upload, ffmpeg falla con "moov atom not found".
+const UPLOADS_TMP = process.env.NODE_ENV === 'production' ? '/opt/data/uploads-tmp' : os.tmpdir();
+if (process.env.NODE_ENV === 'production') {
+  try { fs.mkdirSync(UPLOADS_TMP, { recursive: true }); } catch {}
+}
 import transcribeVideo from './api/transcribeVideo.js';
 import transcribeUpload from './api/transcribeUpload.js';
 import downloadVideo from './api/downloadVideo.js';
@@ -245,7 +253,7 @@ app.post('/api/transcribeVideo', authMiddleware, transcribeVideo);
 
 // Transcripción por archivo subido
 const upload = multer({
-  dest: os.tmpdir(),
+  dest: UPLOADS_TMP,
   limits: { fileSize: 500 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowed = /\.(mp4|mov|avi|mkv|webm|m4v|flv|wmv|mp3|wav|m4a|ogg|opus)$/i;
@@ -278,7 +286,7 @@ app.post('/api/convert', authMiddleware, documentUpload.single('document'), conv
 
 // --- AS Clips ---
 const clipsUpload = multer({
-  dest: os.tmpdir(),
+  dest: UPLOADS_TMP,
   limits: { fileSize: 1024 * 1024 * 1024 }, // 1GB
   fileFilter: (req, file, cb) => {
     const allowed = /\.(mp4|mov|avi|mkv|webm|m4v)$/i;
@@ -314,7 +322,7 @@ app.get('/api/admin/reels', authMiddleware, ownerOnly, reelsAdminList);
 
 // --- AS Reels Cleaner ---
 const reelsUploadMulter = multer({
-  dest: os.tmpdir(),
+  dest: UPLOADS_TMP,
   limits: { fileSize: 500 * 1024 * 1024 }, // 500MB (reels son cortos)
   fileFilter: (req, file, cb) => {
     const allowed = /\.(mp4|mov|avi|mkv|webm|m4v)$/i;

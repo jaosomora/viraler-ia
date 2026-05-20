@@ -8,6 +8,14 @@ ordenado por fecha descendente. Para detalles del MCP server ver `docs/MCP.md`.
 
 ---
 
+## 2026-05-19 — Fix: uploads de video truncados en prod ("moov atom not found")
+
+Multer escribía a `os.tmpdir()` (= `/tmp`, tmpfs/RAM en el contenedor de Render). Videos grandes (Clips/Reels/transcribeUpload) llenaban tmpfs y se truncaban silenciosamente; el `moov` atom al final del MP4 se perdía y ffmpeg fallaba con `moov atom not found` al extraer audio. Síntoma reportado: `copied uploaded file (0.1s)` — copia instantánea = archivo truncado.
+
+- **server.js**: nuevo `UPLOADS_TMP` = `/opt/data/uploads-tmp` en prod (disco persistente), `os.tmpdir()` en dev. Aplicado a los 3 multer de video: transcribeUpload, clips, reels. Convert/music siguen en tmpdir (archivos chicos).
+- **clipsService.js / reelsService.js**: tras copiar el upload, se borra el tmp file (antes en tmpdir era efímero, ahora hay que limpiar). Clips además loguea el tamaño real en MB para diagnosticar futuros casos.
+- **No toca MCP**: los uploads son solo del frontend web; no hay tool MCP equivalente que reciba archivos binarios.
+
 ## 2026-05-17 — Rename: analyze_ideas → analyze_video_transcript
 
 Claude.ai elegía consistentemente `analyze_ideas` cuando el usuario pedía "Generador de Ideas" porque ambos nombres contenían "ideas". Tres iteraciones de description tweaks no resolvieron el colapso de routing. Solución estructural: renombrar la tool MCP para que solo `build_idea_map` contenga "idea" en el nombre.

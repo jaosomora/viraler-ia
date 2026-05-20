@@ -119,7 +119,9 @@ export async function processJob(jobId) {
       log(jobId, `download complete (${elapsed()})`);
     } else if (job.source_filename) {
       fs.copyFileSync(job.source_filename, sourcePath);
-      log(jobId, `copied uploaded file (${elapsed()})`);
+      const sizeMb = (fs.statSync(sourcePath).size / 1024 / 1024).toFixed(1);
+      try { fs.unlinkSync(job.source_filename); } catch {}
+      log(jobId, `copied uploaded file · ${sizeMb}MB (${elapsed()})`);
     } else {
       throw new Error('Job sin source_url ni source_filename');
     }
