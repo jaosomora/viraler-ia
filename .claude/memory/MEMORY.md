@@ -2,6 +2,7 @@
 - [Push main+develop](feedback_push_always.md) — Siempre push a ambas ramas después de commit
 - [Claude config en git](feedback_claude_config_in_git.md) — Todo versionado para portabilidad entre máquinas
 - [Worktree .env](feedback_worktree_env.md) — Copiar .env del repo principal al worktree antes de levantar dev
+- [Branch por trabajo](feedback_branch_por_trabajo.md) — Cada trabajo nuevo parte de main + reportar la ruta del worktree
 - [Estilo directo](feedback_direct_style.md) — Ejecutar primero, explicar después, sin rodeos
 - [Simplicidad](feedback_simplicity.md) — Si no se usa, se elimina. No agregar features especulativas
 - [Estética AS Clips](feedback_clips_aesthetic.md) — Editorial elegante, NO Opus Clip neón. Filtro para templates/colores/fuentes

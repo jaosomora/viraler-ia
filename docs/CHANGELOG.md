@@ -8,6 +8,34 @@ ordenado por fecha descendente. Para detalles del MCP server ver `docs/MCP.md`.
 
 ---
 
+## 2026-05-20 — Reels Cleaner: conexión visible entre etiquetas y curación de catálogo
+
+Bug de UX: cuando el usuario marca tags en el TagsPicker, esas etiquetas filtran la lista local Y también determinan qué se descarga al pulsar "+ Ampliar catálogo". La conexión solo estaba dicha en una línea de helper text que casi nadie leía. Y la sugerencia IA tampoco se veía si había tags activos.
+
+- `MusicReviewView`: el card "Ampliar catálogo" cambia a estado verde con ring + chips listando las etiquetas activas cuando hay alguna marcada. El título y CTA del card se actualizan ("Traer canciones de estos estilos a tu biblioteca" + "+ Traer de estos estilos").
+- `MusicReviewView`: aviso inline debajo del `TagsPicker` que explica la doble función. Cambia según el estado (sin tags marcados explica que marcar etiquetas filtra Y refina; con tags marcados confirma cuántas hay activas y señala con flecha hacia arriba el botón de curación).
+- `handleSuggest`: al pulsar "Sugerir música" se limpian los filtros activos automáticamente para que las 3 sugerencias de la IA siempre sean visibles (antes quedaban escondidas si la IA elegía tracks fuera del filtro).
+- MCP: no aplica.
+
+## 2026-05-20 — Refactor de UX en Clips y Reels Cleaner
+
+Pasada amplia de mejoras de UX a las dos herramientas principales, unificando patrones de jerarquía visual y reescribiendo copy para que un cliente nuevo pueda usarlas sin contexto previo y sin ver información técnica del owner. Detalle completo en el commit `653f490`.
+
+- Clips editor: 6 secciones reordenadas (Plantillas → Lienzo → Subtítulos → Texto → Estilo → Movimiento), modo acordeón (una sección abierta a la vez), sub-bloques con previsualización `Aa` en tiempo real, Playfair Display agregada a los dropdowns de Hook y Caption.
+- Clips landing: form headers en sentence case, "Jobs anteriores" → "Historial", todos los precios eliminados de la UI del cliente.
+- Reels Cleaner: header consistente entre los 3 pasos (minimal + duración a la derecha, CTAs al pie del preview); "job" → "reel"/"video" globalmente (28 strings); botones con pulse amber cuando hay cambios sin previsualizar; Paso 1 con trim "play + click" en lugar de inputs mm:ss; Paso 2 reorganizado en sub-bloques (Texto / Borde / Posición) con orden Subtítulos → Estilo → Voz; Paso 3 con mensajes user-friendly y sin jerga técnica.
+- API: `routes.js` y `reelsService.js` con mensajes de error reescritos ("Job no encontrado" → "Reel no encontrado", 28 ocurrencias).
+- MCP: no aplica.
+
+## 2026-05-20 — Fix: mayúsculas mid-sentence en español + prompt cleanup reforzado
+
+El cleanup ortográfico operaba a nivel de segments y dejaba palabras capitalizadas a mitad de frase en el array `words` ("él No es", "más Porque sabes", "conoces Tu rutina"). Visible especialmente en Reels Cleaner donde los chunks se ven en lista separada.
+
+- `api/clips/orthographyCleanup.js`: prompt reforzado con regla crítica y ejemplos correctos/incorrectos sobre continuación de líneas en minúscula. Lista de palabras-trampa que GPT debe vigilar.
+- `api/clips/captionsService.js`: post-procesado en `chunkWordsForClip` que baja a minúscula palabras de una stop-list curada (~80 conjunciones, pronombres, preposiciones, adverbios, verbos cópula en español) cuando aparecen capitalizadas mid-flow. Defensive layer si GPT no sigue el prompt.
+- Beneficio compartido: aplica a Clips y a Reels Cleaner sin re-procesar nada (los chunks se reconstruyen en cada carga del job).
+- MCP: no aplica.
+
 ## 2026-05-20 — Clips: preview en vivo del encuadre mientras arrastrás el slider
 
 Antes el slider solo mostraba el `%` numérico mientras arrastrabas — había que soltar y esperar el regen de ffmpeg (~7s) para ver el resultado. Ahora hay preview WYSIWYG instantáneo.
