@@ -1709,6 +1709,19 @@ const MusicReviewView = ({ job, onChange, onError }) => {
     [tracks, selectedId, job.music_track]
   );
 
+  // Labels legibles de las etiquetas activas (para mostrarlas en el card de curación
+  // y en el aviso debajo del TagsPicker).
+  const activeTagLabels = useMemo(() => {
+    if (activeTags.length === 0) return [];
+    return activeTags.map(id => {
+      for (const g of Object.values(tagsCatalog || {})) {
+        const t = g.find(x => x.id === id);
+        if (t) return t.label;
+      }
+      return id;
+    });
+  }, [activeTags, tagsCatalog]);
+
   // Cargar tracks al montar y cuando cambian filtros
   useEffect(() => {
     let cancelled = false;
@@ -1843,6 +1856,9 @@ const MusicReviewView = ({ job, onChange, onError }) => {
   const handleSuggest = async () => {
     setSuggesting(true);
     setSuggestions(null);
+    // Limpiar filtros para que las sugerencias siempre sean visibles: la IA elige
+    // sobre la biblioteca completa, no sobre el filtro activo.
+    if (activeTags.length > 0) setActiveTags([]);
     try {
       const out = await suggestMusic(job.id);
       setSuggestions(out);
@@ -2000,26 +2016,44 @@ const MusicReviewView = ({ job, onChange, onError }) => {
           </div>
 
           {/* Ampliar catálogo desde fuentes gratuitas */}
-          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+          <div className={`bg-white dark:bg-gray-800 border rounded-xl p-4 transition ${
+            activeTags.length > 0
+              ? 'border-emerald-400 dark:border-emerald-600 ring-1 ring-emerald-300 dark:ring-emerald-700/50'
+              : 'border-gray-200 dark:border-gray-700'
+          }`}>
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium text-gray-900 dark:text-white">
-                  📚 {activeTags.length > 0 ? `Traer más canciones para las etiquetas marcadas (${activeTags.length})` : 'Ampliar la biblioteca de música'}
+                  📚 {activeTags.length > 0 ? 'Traer canciones de estos estilos a tu biblioteca' : 'Traer más canciones a tu biblioteca'}
                 </div>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  {activeTags.length > 0
-                    ? <>Trae más canciones de Jamendo <strong>solo</strong> para las etiquetas marcadas abajo. Cada click trae nuevas, sin repetir las ya descargadas.</>
-                    : <>Trae ~200 canciones variadas desde <strong>Jamendo</strong>. Para un estilo específico, marca etiquetas abajo y vuelve a pulsar.</>}
-                  {providers && !providers.jamendo?.configured && (
-                    <span className="block text-rose-600 dark:text-rose-400 mt-1">
-                      ⚠ El catálogo externo está temporalmente fuera de servicio. Mientras tanto, sube tu propia música con el botón de abajo.
-                    </span>
-                  )}
-                </p>
+                {activeTags.length > 0 ? (
+                  <>
+                    <div className="mt-1.5 flex flex-wrap gap-1">
+                      {activeTagLabels.map((label, i) => (
+                        <span key={i} className="inline-block px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700/60 text-[11px] font-medium">
+                          {label}
+                        </span>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1.5">
+                      Trae más canciones de Jamendo <strong>solo</strong> con estos estilos. Cada click trae nuevas, sin repetir las que ya tienes.
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Trae ~200 canciones variadas desde <strong>Jamendo</strong>.
+                    {' '}<span className="text-gray-700 dark:text-gray-300">¿Buscas un estilo específico?</span> Marca etiquetas abajo y volverás a verlo aquí.
+                  </p>
+                )}
+                {providers && !providers.jamendo?.configured && (
+                  <p className="text-xs text-rose-600 dark:text-rose-400 mt-1.5">
+                    ⚠ El catálogo externo está temporalmente fuera de servicio. Mientras tanto, sube tu propia música con el botón de abajo.
+                  </p>
+                )}
               </div>
               <button onClick={handleCurate} disabled={curating}
                 className="px-3 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg whitespace-nowrap font-medium">
-                {curating ? 'Buscando…' : activeTags.length > 0 ? `+ Traer más de estas etiquetas` : '+ Ampliar catálogo'}
+                {curating ? 'Buscando…' : activeTags.length > 0 ? `+ Traer de estos estilos` : '+ Ampliar catálogo'}
               </button>
             </div>
             {curateResult && (
@@ -2058,6 +2092,21 @@ const MusicReviewView = ({ job, onChange, onError }) => {
 
             {/* Tags agrupados */}
             <TagsPicker catalog={tagsCatalog} activeTags={activeTags} onToggle={toggleTag} onClear={() => setActiveTags([])} />
+
+            {/* Aviso inline: explica la doble función de las etiquetas (filtrar + curar) */}
+            {activeTags.length > 0 ? (
+              <div className="mt-3 flex items-start gap-2 text-[11px] bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/50 text-emerald-800 dark:text-emerald-200 rounded-lg px-3 py-2">
+                <span>↑</span>
+                <span>
+                  <strong>{activeTags.length} {activeTags.length === 1 ? 'etiqueta activa' : 'etiquetas activas'}.</strong>
+                  {' '}Filtran tu biblioteca <em>y</em> definen qué canciones traerá <strong>"+ Traer de estos estilos"</strong> arriba si lo pulsas.
+                </span>
+              </div>
+            ) : (
+              <p className="mt-3 text-[11px] text-gray-500 dark:text-gray-400">
+                Marca una o más etiquetas para filtrar tu biblioteca. Esas mismas etiquetas también afectarán qué canciones se descargan al pulsar <strong>"+ Ampliar catálogo"</strong> arriba.
+              </p>
+            )}
           </div>
 
           {/* Mini-player encima de la lista — sticky para tenerlo a la mano */}
