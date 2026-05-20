@@ -8,6 +8,14 @@ ordenado por fecha descendente. Para detalles del MCP server ver `docs/MCP.md`.
 
 ---
 
+## 2026-05-19 — UI de Clips ahora muestra el error_message al usuario
+
+Dos bugs en el frontend de Clips hacían que los errores quedaran invisibles aunque el backend los guardara:
+- `ClipsPage.jsx` filtraba jobs con status='error' fuera de la lista "en progreso", entonces `JobProgress` (que sí renderiza el error en rojo) nunca aparecía tras un fallo. Ahora los jobs en error se quedan en la lista hasta que el usuario los descarta con el botón eliminar.
+- `SavedClips.jsx` mostraba el badge "error" pero no el `error_message` debajo. Ahora se renderiza en rojo como ya hace Reels (`SavedReels.jsx:79`).
+
+Combinado con el cambio anterior de `describeFfmpegError()`, el usuario ahora ve el mensaje accionable completo en la UI sin tener que mirar logs.
+
 ## 2026-05-19 — Mensajes de error claros cuando ffmpeg rechaza el video
 
 Cuando el archivo subido está corrupto (típicamente `.mov` con grabación cortada antes de cerrarse → falta el `moov atom`), Clips/Reels/Transcribir mostraban el stderr crudo de ffmpeg al usuario, que era incomprensible. Ahora `describeFfmpegError()` en `videoProcessor.js` detecta los 3 patrones más comunes (moov faltante, data inválida, archivo no encontrado) y devuelve un mensaje en español con qué hacer al respecto (reexportar, usar untrunc, etc). Si no reconoce el patrón cae al stderr crudo como fallback. Test cubre los 4 casos.

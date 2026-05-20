@@ -32,6 +32,9 @@ const SavedClips = () => {
               <span>·</span>
               <span>{new Date(j.created_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
             </div>
+            {j.status === 'error' && j.error_message && (
+              <p className="text-xs text-rose-600 dark:text-rose-400 mt-1.5">{j.error_message}</p>
+            )}
           </div>
           <Link to="/clips" onClick={() => setActiveJobId(j.id)}
             className="text-xs px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-medium">

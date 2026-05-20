@@ -53,7 +53,9 @@ const ClipsPage = () => {
     }
   };
 
-  const inProgress = jobs.filter(j => j.status !== 'done' && j.status !== 'error');
+  // Mantenemos los jobs en error en la lista "en progreso" para que JobProgress muestre
+  // el mensaje de error en rojo. El usuario los descarta con el botón de eliminar.
+  const inProgress = jobs.filter(j => j.status !== 'done');
   const finished = jobs.filter(j => j.status === 'done');
 
   const displayedJob = activeJob && activeJob.id === activeJobId ? activeJob : null;
