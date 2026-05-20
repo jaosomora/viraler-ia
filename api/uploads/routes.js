@@ -1,15 +1,21 @@
 // HTTP handlers para uploads chunked. Multer recibe cada chunk a un tmp file
 // chico (<10MB) y nosotros lo movemos a la posición canónica.
 
-import { initUpload, saveChunk, finalizeUpload, readMeta, purgeStaleUploads } from './service.js';
+import { initUpload, saveChunk, finalizeUpload, readMeta, purgeStaleUploads, purgeUserUploads } from './service.js';
 
 export async function initHandler(req, res) {
   try {
-    // Defensive purge: cada init limpia uploads huérfanos >1h antes de aceptar
-    // el nuevo. Mantiene el disco bajo control en Render starter (1GB).
+    // Si este usuario tenía uploads previos sin finalizar, son intent muerto:
+    // los borramos antes de aceptar el nuevo. Crítico con disco chico (1GB):
+    // un intento abortado deja ~562MB de chunks que comen el espacio para el retry.
     try {
-      const removed = purgeStaleUploads(60 * 60 * 1000);
-      if (removed > 0) console.log(`[uploads] purged ${removed} upload(s) huérfano(s) en init`);
+      const removed = purgeUserUploads(req.user.id);
+      if (removed > 0) console.log(`[uploads] purged ${removed} upload(s) previo(s) de user=${req.user.id}`);
+    } catch {}
+    // Y también limpieza global por TTL (otros usuarios olvidados)
+    try {
+      const removed = purgeStaleUploads(30 * 60 * 1000); // 30min TTL global
+      if (removed > 0) console.log(`[uploads] purged ${removed} upload(s) huérfano(s) global`);
     } catch {}
 
     const { filename, size, totalChunks } = req.body || {};

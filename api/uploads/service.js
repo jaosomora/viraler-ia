@@ -128,6 +128,24 @@ export function cleanupUpload(uploadId) {
   try { fs.rmSync(dir, { recursive: true, force: true }); } catch {}
 }
 
+// Purga TODOS los uploads que pertenecen a un userId, excepto opcionalmente uno
+// (el actual que el usuario acaba de iniciar). Útil en /init: si un usuario
+// arranca una subida nueva, cualquier upload previo suyo es intent muerto.
+// Evita acumular 562MB de chunks por cada intento abortado.
+export function purgeUserUploads(userId, exceptUploadId = null) {
+  let removed = 0;
+  let entries = [];
+  try { entries = fs.readdirSync(UPLOADS_ROOT); } catch { return 0; }
+  for (const id of entries) {
+    if (id === exceptUploadId) continue;
+    const meta = readMeta(id);
+    if (!meta || meta.userId !== userId) continue;
+    cleanupUpload(id);
+    removed++;
+  }
+  return removed;
+}
+
 // Cleanup de uploads viejos abandonados (chunks subidos pero nunca finalizados).
 // Llamado desde el cron de cleanup general. TTL por defecto: 24h.
 export function purgeStaleUploads(maxAgeMs = 24 * 60 * 60 * 1000) {
