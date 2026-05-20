@@ -185,7 +185,12 @@ const ClipEditor = ({ clip, onClose }) => {
 
   if (!clip || !draft || !original) return null;
 
-  const baseParamsKey = `${previewKey}-${baseParamsSig}`;
+  // El key SOLO usa previewKey (incrementado tras el POST de auto-persist), no baseParamsSig.
+  // Antes ambos forzaban remount: el sig cambiaba al instante con el click, remontaba el preview
+  // y el usuario veía el play button antes de que el POST terminara. Si clickeaba play impaciente,
+  // el backend leía la DB todavía con el valor viejo → no regeneraba → devolvía el base.mp4 viejo.
+  // Con previewKey solo, el preview viejo se mantiene visible hasta que la sync termina.
+  const baseParamsKey = `${previewKey}`;
   const update = (patch) => setDraft(d => ({ ...d, ...patch }));
 
   const persist = async () => {
