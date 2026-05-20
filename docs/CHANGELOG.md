@@ -8,6 +8,18 @@ ordenado por fecha descendente. Para detalles del MCP server ver `docs/MCP.md`.
 
 ---
 
+## 2026-05-19 — Hotfix: peak de disco al subir bajado de 3x a 1x file size
+
+Tras desplegar el upload chunked, una subida de 562MB se cortó al 95% con `ENOSPC: no space left on device`. El disco persistente en Render starter es **1GB** y mi pipeline gastaba ~3x el tamaño del archivo: chunks (562MB) + final.mp4 reensamblado (562MB) + copia a jobDir (562MB) = ~1.7GB. Imposible.
+
+Cambios:
+- `uploads/service.js`: `finalizeUpload` ahora streamea cada chunk al final.<ext> con unlink-as-we-go (cada chunk se borra apenas se copió). Peak en finalize: 1x.
+- `clips/clipsService.js` y `reels/reelsService.js`: `fs.renameSync` (mv atómico) en vez de `copyFileSync` cuando se mueve el archivo del upload al jobDir. Fallback a copy si el rename falla (cross-filesystem). Peak total: ~1x file size.
+- Server boot: `purgeStaleUploads(1h)` se ejecuta al startup, recuperando disco de subidas que se cortaron en deploys anteriores.
+- `/api/uploads/init`: cada vez que un usuario inicia un upload, corre purge defensivo de uploads huérfanos >1h. Mantiene el disco bajo control sin esperar al cron horario.
+
+**Nota operacional**: 1GB de disco persistente sigue siendo apretado para video. Considerar subir a 5–10GB en Render dashboard si vamos a tener más de 1-2 jobs simultáneos.
+
 ## 2026-05-19 — Upload chunked (Clips + Reels) para sortear timeout de Render
 
 Render mata las requests HTTP a ~100s. Un upload single-shot de 590MB sobre conexión hogareña típica tardaba ~5 min y el proxy cortaba la conexión a la mitad (`Error: Request aborted` en multer). La barra de progreso que agregamos justo antes confirmó el patrón.

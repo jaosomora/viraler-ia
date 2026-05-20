@@ -628,6 +628,16 @@ app.listen(PORT, async () => {
     startCleanupScheduler(dbMod.default);
   } catch (e) { console.warn('[cleanup] scheduler no se pudo iniciar:', e.message); }
 
+  // Purge agresivo de uploads chunked huérfanos al boot: cualquier upload
+  // iniciado hace >1h y no finalizado se va. Esto recupera el disco después de
+  // subidas que se cortaron. TTL corto porque el disco en Render starter es 1GB
+  // y los chunks pesan ~5MB cada uno (118 chunks = ~590MB de basura por upload muerto).
+  try {
+    const { purgeStaleUploads } = await import('./api/uploads/service.js');
+    const removed = purgeStaleUploads(60 * 60 * 1000); // 1h
+    if (removed > 0) console.log(`[uploads] purged ${removed} upload(s) huérfano(s) al boot`);
+  } catch (e) { console.warn('[uploads] purge falló:', e.message); }
+
   if (!process.env.OPENAI_API_KEY) {
     console.warn('\x1b[33m%s\x1b[0m', 'ADVERTENCIA: API Key de OpenAI no configurada.');
   }

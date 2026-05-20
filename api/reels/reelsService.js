@@ -80,8 +80,13 @@ export async function processJobUntilReview(jobId) {
     await setStage(jobId, 0);
     const sourcePath = path.join(jobDir, 'source.mp4');
     if (!job.source_filename) throw new Error('Job sin source_filename');
-    fs.copyFileSync(job.source_filename, sourcePath);
-    try { fs.unlinkSync(job.source_filename); } catch {}
+    // Rename (mv) en vez de copy para no duplicar la huella en disco.
+    try {
+      fs.renameSync(job.source_filename, sourcePath);
+    } catch {
+      fs.copyFileSync(job.source_filename, sourcePath);
+      try { fs.unlinkSync(job.source_filename); } catch {}
+    }
 
     const duration = await probeDuration(sourcePath);
     if (duration > 600) throw new Error('El video supera el límite de 10 minutos');

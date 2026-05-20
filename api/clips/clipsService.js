@@ -118,10 +118,17 @@ export async function processJob(jobId) {
       });
       log(jobId, `download complete (${elapsed()})`);
     } else if (job.source_filename) {
-      fs.copyFileSync(job.source_filename, sourcePath);
+      // Rename (mv atómico en mismo filesystem) en vez de copy: evita duplicar
+      // 562MB en disco temporalmente. Crítico en Render starter (1GB disk).
+      // Si por algún motivo el rename falla (cross-filesystem), caemos a copy.
+      try {
+        fs.renameSync(job.source_filename, sourcePath);
+      } catch {
+        fs.copyFileSync(job.source_filename, sourcePath);
+        try { fs.unlinkSync(job.source_filename); } catch {}
+      }
       const sizeMb = (fs.statSync(sourcePath).size / 1024 / 1024).toFixed(1);
-      try { fs.unlinkSync(job.source_filename); } catch {}
-      log(jobId, `copied uploaded file · ${sizeMb}MB (${elapsed()})`);
+      log(jobId, `moved uploaded file · ${sizeMb}MB (${elapsed()})`);
     } else {
       throw new Error('Job sin source_url ni source_filename');
     }

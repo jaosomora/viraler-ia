@@ -93,29 +93,32 @@ export async function finalizeUpload({ uploadId, userId }) {
     if (!fs.existsSync(p)) throw new Error(`falta chunk ${i}`);
   }
 
-  // Concatenar en orden. Usamos streams para no cargar 590MB a memoria.
+  // Concatenar en orden con streaming y unlink-as-we-go. Esto mantiene el peak
+  // de disco en ~1x el tamaño del archivo (no 2x): cada chunk se borra apenas se
+  // copió al final.<ext>. Crítico en discos chicos (1GB en Render starter).
   const out = fs.createWriteStream(finalPath);
   for (let i = 0; i < meta.totalChunks; i++) {
     const p = path.join(uploadDir(uploadId), `chunk_${i}.bin`);
-    const data = fs.readFileSync(p);
-    out.write(data);
+    await new Promise((resolve, reject) => {
+      const inp = fs.createReadStream(p);
+      inp.on('error', reject);
+      inp.on('end', () => {
+        try { fs.unlinkSync(p); } catch {}
+        resolve();
+      });
+      inp.pipe(out, { end: false });
+    });
   }
   out.end();
-  // Esperar a que el stream termine de escribir antes de validar
-  return new Promise((resolve, reject) => {
-    out.on('finish', () => {
-      const actualSize = fs.statSync(finalPath).size;
-      if (actualSize !== meta.size) {
-        return reject(new Error(`tamaño final ${actualSize} != esperado ${meta.size}`));
-      }
-      // Limpieza de chunks parciales (ya están en el archivo final)
-      for (let i = 0; i < meta.totalChunks; i++) {
-        try { fs.unlinkSync(path.join(uploadDir(uploadId), `chunk_${i}.bin`)); } catch {}
-      }
-      resolve({ path: finalPath, size: meta.size, originalName: meta.filename });
-    });
+  await new Promise((resolve, reject) => {
+    out.on('finish', resolve);
     out.on('error', reject);
   });
+  const actualSize = fs.statSync(finalPath).size;
+  if (actualSize !== meta.size) {
+    throw new Error(`tamaño final ${actualSize} != esperado ${meta.size}`);
+  }
+  return { path: finalPath, size: meta.size, originalName: meta.filename };
 }
 
 // Borra todo el directorio del upload. Llamarlo después de que el job consumió
