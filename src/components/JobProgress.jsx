@@ -4,8 +4,10 @@ import { useClips } from '../context/ClipsContext';
 // Banner del job en proceso. Lee stage_index del backend pero también rota copy creativo
 // localmente para no quedarse estático entre transiciones reales del worker.
 const JobProgress = ({ job }) => {
-  const { stages, loadStages, deleteJob } = useClips();
+  const { stages, loadStages, deleteJob, reopenForSelection } = useClips();
   const [displayIdx, setDisplayIdx] = useState(0);
+  const [recovering, setRecovering] = useState(false);
+  const [recoverError, setRecoverError] = useState(null);
 
   useEffect(() => { if (stages.length === 0) loadStages(); }, [stages.length, loadStages]);
 
@@ -42,12 +44,35 @@ const JobProgress = ({ job }) => {
             />
           </div>
         )}
+        {recoverError && (
+          <div className="mt-2 text-xs text-rose-600 dark:text-rose-400">{recoverError}</div>
+        )}
       </div>
+      {isError && (
+        <button
+          disabled={recovering}
+          onClick={async () => {
+            setRecoverError(null);
+            setRecovering(true);
+            try {
+              await reopenForSelection(job.id);
+            } catch (err) {
+              setRecoverError(err?.message || 'No se pudo recuperar este job');
+            } finally {
+              setRecovering(false);
+            }
+          }}
+          title="Vuelve a la selección manual reutilizando el transcript y video (sin re-transcribir)"
+          className="text-xs px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700/50 hover:bg-amber-100 dark:hover:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-lg font-medium shrink-0 disabled:opacity-50"
+        >
+          {recovering ? 'Recuperando…' : '↺ Recuperar'}
+        </button>
+      )}
       <button
         onClick={() => { if (confirm('¿Eliminar este job?')) deleteJob(job.id); }}
         className="text-xs text-gray-500 hover:text-red-500 shrink-0 px-2 py-1"
       >
-        Cancelar
+        {isError ? 'Eliminar' : 'Cancelar'}
       </button>
     </div>
   );

@@ -8,15 +8,14 @@ import { useClips } from '../context/ClipsContext';
 //
 // Conventions:
 // - Rangos en segundos absolutos del video, alineados a fronteras de palabra del transcript.
-// - Warning soft si un rango cae fuera de [30s, 90s] (rango ideal); rangos fuera de [10s, 120s]
-//   son rechazados por el backend.
+// - Warning soft si un rango cae fuera de [30s, 90s] (rango ideal); el backend solo rechaza
+//   rangos menores a 10s (clicks accidentales). Sin máximo: el usuario decide la duración.
 // - Click-click: el 1er click setea startWordIdx. El 2do click marca endWordIdx en la palabra
 //   clickeada (orden auto-resuelto). Se push al array de ranges y se resetea estado pendiente.
 
 const MIN_IDEAL = 30;
 const MAX_IDEAL = 90;
 const MIN_HARD = 10;
-const MAX_HARD = 120;
 
 const formatTime = (s) => {
   const m = Math.floor(s / 60);

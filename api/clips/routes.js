@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import {
   createJob, processJob, resumeManualJob, reopenJobForSelection,
+  validateAndSnapManualRanges, ManualRangesValidationError,
   getJobWithClips, listUserJobs, listAllJobs,
   updateClip, regenerateClipMp4, exportClipMp4, ensureClipBase,
   deleteJob, addCostToJob, STAGES,
@@ -92,10 +93,23 @@ export async function submitRangesHandler(req, res) {
       return res.status(400).json({ error: 'Máximo 20 rangos por job' });
     }
 
-    res.json({ success: true, jobId, received: ranges.length });
+    // Validamos SINCRÓNICAMENTE (snap + duración) antes de responder.
+    // Si todos los rangos son inválidos → 400 con mensaje específico y el job se queda en
+    // awaiting_selection (el usuario corrige y reintenta sin perder transcript).
+    let validated;
+    try {
+      validated = await validateAndSnapManualRanges(jobId, ranges);
+    } catch (err) {
+      if (err instanceof ManualRangesValidationError) {
+        return res.status(400).json({ error: err.message, details: err.details });
+      }
+      throw err;
+    }
 
-    // Dispara el resume async (no bloquea la respuesta)
-    setImmediate(() => resumeManualJob(jobId, ranges));
+    res.json({ success: true, jobId, received: validated.validRanges.length, dropped: validated.dropped.length });
+
+    // Dispara el resume async con los rangos ya validados (no bloquea la respuesta, no re-valida)
+    setImmediate(() => resumeManualJob(jobId, validated));
   } catch (err) {
     console.error('[clips] submitRanges error:', err);
     res.status(500).json({ error: err.message });

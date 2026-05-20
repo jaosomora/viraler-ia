@@ -271,49 +271,107 @@ export async function processJob(jobId) {
 
 // Reanuda un job en modo manual cuando el usuario envía sus rangos vía POST /submit-ranges.
 // - Snap cada rango a fronteras de palabra (whisper segments) y aplica retreatEndIfContinuation.
-// - Filtra rangos fuera de [10s, 120s] (rango duro más permisivo que el auto [25-100]).
+// - Solo se filtra el mínimo (10s): rangos más cortos suelen ser clicks accidentales y no caben
+//   ni para un hook visible. Sin máximo: si el usuario marca un rango largo, lo respetamos.
 // - Por cada rango, genera hook + caption + keywords + post_captions con gpt-4o-mini (si está habilitado).
 // - Inserta clips y dispara el render de bases (stages 7-9).
-const MANUAL_MIN_DURATION = 10;
-const MANUAL_MAX_DURATION = 120;
+export const MANUAL_MIN_DURATION = 10;
+
+// ValidationError: el input del usuario es inválido (rango muy largo/corto, etc).
+// Distinto de errores de sistema — NO debe transicionar el job a status='error'.
+export class ManualRangesValidationError extends Error {
+  constructor(message, details = {}) {
+    super(message);
+    this.name = 'ManualRangesValidationError';
+    this.details = details;
+  }
+}
+
+// Valida + snap rangos manuales contra el transcript del job.
+// Devuelve { validRanges, dropped } o lanza ManualRangesValidationError si todos son inválidos.
+// Pensado para llamarse SINCRÓNICAMENTE desde el route antes de responder, así el frontend
+// recibe el error de validación directo (no por polling) y el job se queda en awaiting_selection.
+export async function validateAndSnapManualRanges(jobId, rangesInput) {
+  const job = await get('SELECT * FROM clip_jobs WHERE id=?', [jobId]);
+  if (!job) throw new Error('Job no encontrado');
+  if (job.status !== 'awaiting_selection') {
+    throw new Error(`Job no está esperando selección (status=${job.status})`);
+  }
+  if (!job.whisper_json_path || !fs.existsSync(job.whisper_json_path)) {
+    throw new Error('Transcript ya no disponible');
+  }
+  if (!job.source_video_path || !fs.existsSync(job.source_video_path)) {
+    throw new Error('Video fuente ya no disponible');
+  }
+
+  const whisperJson = JSON.parse(fs.readFileSync(job.whisper_json_path, 'utf8'));
+
+  const validRanges = [];
+  const dropped = [];
+  for (const r of (rangesInput || [])) {
+    if (typeof r.start !== 'number' || typeof r.end !== 'number') {
+      dropped.push({ reason: 'invalid_shape', range: r });
+      continue;
+    }
+    if (r.end <= r.start) {
+      dropped.push({ reason: 'inverted', range: r });
+      continue;
+    }
+    const snapped = snapRangeToSegments(whisperJson, r.start, r.end);
+    const dur = snapped.end_seconds - snapped.start_seconds;
+    if (dur < MANUAL_MIN_DURATION) {
+      dropped.push({ reason: 'too_short', duration: dur, snapped });
+      console.warn(`[clips:${jobId.slice(0,8)}] dropping range ${snapped.start_seconds.toFixed(1)}-${snapped.end_seconds.toFixed(1)} — ${dur.toFixed(1)}s < ${MANUAL_MIN_DURATION}s`);
+      continue;
+    }
+    validRanges.push(snapped);
+  }
+
+  if (validRanges.length === 0) {
+    const tooShort = dropped.filter(d => d.reason === 'too_short');
+    let msg;
+    if (tooShort.length) {
+      const worst = tooShort.reduce((a, b) => a.duration < b.duration ? a : b);
+      msg = `Tu rango de ${worst.duration.toFixed(0)}s es menor al mínimo de ${MANUAL_MIN_DURATION}s. Extendelo y volvé a generar.`;
+    } else {
+      msg = `Ningún rango es válido (revisá que tenga al menos ${MANUAL_MIN_DURATION}s después de snap a palabras).`;
+    }
+    throw new ManualRangesValidationError(msg, { dropped });
+  }
+
+  return { validRanges, dropped, job, whisperJson };
+}
 
 export async function resumeManualJob(jobId, rangesInput) {
   const t0 = Date.now();
   const elapsed = () => `${((Date.now() - t0) / 1000).toFixed(1)}s`;
 
+  // Pre-validación: si los rangos vienen como ya-validados (objeto con validRanges/job/whisperJson),
+  // los usamos directo. Si vienen crudos, validamos acá (compat con llamadas antiguas).
+  let validRanges, job, whisperJson;
   try {
-    const job = await get('SELECT * FROM clip_jobs WHERE id=?', [jobId]);
-    if (!job) throw new Error('Job no encontrado');
-    if (job.status !== 'awaiting_selection') {
-      throw new Error(`Job no está esperando selección (status=${job.status})`);
+    if (rangesInput && Array.isArray(rangesInput.validRanges) && rangesInput.job) {
+      ({ validRanges, job, whisperJson } = rangesInput);
+    } else {
+      ({ validRanges, job, whisperJson } = await validateAndSnapManualRanges(jobId, rangesInput));
     }
-    if (!job.whisper_json_path || !fs.existsSync(job.whisper_json_path)) {
-      throw new Error('Transcript ya no disponible');
+  } catch (err) {
+    if (err instanceof ManualRangesValidationError) {
+      // Validación: NO matar el job, dejarlo en awaiting_selection para que el usuario re-intente.
+      console.warn(`[clips] resumeManualJob ${jobId} validation: ${err.message}`);
+      return;
     }
-    if (!job.source_video_path || !fs.existsSync(job.source_video_path)) {
-      throw new Error('Video fuente ya no disponible');
-    }
+    // Errores de sistema sí marcan error.
+    console.error(`[clips] resumeManualJob ${jobId} failed (pre-validation):`, err);
+    await run(
+      `UPDATE clip_jobs SET status='error', error_message=?, finished_at=CURRENT_TIMESTAMP WHERE id=?`,
+      [String(err.message || err).slice(0, 500), jobId]
+    );
+    return;
+  }
 
-    const whisperJson = JSON.parse(fs.readFileSync(job.whisper_json_path, 'utf8'));
+  try {
     const hookAuto = job.hook_auto_enabled !== 0;
-
-    // 1. Snap + retreat + filtro de duración
-    const validRanges = [];
-    for (const r of (rangesInput || [])) {
-      if (typeof r.start !== 'number' || typeof r.end !== 'number') continue;
-      if (r.end <= r.start) continue;
-      const snapped = snapRangeToSegments(whisperJson, r.start, r.end);
-      const dur = snapped.end_seconds - snapped.start_seconds;
-      if (dur < MANUAL_MIN_DURATION || dur > MANUAL_MAX_DURATION) {
-        console.warn(`[clips:${jobId.slice(0,8)}] dropping manual range ${snapped.start_seconds.toFixed(1)}-${snapped.end_seconds.toFixed(1)} — duración ${dur.toFixed(1)}s fuera de [${MANUAL_MIN_DURATION}, ${MANUAL_MAX_DURATION}]`);
-        continue;
-      }
-      validRanges.push(snapped);
-    }
-
-    if (validRanges.length === 0) {
-      throw new Error('No hay rangos válidos (mínimo 10s, máximo 120s después de snap)');
-    }
 
     // Guardar rangos para auditoría y avanzar status
     await run(
@@ -447,7 +505,11 @@ export async function reopenJobForSelection(jobId, userId) {
   const job = await get('SELECT * FROM clip_jobs WHERE id=?', [jobId]);
   if (!job) throw new Error('Job no encontrado');
   if (job.user_id !== userId) throw new Error('No autorizado');
-  if (job.status !== 'done') throw new Error(`Solo se pueden reabrir jobs completos (status actual: ${job.status})`);
+  // Permitimos reabrir jobs 'done' (caso "agregar más clips") y 'error' (caso "se cayó al validar
+  // rangos, dame otra oportunidad sin re-transcribir") siempre que whisper y video sigan en disco.
+  if (job.status !== 'done' && job.status !== 'error') {
+    throw new Error(`Solo se pueden reabrir jobs completos o con error (status actual: ${job.status})`);
+  }
   if (!job.whisper_json_path || !fs.existsSync(job.whisper_json_path)) {
     throw new Error('Transcript ya no disponible — el job fue purgado');
   }
@@ -455,7 +517,7 @@ export async function reopenJobForSelection(jobId, userId) {
     throw new Error('Video fuente ya no disponible — el job fue purgado');
   }
   await run(
-    `UPDATE clip_jobs SET mode='manual', status='awaiting_selection', stage_index=3, finished_at=NULL WHERE id=?`,
+    `UPDATE clip_jobs SET mode='manual', status='awaiting_selection', stage_index=3, finished_at=NULL, error_message=NULL WHERE id=?`,
     [jobId]
   );
   log(jobId, `reabierto para selección manual (clips existentes se mantienen)`);
