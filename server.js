@@ -1,10 +1,13 @@
 // server.js
+// dotenv PRIMERO: carga .env antes de que cualquier módulo (auth.js, schema.js) se
+// evalúe y capture process.env. Si no, JWT_SECRET del .env se ignora en dev (el import
+// de auth.js corre antes que un dotenv.config() tardío). Ver docs/TESTING.md §6.
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import dotenv from 'dotenv';
 import multer from 'multer';
 import os from 'os';
 import fs from 'fs';
@@ -139,8 +142,6 @@ import './api/database/schema.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;

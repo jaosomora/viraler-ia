@@ -8,6 +8,15 @@ ordenado por fecha descendente. Para detalles del MCP server ver `docs/MCP.md`.
 
 ---
 
+## 2026-07-14 — Fix: dev respeta JWT_SECRET del .env
+
+`server.js` cargaba `.env` (`dotenv.config()`) después de los imports, así que `api/auth.js`
+capturaba el secreto de fallback hardcodeado en dev y el `JWT_SECRET` del `.env` se ignoraba.
+Movida la carga a `import 'dotenv/config'` como primer import → dev firma/valida con el mismo
+secreto que producción. Verificado: token firmado con el `.env` ahora valida contra `/api/auth/me`
+(antes 401 → ahora 200). Prod no se afectaba (Render inyecta la env var antes del proceso).
+- MCP: no aplica.
+
 ## 2026-07-14 — Método de pruebas reproducible + usuarios de prueba
 
 Infraestructura de QA para que cualquier sesión reproduzca bugs o valide flujos sin adivinar

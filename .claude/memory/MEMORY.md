@@ -9,3 +9,4 @@
 - [Rebrand Sala de edición](project_rebrand_sala_edicion.md) — Dark-first aprobado 2026-07-13, docs/DESIGN.md es la ley, wordmark AlgoSentido·Estudio
 - [Render deploy](reference_render_deploy.md) — Docker, /opt/data, env vars necesarias
 - [Método de pruebas](reference_testing_method.md) — seed:test + test:token (login por token), fixtures listos, regla de navegador, docs/TESTING.md
+- [Server abajo al terminar](feedback_server_down_on_finish.md) — Al cerrar cualquier trabajo, dejar el dev server apagado y los puertos libres

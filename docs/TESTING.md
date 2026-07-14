@@ -122,14 +122,12 @@ Si hay duda entre las dos, preguntar antes de elegir.
 
 ## 6. Nota técnica: JWT_SECRET en dev
 
-`server.js` importa `api/auth.js` (que captura `JWT_SECRET` al evaluarse) **antes** de que
-`dotenv.config()` cargue el `.env`. Por eso, en **dev local** el backend usa el secreto de
-fallback hardcodeado, no el de `.env`. En **producción** no pasa: Render inyecta `JWT_SECRET`
-como variable de entorno real, presente antes de arrancar el proceso.
+`server.js` carga `.env` como **primer import** (`import 'dotenv/config'`), antes de que
+`api/auth.js` capture `JWT_SECRET`. Así, dev respeta el `JWT_SECRET` del `.env` igual que
+producción (donde Render lo inyecta como variable de entorno real). Antes había un bug:
+el `dotenv.config()` corría después de los imports, así que dev usaba un secreto de fallback
+hardcodeado — corregido el 2026-07-14.
 
-Consecuencia práctica: **no firmes tokens de prueba localmente asumiendo el `.env`** — usa
-`npm run test:token`, que pide el token al propio backend vía login y por eso siempre
-coincide. (Arreglo opcional pendiente: mover la carga de dotenv al tope de `server.js`
-—`import 'dotenv/config'` como primer import— para que dev respete el `JWT_SECRET` del
-`.env`. No es bloqueante y cambia el secreto de sesiones dev existentes, por eso se deja
-como decisión aparte.)
+Aun así, el método recomendado para tokens de prueba es `npm run test:token`, que pide el
+token al propio backend vía login: funciona contra cualquier entorno (`BASE=…`) sin depender
+de tener el mismo `.env` cargado localmente.
