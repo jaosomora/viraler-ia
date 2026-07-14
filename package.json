@@ -21,7 +21,9 @@
     "docker:stop": "docker-compose down",
     "docker:bash": "docker-compose exec as-transcribe bash",
     "docker:logs": "docker-compose logs -f",
-    "smoke:mcp": "bash scripts/smoke-mcp.sh"
+    "smoke:mcp": "bash scripts/smoke-mcp.sh",
+    "seed:test": "node scripts/seed-test-users.js",
+    "test:token": "node scripts/test-token.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

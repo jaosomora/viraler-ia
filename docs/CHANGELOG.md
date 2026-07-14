@@ -8,6 +8,24 @@ ordenado por fecha descendente. Para detalles del MCP server ver `docs/MCP.md`.
 
 ---
 
+## 2026-07-14 — Método de pruebas reproducible + usuarios de prueba
+
+Infraestructura de QA para que cualquier sesión reproduzca bugs o valide flujos sin adivinar
+credenciales ni tocar cuentas reales. Todo dev-only (aborta en prod). Doc: `docs/TESTING.md`.
+
+- `scripts/seed-test-users.js` (`npm run seed:test`): 3 fixtures deterministas idempotentes —
+  `test.owner@` (owner), `test.cliente@` (member activo), `test.expirado@` (acceso vencido a
+  propósito). Contraseña común `Prueba1234`. Aborta si `NODE_ENV=production`.
+- `scripts/test-token.js` (`npm run test:token <email>`): obtiene el JWT vía login del backend
+  e imprime el snippet de `localStorage` para login sin teclear contraseña. Como lo firma el
+  backend, siempre valida (evita el gotcha de que en dev el JWT_SECRET del `.env` se ignora
+  por orden de carga de dotenv en `server.js` — documentado).
+- `docs/TESTING.md`: entorno local (split 3000/5173), tabla de usuarios, login por token vs
+  formulario, bucle de verificación, y regla de navegador (automatizado para QA localhost vs
+  Claude in Chrome para sesiones reales).
+- `CLAUDE.md`: sección Testing/QA + comandos en Key Commands.
+- MCP: no aplica (tooling de dev).
+
 ## 2026-07-13 — Rebranding visual completo: sistema "Sala de edición"
 
 Rebrand de toda la capa visual del frontend para alinear la app con la marca real de

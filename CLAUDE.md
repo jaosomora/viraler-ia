@@ -96,7 +96,25 @@ npm start              # Production server
 npm run migrate        # Migrate JSON data to SQLite
 npm test               # Vitest one-shot (cubre lógica de cortes de Reels Cleaner)
 npm run test:watch     # Vitest modo watch
+npm run seed:test      # Siembra usuarios de prueba deterministas (solo dev)
+npm run test:token <email>  # JWT de sesión para login sin teclear contraseña
 ```
+
+## Testing / QA — ver `docs/TESTING.md`
+Método de pruebas reproducible, **usuarios de prueba siempre listos** y regla de qué
+navegador usar. Lo esencial:
+- `npm run seed:test` crea 3 fixtures (contraseña `Prueba1234`, solo dev, aborta en prod):
+  `test.owner@` (owner), `test.cliente@` (member activo), `test.expirado@` (acceso vencido).
+- **Login para automatización sin teclear contraseña**: `npm run test:token <email>` →
+  pegar el snippet `localStorage.setItem('token',…);location.reload()` en la consola del
+  navegador. El token lo firma el backend, así siempre valida.
+- **Navegador**: para QA de esta app (localhost, sin cuentas externas) usar el navegador
+  **automatizado** (Browser pane / `agent-browser` CLI), que no toca el Chrome personal.
+  Reservar **Claude in Chrome** para tareas con sesión real de Julián (dashboard de Render,
+  prod tras SSO, etc.). Ante la duda, preguntar.
+- **Bucle de verificación**: levantar `npm run dev` → `seed:test` → `test:token` → conducir
+  el flujo con el navegador → revisar consola/network → screenshot claro+oscuro. Nunca pedir
+  "revisa tú": verificar y mostrar la prueba. Detalle completo en `docs/TESTING.md`.
 
 ## Environment Variables
 Required in `.env`:
