@@ -4,9 +4,9 @@ import { authFetch } from '../context/AuthContext';
 const API_BASE = import.meta.env.MODE === 'development' ? 'http://localhost:3000/api' : '/api';
 
 const STATUS_TONE = {
-  awaiting_correction: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
-  success: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
-  exhausted: 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
+  awaiting_correction: 'chip-warn',
+  success: 'chip-ok',
+  exhausted: 'chip-neutral',
 };
 
 export default function IdeaMapsAdmin() {
@@ -25,8 +25,8 @@ export default function IdeaMapsAdmin() {
     })();
   }, []);
 
-  if (loading) return <div className="text-center py-12 text-gray-500">Cargando…</div>;
-  if (error) return <div className="text-red-600 dark:text-red-400 text-center py-6">{error}</div>;
+  if (loading) return <div className="text-center py-12 text-ink-500 dark:text-ink-400">Cargando…</div>;
+  if (error) return <div className="text-danger dark:text-danger-bright text-center py-6">{error}</div>;
 
   const totals = maps.reduce((acc, m) => {
     acc.total++;
@@ -43,39 +43,39 @@ export default function IdeaMapsAdmin() {
         <Stat label="En proceso" value={totals.awaiting_correction || 0} />
         <Stat label="Sin desbloquear" value={totals.exhausted || 0} />
       </div>
-      <div className="text-sm text-gray-600 dark:text-gray-400 text-right tabular-nums">
+      <div className="text-sm text-ink-500 dark:text-ink-400 text-right font-mono tabular-nums">
         Costo total OpenAI: ${totals.cost.toFixed(4)}
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow overflow-hidden">
+      <div className="card overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 dark:bg-gray-900/40 text-xs uppercase text-gray-600 dark:text-gray-400">
+          <thead className="text-xs uppercase tracking-wider text-ink-500 dark:text-ink-400 border-b border-ink-200 dark:border-ink-700">
             <tr>
-              <th className="text-left px-3 py-2">Usuario</th>
-              <th className="text-left px-3 py-2">Estado</th>
-              <th className="text-right px-3 py-2">Turno</th>
-              <th className="text-left px-3 py-2">Filtro fallado</th>
-              <th className="text-left px-3 py-2">Modo</th>
-              <th className="text-right px-3 py-2">Costo</th>
-              <th className="text-left px-3 py-2">Creado</th>
+              <th className="text-left px-3 py-2 font-semibold">Usuario</th>
+              <th className="text-left px-3 py-2 font-semibold">Estado</th>
+              <th className="text-right px-3 py-2 font-semibold">Turno</th>
+              <th className="text-left px-3 py-2 font-semibold">Filtro fallado</th>
+              <th className="text-left px-3 py-2 font-semibold">Modo</th>
+              <th className="text-right px-3 py-2 font-semibold">Costo</th>
+              <th className="text-left px-3 py-2 font-semibold">Creado</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+          <tbody className="divide-y divide-ink-200 dark:divide-ink-700">
             {maps.map(m => (
-              <tr key={m.id}>
-                <td className="px-3 py-2 text-gray-800 dark:text-gray-200">{m.user_email || `id ${m.user_id}`}</td>
+              <tr key={m.id} className="hover:bg-ink-100/50 dark:hover:bg-ink-800/50 transition-colors">
+                <td className="px-3 py-2">{m.user_email || `id ${m.user_id}`}</td>
                 <td className="px-3 py-2">
-                  <span className={`text-xs px-2 py-0.5 rounded font-medium ${STATUS_TONE[m.status] || ''}`}>{m.status}</span>
+                  <span className={`chip ${STATUS_TONE[m.status] || 'chip-neutral'}`}>{m.status}</span>
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums">{m.turn}</td>
-                <td className="px-3 py-2 text-gray-600 dark:text-gray-400">{m.failed_filter || '—'}</td>
-                <td className="px-3 py-2 text-gray-600 dark:text-gray-400">{m.axis_mode || '—'}</td>
-                <td className="px-3 py-2 text-right tabular-nums">${(m.cost_usd || 0).toFixed(4)}</td>
-                <td className="px-3 py-2 text-gray-500 dark:text-gray-400">{new Date(m.created_at).toLocaleString('es', { dateStyle: 'short', timeStyle: 'short' })}</td>
+                <td className="px-3 py-2 text-right font-mono tabular-nums">{m.turn}</td>
+                <td className="px-3 py-2 text-ink-500 dark:text-ink-400">{m.failed_filter || '—'}</td>
+                <td className="px-3 py-2 text-ink-500 dark:text-ink-400">{m.axis_mode || '—'}</td>
+                <td className="px-3 py-2 text-right font-mono tabular-nums">${(m.cost_usd || 0).toFixed(4)}</td>
+                <td className="px-3 py-2 font-mono tabular-nums text-xs text-ink-500 dark:text-ink-400">{new Date(m.created_at).toLocaleString('es', { dateStyle: 'short', timeStyle: 'short' })}</td>
               </tr>
             ))}
             {maps.length === 0 && (
-              <tr><td colSpan={7} className="text-center py-8 text-gray-500">Todavía no hay mapas.</td></tr>
+              <tr><td colSpan={7} className="text-center py-8 text-ink-500 dark:text-ink-400">Todavía no hay mapas.</td></tr>
             )}
           </tbody>
         </table>
@@ -86,9 +86,9 @@ export default function IdeaMapsAdmin() {
 
 function Stat({ label, value }) {
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
-      <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 font-semibold">{label}</div>
-      <div className="text-2xl font-bold text-gray-900 dark:text-white tabular-nums mt-1">{value}</div>
+    <div className="card p-5">
+      <div className="text-xs uppercase tracking-wider text-ink-500 dark:text-ink-400 font-semibold">{label}</div>
+      <div className="font-display text-2xl font-bold tabular-nums mt-1">{value}</div>
     </div>
   );
 }

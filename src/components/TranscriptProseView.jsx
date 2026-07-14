@@ -36,7 +36,7 @@ const TranscriptProseView = ({ chunks, draft, onSeek, videoRef }) => {
 
   if (!chunks || chunks.length === 0) {
     return (
-      <div className="text-[11px] text-gray-500 italic px-3 py-4">
+      <div className="text-[11px] text-ink-400 dark:text-ink-500 italic px-3 py-4">
         Aún no hay subtítulos generados para este clip.
       </div>
     );
@@ -48,8 +48,8 @@ const TranscriptProseView = ({ chunks, draft, onSeek, videoRef }) => {
   };
 
   return (
-    <div className="text-sm leading-relaxed text-gray-800 dark:text-gray-200 px-1 py-2 max-h-72 overflow-y-auto">
-      <p className="text-[10px] text-gray-400 mb-2">El color de texto se aplica solo en el video; aquí se muestra con contraste para legibilidad.</p>
+    <div className="text-sm leading-relaxed text-ink-950 dark:text-paper px-1 py-2 max-h-72 overflow-y-auto">
+      <p className="text-[10px] text-ink-400 dark:text-ink-500 mb-2">El color de texto se aplica solo en el video; aquí se muestra con contraste para legibilidad.</p>
       {chunks.map(c => {
         const ov = ovMap.get(c.idx);
         const text = ov?.text !== undefined ? ov.text : (c.original_text || c.text);
@@ -63,8 +63,8 @@ const TranscriptProseView = ({ chunks, draft, onSeek, videoRef }) => {
             title={`Saltar a ${c.start.toFixed(1)}s`}
             className={`cursor-pointer transition rounded px-0.5 ${
               isActive
-                ? 'bg-purple-100 dark:bg-purple-900/40 ring-1 ring-purple-300 dark:ring-purple-700'
-                : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                ? 'bg-accent-soft dark:bg-accent-deep ring-1 ring-accent/40 dark:ring-accent-bright/40'
+                : 'hover:bg-ink-100 dark:hover:bg-ink-800'
             } ${isHidden ? 'line-through opacity-40' : ''}`}
           >
             {text.split(/(\s+)/).map((token, i) => {

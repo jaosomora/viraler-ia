@@ -58,46 +58,47 @@ const TrimSlider = ({ min, max, start, end, onChange, tickCount = 18 }) => {
   return (
     <div className="space-y-2 select-none">
       <div className="flex items-center justify-between text-xs">
-        <span className="font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">Recortar inicio y fin</span>
-        <span className="font-mono text-gray-900 dark:text-white">{fmtTime(end - start)}</span>
+        <span className="font-semibold uppercase tracking-wider text-ink-500 dark:text-ink-400">Recortar inicio y fin</span>
+        <span className="font-mono tabular-nums text-ink-950 dark:text-paper">{fmtTime(end - start)}</span>
       </div>
+      {/* Timeline: superficie de video, siempre oscura (ver docs/DESIGN.md) */}
       <div ref={trackRef}
-        className="relative h-14 bg-gray-200 dark:bg-gray-800 rounded-lg overflow-hidden cursor-pointer">
+        className="relative h-14 bg-ink-950 rounded-xl overflow-hidden cursor-pointer">
         {/* "Waveform" ticks */}
         <div className="absolute inset-0 flex items-center justify-around opacity-30 pointer-events-none">
           {ticks.map((h, i) => (
-            <div key={i} className="w-0.5 bg-gray-500 dark:bg-white" style={{ height: `${h}%` }} />
+            <div key={i} className="w-0.5 bg-paper" style={{ height: `${h}%` }} />
           ))}
         </div>
         {/* Selected range overlay */}
         <div
-          className="absolute inset-y-0 bg-purple-600/40 border-x-2 border-purple-500"
+          className="absolute inset-y-0 bg-accent-bright/25 border-x-2 border-accent-bright"
           style={{ left: `${startPct}%`, right: `${100 - endPct}%` }}
         />
         {/* Start handle */}
         <div
           onMouseDown={onMouseDown('start')}
-          className={`absolute inset-y-0 w-2 -ml-1 bg-purple-400 hover:bg-purple-300 cursor-ew-resize z-10 ${dragging === 'start' ? 'bg-purple-300 shadow-lg' : ''}`}
+          className={`absolute inset-y-0 w-2 -ml-1 bg-accent-bright hover:bg-[#7FABFF] cursor-ew-resize z-10 ${dragging === 'start' ? 'bg-[#7FABFF]' : ''}`}
           style={{ left: `${startPct}%` }}
           title={fmtTime(start)}
         >
-          <div className="absolute inset-y-2 -inset-x-1 rounded-sm bg-purple-400 hover:bg-purple-300" />
+          <div className="absolute inset-y-2 -inset-x-1 rounded-sm bg-accent-bright hover:bg-[#7FABFF]" />
         </div>
         {/* End handle */}
         <div
           onMouseDown={onMouseDown('end')}
-          className={`absolute inset-y-0 w-2 -ml-1 bg-purple-400 hover:bg-purple-300 cursor-ew-resize z-10 ${dragging === 'end' ? 'bg-purple-300 shadow-lg' : ''}`}
+          className={`absolute inset-y-0 w-2 -ml-1 bg-accent-bright hover:bg-[#7FABFF] cursor-ew-resize z-10 ${dragging === 'end' ? 'bg-[#7FABFF]' : ''}`}
           style={{ left: `${endPct}%` }}
           title={fmtTime(end)}
         >
-          <div className="absolute inset-y-2 -inset-x-1 rounded-sm bg-purple-400 hover:bg-purple-300" />
+          <div className="absolute inset-y-2 -inset-x-1 rounded-sm bg-accent-bright hover:bg-[#7FABFF]" />
         </div>
       </div>
-      <div className="flex justify-between text-[11px] text-gray-500 dark:text-gray-400 font-mono">
+      <div className="flex justify-between text-[11px] text-ink-500 dark:text-ink-400 font-mono tabular-nums">
         <span>{fmtTime(start)} <span className="opacity-60">← arrastra</span></span>
         <span>arrastra → {fmtTime(end)}</span>
       </div>
-      <p className="text-[10px] text-gray-500">Rango disponible: {fmtTime(min)} – {fmtTime(max)}</p>
+      <p className="text-[10px] text-ink-400 dark:text-ink-500 font-mono tabular-nums">Rango disponible: {fmtTime(min)} – {fmtTime(max)}</p>
     </div>
   );
 };

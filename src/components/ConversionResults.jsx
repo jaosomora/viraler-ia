@@ -2,14 +2,6 @@ import React, { useState, useMemo } from 'react';
 import { useConversionContext } from '../context/ConversionContext';
 import { markdownToHtml, wrapAsDocument } from '../utils/markdownToHtml';
 
-const FORMAT_COLORS = {
-  pdf: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-  docx: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  pptx: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
-  xlsx: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
-  epub: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
-};
-
 const ConversionResults = () => {
   const { currentConversion, outputFormat, setOutputFormat } = useConversionContext();
   const [copySuccess, setCopySuccess] = useState(false);
@@ -56,60 +48,47 @@ const ConversionResults = () => {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const formatColor = FORMAT_COLORS[originalFormat] || 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
-
   const downloadLabel = format === 'html' ? 'Descargar .html' : 'Descargar .md';
 
   return (
-    <div className="w-full max-w-3xl mx-auto mt-8 bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
+    <div className="w-full card overflow-hidden">
       <div className="p-6">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-          <div className="flex items-center space-x-2">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white">Conversion completada</h3>
-          </div>
+          <h3 className="font-display text-lg font-semibold tracking-tight">Conversión completada</h3>
           <div className="flex flex-wrap items-center gap-2">
             {/* Format toggle */}
-            <div className="inline-flex rounded-full bg-gray-100 dark:bg-gray-700 p-0.5">
+            <div className="inline-flex rounded-full bg-ink-100 dark:bg-ink-900 p-0.5">
               <button
                 onClick={() => setFormat('md')}
-                className={`px-3 py-1 text-sm rounded-full transition ${
+                className={`px-3 py-1 text-sm rounded-full transition-colors ${
                   format === 'md'
-                    ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow'
-                    : 'text-gray-600 dark:text-gray-300'
+                    ? 'bg-white dark:bg-ink-850 text-ink-950 dark:text-paper shadow-sm font-semibold'
+                    : 'text-ink-500 dark:text-ink-400 hover:text-ink-950 dark:hover:text-paper'
                 }`}
               >
                 Markdown
               </button>
               <button
                 onClick={() => setFormat('html')}
-                className={`px-3 py-1 text-sm rounded-full transition ${
+                className={`px-3 py-1 text-sm rounded-full transition-colors ${
                   format === 'html'
-                    ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow'
-                    : 'text-gray-600 dark:text-gray-300'
+                    ? 'bg-white dark:bg-ink-850 text-ink-950 dark:text-paper shadow-sm font-semibold'
+                    : 'text-ink-500 dark:text-ink-400 hover:text-ink-950 dark:hover:text-paper'
                 }`}
               >
                 HTML
               </button>
             </div>
-            <button
-              onClick={handleDownload}
-              className="flex items-center gap-1 py-1 px-3 text-sm bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/40 dark:hover:bg-blue-800/50 text-blue-700 dark:text-blue-300 rounded-full transition"
-            >
+            <button onClick={handleDownload} className="btn btn-ghost btn-sm">
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
               <span>{downloadLabel}</span>
             </button>
-            <button
-              onClick={handleCopy}
-              className="flex items-center gap-1 py-1 px-3 text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white rounded-full transition"
-            >
+            <button onClick={handleCopy} className="btn btn-ghost btn-sm">
               {copySuccess ? (
                 <>
-                  <svg className="h-4 w-4 text-green-500" viewBox="0 0 20 20" fill="currentColor">
+                  <svg className="h-4 w-4 text-ok dark:text-ok-bright" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
                   <span>Copiado</span>
@@ -124,8 +103,8 @@ const ConversionResults = () => {
                 </>
               )}
             </button>
-            <span className="flex items-center gap-1 py-1 px-3 text-sm bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 rounded-full">
-              <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+            <span className="chip chip-ok">
+              <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
               </svg>
               <span>Guardado</span>
@@ -135,27 +114,25 @@ const ConversionResults = () => {
 
         {/* File info */}
         <div className="mb-4 flex items-center gap-3">
-          <span className={`px-2 py-1 text-xs font-medium rounded-full ${formatColor}`}>
-            {originalFormat.toUpperCase()}
-          </span>
-          <span className="text-sm text-gray-600 dark:text-gray-400">{filename}</span>
+          <span className="chip chip-neutral">{originalFormat.toUpperCase()}</span>
+          <span className="text-sm text-ink-500 dark:text-ink-400">{filename}</span>
           {fileSize > 0 && (
-            <span className="text-xs text-gray-400">{formatFileSize(fileSize)}</span>
+            <span className="text-xs text-ink-400 dark:text-ink-500 font-mono tabular-nums">{formatFileSize(fileSize)}</span>
           )}
         </div>
 
         {/* Content */}
         <div>
-          <h4 className="font-medium mb-2 text-gray-900 dark:text-white">
-            {format === 'html' ? 'Vista HTML:' : 'Markdown:'}
+          <h4 className="text-sm font-medium text-ink-500 dark:text-ink-400 mb-2">
+            {format === 'html' ? 'Vista HTML' : 'Markdown'}
           </h4>
           {format === 'md' ? (
-            <div className="p-4 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-lg max-h-96 overflow-y-auto whitespace-pre-wrap text-gray-800 dark:text-gray-100 font-mono text-sm">
+            <div className="p-4 bg-ink-100 dark:bg-ink-900 border border-ink-200 dark:border-ink-700 rounded-xl max-h-96 overflow-y-auto whitespace-pre-wrap font-mono text-sm">
               {markdown}
             </div>
           ) : (
             <div
-              className="p-4 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-lg max-h-96 overflow-y-auto prose prose-sm dark:prose-invert max-w-none"
+              className="p-4 bg-white dark:bg-ink-900 border border-ink-200 dark:border-ink-700 rounded-xl max-h-96 overflow-y-auto prose prose-sm dark:prose-invert max-w-none"
               dangerouslySetInnerHTML={{ __html: html }}
             />
           )}

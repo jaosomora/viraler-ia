@@ -7,6 +7,7 @@ import {
   sourceVideoUrl, baseVideoUrl, outputVideoUrl, outputWithMusicUrl, downloadUrl,
 } from '../services/reelsApi';
 import { listMusicTracks, uploadMusicTrack, deleteMusicTrack, streamUrl as musicStreamUrl, curateMusic, getMusicProviders } from '../services/musicApi';
+import { useToast, useConfirm } from '../components/ui/feedback';
 
 const fmtTime = s => {
   if (!s || isNaN(s)) return '0:00';
@@ -33,6 +34,8 @@ const parseTimeInput = str => {
 };
 
 const ReelsCleanerPage = () => {
+  const toast = useToast();
+  const confirmDialog = useConfirm();
   const [jobs, setJobs] = useState([]);
   const [activeJobId, setActiveJobId] = useState(localStorage.getItem('reels_active_job') || null);
   const [activeJob, setActiveJob] = useState(null);
@@ -94,28 +97,34 @@ const ReelsCleanerPage = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('¿Eliminar este reel? Se borrarán video original y final.')) return;
+    const ok = await confirmDialog({
+      title: '¿Eliminar este reel?',
+      message: 'Se borrarán el video original y el final.',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await deleteReelJob(id);
       if (activeJobId === id) handleNewReel();
       await refreshList();
-    } catch (e) { alert(e.message); }
+    } catch (e) { toast(e.message, { type: 'danger' }); }
   };
 
   return (
     <div className="flex flex-col space-y-8">
-      <div className="text-center">
-        <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-amber-600 to-rose-600 bg-clip-text text-transparent">
+      <div className="max-w-7xl mx-auto w-full">
+        <span className="eyebrow">De toma cruda a reel</span>
+        <h1 className="mt-2 font-display text-2xl md:text-3xl font-bold tracking-tight">
           Reels Cleaner
         </h1>
-        <p className="mt-3 text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+        <p className="mt-2 text-ink-500 dark:text-ink-400 max-w-2xl">
           Sube un video vertical corto. Detectamos los silencios, tú decides cuáles cortar, y te entregamos el reel limpio con subtítulos.
         </p>
       </div>
 
       {error && (
-        <div className="max-w-4xl mx-auto w-full p-3 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800/50 rounded-lg text-rose-700 dark:text-rose-300 text-sm">
-          {error} <button onClick={() => setError(null)} className="ml-2 underline">cerrar</button>
+        <div className="max-w-7xl mx-auto w-full p-3 rounded-xl bg-danger-soft dark:bg-danger-deep border border-danger/30 dark:border-danger-bright/30 text-danger dark:text-danger-bright text-sm">
+          {error} <button onClick={() => setError(null)} className="ml-2 underline underline-offset-2">cerrar</button>
         </div>
       )}
 
@@ -181,7 +190,7 @@ const UploadForm = ({ onUpload, uploading, progress }) => {
   const [dragOver, setDragOver] = useState(false);
 
   return (
-    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-8">
+    <div className="card p-8">
       <div
         onDragOver={e => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
@@ -192,8 +201,10 @@ const UploadForm = ({ onUpload, uploading, progress }) => {
           if (f) onUpload(f);
         }}
         onClick={() => !uploading && inputRef.current?.click()}
-        className={`border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition ${
-          dragOver ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/10' : 'border-gray-300 dark:border-gray-600 hover:border-amber-400'
+        className={`border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-colors ${
+          dragOver
+            ? 'border-accent dark:border-accent-bright bg-accent-soft/60 dark:bg-accent-deep/40'
+            : 'border-ink-300 dark:border-ink-600 hover:border-accent/60 dark:hover:border-accent-bright/60'
         } ${uploading ? 'pointer-events-none opacity-60' : ''}`}
       >
         <input
@@ -205,16 +216,18 @@ const UploadForm = ({ onUpload, uploading, progress }) => {
         />
         {uploading ? (
           <div>
-            <div className="text-sm text-gray-600 dark:text-gray-300 mb-2">Subiendo… {progress}%</div>
-            <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded overflow-hidden max-w-md mx-auto">
-              <div className="h-full bg-amber-500 transition-all" style={{ width: `${progress}%` }} />
+            <div className="text-sm text-ink-500 dark:text-ink-400 mb-2">
+              Subiendo… <span className="font-mono tabular-nums">{progress}%</span>
+            </div>
+            <div className="h-1.5 bg-ink-200 dark:bg-ink-700 rounded-full overflow-hidden max-w-md mx-auto">
+              <div className="h-full bg-accent dark:bg-accent-bright transition-all" style={{ width: `${progress}%` }} />
             </div>
           </div>
         ) : (
           <>
             <div className="text-4xl mb-3">🎬</div>
-            <div className="font-medium text-gray-900 dark:text-white mb-1">Arrastra tu video o haz click</div>
-            <p className="text-sm text-gray-500">MP4, MOV, MKV, WEBM, M4V · máximo 10 minutos · 500 MB</p>
+            <div className="font-display font-semibold tracking-tight mb-1">Arrastra tu video o haz click</div>
+            <p className="text-sm text-ink-500 dark:text-ink-400">MP4, MOV, MKV, WEBM, M4V · máximo 10 minutos · 500 MB</p>
           </>
         )}
       </div>
@@ -226,14 +239,14 @@ const ProgressView = ({ job, onBack }) => {
   const stages = job.stages || [];
   const currentStage = stages[job.stage_index] || stages[0] || { msg: 'Procesando…', percent: 50, emoji: '⏳' };
   return (
-    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-8 text-center">
+    <div className="card p-8 text-center">
       <div className="text-5xl mb-4">{currentStage.emoji}</div>
-      <h3 className="font-medium text-lg text-gray-900 dark:text-white mb-1">{currentStage.msg}</h3>
-      <p className="text-sm text-gray-500 mb-4">{job.title || 'Tu video'}</p>
-      <div className="max-w-md mx-auto h-2 bg-gray-200 dark:bg-gray-700 rounded overflow-hidden mb-4">
-        <div className="h-full bg-gradient-to-r from-amber-500 to-rose-500 transition-all" style={{ width: `${currentStage.percent}%` }} />
+      <h3 className="font-display font-semibold tracking-tight text-lg mb-1">{currentStage.msg}</h3>
+      <p className="text-sm text-ink-500 dark:text-ink-400 mb-4">{job.title || 'Tu video'}</p>
+      <div className="max-w-md mx-auto h-1.5 bg-ink-200 dark:bg-ink-700 rounded-full overflow-hidden mb-4">
+        <div className="h-full bg-accent dark:bg-accent-bright transition-all" style={{ width: `${currentStage.percent}%` }} />
       </div>
-      <button onClick={onBack} className="text-xs text-gray-500 hover:text-gray-700 underline">
+      <button onClick={onBack} className="text-xs text-ink-500 dark:text-ink-400 hover:text-ink-950 dark:hover:text-paper underline underline-offset-2 transition-colors">
         ← Subir otro video
       </button>
     </div>
@@ -241,14 +254,14 @@ const ProgressView = ({ job, onBack }) => {
 };
 
 const ErrorView = ({ job, onBack, onDelete }) => (
-  <div className="bg-rose-50 dark:bg-rose-900/10 border border-rose-200 dark:border-rose-800/50 rounded-xl p-6">
-    <div className="font-medium text-rose-900 dark:text-rose-200 mb-1">No pudimos procesar este video</div>
-    <p className="text-sm text-rose-700 dark:text-rose-300 mb-3">{job.error_message || 'Error desconocido'}</p>
+  <div className="rounded-2xl p-6 bg-danger-soft dark:bg-danger-deep border border-danger/30 dark:border-danger-bright/30">
+    <div className="font-display font-semibold tracking-tight text-danger dark:text-danger-bright mb-1">No pudimos procesar este video</div>
+    <p className="text-sm text-danger dark:text-danger-bright/90 mb-4">{job.error_message || 'Error desconocido'}</p>
     <div className="flex gap-2">
-      <button onClick={onBack} className="px-3 py-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded hover:bg-gray-50">
+      <button onClick={onBack} className="btn btn-ghost btn-sm">
         Subir otro video
       </button>
-      <button onClick={onDelete} className="px-3 py-1.5 text-sm text-rose-700 hover:bg-rose-100 rounded">
+      <button onClick={onDelete} className="btn btn-sm text-danger dark:text-danger-bright hover:bg-danger-soft dark:hover:bg-danger-deep">
         Eliminar este reel
       </button>
     </div>
@@ -467,39 +480,39 @@ const ReviewView = ({ job, onSubmitted, onError }) => {
 
   return (
     <div>
-      <div className="mb-4 flex items-end justify-between gap-4 flex-wrap">
+      <div className="mb-5 flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Paso 1 de 3 · Decidir qué cortar</div>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+          <span className="eyebrow">Paso 1 de 3 · Silencios</span>
+          <h2 className="mt-2 font-display text-xl md:text-2xl font-semibold tracking-tight">
             Revisa los silencios detectados y marca cuáles eliminar
           </h2>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-ink-500 dark:text-ink-400 mt-1">
             Mueve el deslizador para ajustar la sensibilidad, o haz click en cada chip para alternar entre cortar y mantener.
           </p>
         </div>
         <div className="text-right shrink-0">
-          <div className="text-[11px] uppercase tracking-wide text-gray-500 mb-1">Duración del reel</div>
+          <div className="text-[11px] uppercase tracking-wide text-ink-500 dark:text-ink-400 mb-1">Duración del reel</div>
           <div className="flex items-baseline gap-2 justify-end">
-            <span className="text-base font-mono text-gray-400 line-through">{fmtTime(totalDur)}</span>
-            <span className="text-gray-400">→</span>
-            <span className="text-2xl font-mono font-semibold text-gray-900 dark:text-white">{fmtTime(finalDuration)}</span>
+            <span className="timecode text-base text-ink-400 dark:text-ink-500 line-through">{fmtTime(totalDur)}</span>
+            <span className="text-ink-400 dark:text-ink-500">→</span>
+            <span className="timecode text-2xl font-semibold">{fmtTime(finalDuration)}</span>
             {removedSeconds > 0 && (
-              <span className="text-xs text-rose-600 font-medium">−{Math.round(removedSeconds)}s</span>
+              <span className="text-xs font-mono tabular-nums text-danger dark:text-danger-bright font-medium">−{Math.round(removedSeconds)}s</span>
             )}
           </div>
         </div>
       </div>
 
       {/* Barra superior — único control global: el deslizador de sensibilidad */}
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 mb-6">
+      <div className="card p-5 mb-6">
         <div className="flex items-baseline justify-between mb-2 gap-3 flex-wrap">
-          <label className="text-sm text-gray-800 dark:text-gray-100">
+          <label className="text-sm">
             Cortar silencios mayores a{' '}
-            <span className="font-mono font-semibold text-gray-900 dark:text-white">{threshold.toFixed(1)}s</span>
+            <span className="font-mono tabular-nums font-semibold">{threshold.toFixed(1)}s</span>
           </label>
-          <div className="text-xs text-gray-500">
-            <span className="text-rose-700 dark:text-rose-400 font-semibold">{cutCount} corte{cutCount === 1 ? '' : 's'}</span>
-            <span className="mx-1.5 text-gray-300">·</span>
+          <div className="text-xs text-ink-500 dark:text-ink-400">
+            <span className="text-danger dark:text-danger-bright font-semibold">{cutCount} corte{cutCount === 1 ? '' : 's'}</span>
+            <span className="mx-1.5 text-ink-300 dark:text-ink-600">·</span>
             <span>{keepCount} pausa{keepCount === 1 ? '' : 's'} conservada{keepCount === 1 ? '' : 's'}</span>
           </div>
         </div>
@@ -507,9 +520,9 @@ const ReviewView = ({ job, onSubmitted, onError }) => {
           type="range" min="0.2" max="2.0" step="0.1"
           value={threshold}
           onChange={e => { setThreshold(parseFloat(e.target.value)); setOverrides({}); }}
-          className="w-full accent-gray-900 dark:accent-amber-500"
+          className="w-full accent-accent dark:accent-accent-bright"
         />
-        <div className="flex justify-between text-[10px] text-gray-600 dark:text-gray-400 mt-0.5">
+        <div className="flex justify-between text-[10px] text-ink-500 dark:text-ink-400 mt-0.5">
           <span>← cortar más (incluso pausas cortas)</span>
           <span>cortar menos (solo pausas muy largas) →</span>
         </div>
@@ -519,8 +532,8 @@ const ReviewView = ({ job, onSubmitted, onError }) => {
         {/* Video sticky */}
         <div className="lg:col-span-5">
           <div className="sticky top-6">
-            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
-              <div className="bg-black aspect-[9/16] flex items-center justify-center">
+            <div className="card overflow-hidden">
+              <div className="bg-ink-950 aspect-[9/16] flex items-center justify-center">
                 <video
                   ref={videoRef}
                   src={sourceVideoUrl(job.id)}
@@ -528,15 +541,15 @@ const ReviewView = ({ job, onSubmitted, onError }) => {
                   className="max-h-full max-w-full"
                 />
               </div>
-              <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="p-4 border-t hairline">
                 {/* Trim cabeza/cola estilo "play + click":
                     el usuario pausa el video en el momento que quiere usar como corte
                     y pulsa el botón. Sin teclado, sin formatos de tiempo. */}
-                <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700">
-                  <div className="text-sm font-medium text-gray-800 dark:text-gray-100 mb-1">
+                <div className="p-3 rounded-xl bg-ink-100 dark:bg-ink-900 border hairline">
+                  <div className="text-sm font-semibold mb-1">
                     Recortar inicio y final
                   </div>
-                  <p className="text-[11px] text-gray-600 dark:text-gray-400 mb-3 leading-snug">
+                  <p className="text-[11px] text-ink-500 dark:text-ink-400 mb-3 leading-snug">
                     Reproduce el video, pausa en el momento donde quieres que empiece (o termine) el reel, y pulsa el botón.
                   </p>
 
@@ -545,7 +558,7 @@ const ReviewView = ({ job, onSubmitted, onError }) => {
                       <button
                         type="button"
                         onClick={() => setTrimHeadSec(Math.max(0, videoRef.current?.currentTime || 0))}
-                        className="flex-1 px-3 py-2 text-xs font-medium rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:border-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 text-gray-800 dark:text-gray-100 text-left"
+                        className="flex-1 px-3 py-2 text-xs font-medium rounded-xl bg-white dark:bg-ink-850 border border-ink-200 dark:border-ink-700 hover:border-accent dark:hover:border-accent-bright text-left transition-colors"
                       >
                         📍 Empezar el reel desde aquí
                       </button>
@@ -554,7 +567,7 @@ const ReviewView = ({ job, onSubmitted, onError }) => {
                           type="button"
                           onClick={() => setTrimHeadSec(0)}
                           title="Quitar este recorte"
-                          className="px-2 py-2 text-[11px] rounded bg-gray-200 hover:bg-rose-100 dark:bg-gray-700 dark:hover:bg-rose-900/30 text-gray-700 dark:text-gray-200 hover:text-rose-700"
+                          className="px-2 py-2 text-[11px] rounded-lg bg-ink-200 dark:bg-ink-800 text-ink-500 dark:text-ink-300 hover:text-danger dark:hover:text-danger-bright hover:bg-danger-soft dark:hover:bg-danger-deep transition-colors"
                         >
                           ↺
                         </button>
@@ -568,7 +581,7 @@ const ReviewView = ({ job, onSubmitted, onError }) => {
                           const t = videoRef.current?.currentTime;
                           if (t != null && totalDur > 0) setTrimTailSec(Math.max(0, totalDur - t));
                         }}
-                        className="flex-1 px-3 py-2 text-xs font-medium rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:border-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 text-gray-800 dark:text-gray-100 text-left"
+                        className="flex-1 px-3 py-2 text-xs font-medium rounded-xl bg-white dark:bg-ink-850 border border-ink-200 dark:border-ink-700 hover:border-accent dark:hover:border-accent-bright text-left transition-colors"
                       >
                         📍 Terminar el reel aquí
                       </button>
@@ -577,7 +590,7 @@ const ReviewView = ({ job, onSubmitted, onError }) => {
                           type="button"
                           onClick={() => setTrimTailSec(0)}
                           title="Quitar este recorte"
-                          className="px-2 py-2 text-[11px] rounded bg-gray-200 hover:bg-rose-100 dark:bg-gray-700 dark:hover:bg-rose-900/30 text-gray-700 dark:text-gray-200 hover:text-rose-700"
+                          className="px-2 py-2 text-[11px] rounded-lg bg-ink-200 dark:bg-ink-800 text-ink-500 dark:text-ink-300 hover:text-danger dark:hover:text-danger-bright hover:bg-danger-soft dark:hover:bg-danger-deep transition-colors"
                         >
                           ↺
                         </button>
@@ -586,12 +599,12 @@ const ReviewView = ({ job, onSubmitted, onError }) => {
                   </div>
 
                   {(trimHeadSec > 0.05 || trimTailSec > 0.05) && (
-                    <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 text-xs">
-                      <div className="text-gray-700 dark:text-gray-300">
+                    <div className="mt-3 pt-3 border-t hairline text-xs">
+                      <div className="text-ink-500 dark:text-ink-400">
                         El reel empieza en{' '}
-                        <span className="font-mono font-semibold text-gray-900 dark:text-white">{fmtTime(trimHeadSec)}</span>
+                        <span className="font-mono tabular-nums font-semibold text-ink-950 dark:text-paper">{fmtTime(trimHeadSec)}</span>
                         {' '}y termina en{' '}
-                        <span className="font-mono font-semibold text-gray-900 dark:text-white">{fmtTime(Math.max(0, totalDur - trimTailSec))}</span>
+                        <span className="font-mono tabular-nums font-semibold text-ink-950 dark:text-paper">{fmtTime(Math.max(0, totalDur - trimTailSec))}</span>
                       </div>
                     </div>
                   )}
@@ -603,12 +616,12 @@ const ReviewView = ({ job, onSubmitted, onError }) => {
             <div className="mt-4 space-y-2">
               <button
                 onClick={() => { setPlayWithCuts(v => !v); setLastListenedSig(cutsSignature); }}
-                className={`w-full px-3 py-2.5 rounded-lg text-sm font-medium transition flex items-center justify-center gap-2 ${
+                className={`btn w-full ${
                   playWithCuts
-                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md'
+                    ? 'bg-ok text-white hover:bg-ok/90 dark:bg-ok-bright dark:text-ink-950 dark:hover:bg-ok-bright/90'
                     : previewStale
-                      ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-md ring-2 ring-amber-300 dark:ring-amber-700 animate-pulse'
-                      : 'bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:border-gray-400 text-gray-800 dark:text-gray-100'
+                      ? 'bg-warn text-white hover:bg-warn/90 dark:bg-warn-bright dark:text-ink-950 dark:hover:bg-warn-bright/90 animate-pulse'
+                      : 'btn-ghost'
                 }`}
                 title={playWithCuts
                   ? 'Click para volver a reproducción normal (sin saltos)'
@@ -623,18 +636,18 @@ const ReviewView = ({ job, onSubmitted, onError }) => {
                     : <>▶ Escuchar cómo queda antes de aplicar</>}
               </button>
               {playWithCuts && (
-                <p className="text-[10px] text-emerald-700 dark:text-emerald-400 text-center">
+                <p className="text-[10px] text-ok dark:text-ok-bright text-center">
                   Si una palabra se oye cortada, marca esa pausa como "Mantener" en el transcript.
                 </p>
               )}
               <button
                 onClick={handleSubmit}
                 disabled={submitting || (cuts.length === 0 && removedSeconds < 0.1)}
-                className="w-full bg-gradient-to-r from-amber-600 to-rose-600 hover:from-amber-700 hover:to-rose-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 rounded-lg font-medium transition"
+                className="btn btn-accent w-full"
               >
                 {submitting ? 'Procesando…' : 'Aplicar cortes y continuar →'}
               </button>
-              <p className="text-xs text-gray-500 text-center">
+              <p className="text-xs text-ink-500 dark:text-ink-400 text-center">
                 Siguiente paso: elegir el estilo de los subtítulos
               </p>
             </div>
@@ -643,28 +656,28 @@ const ReviewView = ({ job, onSubmitted, onError }) => {
 
         {/* Transcript */}
         <div className="lg:col-span-7">
-          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
+          <div className="card p-6">
             <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-              <h2 className="font-semibold text-lg text-gray-900 dark:text-white">Transcripción</h2>
-              <div className="text-xs text-gray-700 dark:text-gray-300 flex items-center gap-2 flex-wrap">
-                <span className="inline-block px-2 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-semibold uppercase tracking-wide">✂ Cortar</span>
+              <h2 className="font-display font-semibold tracking-tight text-lg">Transcripción</h2>
+              <div className="text-xs text-ink-500 dark:text-ink-400 flex items-center gap-2 flex-wrap">
+                <span className="chip chip-danger">✂ Cortar</span>
                 <span>se elimina</span>
-                <span className="text-gray-400 dark:text-gray-600">·</span>
-                <span className="inline-block px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-900/40 dark:text-amber-200 dark:border-amber-700/60 text-[10px] font-semibold uppercase tracking-wide">⚠ Revisar</span>
+                <span className="text-ink-300 dark:text-ink-600">·</span>
+                <span className="chip chip-warn">⚠ Revisar</span>
                 <span>pausa larga NO cortada</span>
-                <span className="text-gray-400 dark:text-gray-600">·</span>
-                <span className="inline-block px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 border border-gray-300 dark:bg-gray-700/40 dark:text-gray-300 dark:border-gray-700 text-[10px]">Mantener</span>
+                <span className="text-ink-300 dark:text-ink-600">·</span>
+                <span className="chip chip-neutral">Mantener</span>
                 <span>se conserva</span>
               </div>
             </div>
 
-            <div ref={transcriptContainerRef} className="text-gray-800 dark:text-gray-100 leading-loose text-[15px] max-h-[600px] overflow-y-auto pr-2 relative">
+            <div ref={transcriptContainerRef} className="leading-loose text-[15px] max-h-[600px] overflow-y-auto pr-2 relative">
               {autoScrollPaused && (
                 <button onClick={() => {
                   setAutoScrollPaused(false);
                   activeWordRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
                 }}
-                  className="sticky top-0 z-10 w-full mb-2 px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-medium rounded shadow-sm">
+                  className="sticky top-0 z-10 w-full mb-2 px-2 py-1 bg-accent hover:bg-[#1750B2] text-white dark:bg-accent-bright dark:hover:bg-[#7FABFF] dark:text-ink-950 text-[11px] font-medium rounded-full transition-colors">
                   ↺ Volver al momento del video
                 </button>
               )}
@@ -679,8 +692,8 @@ const ReviewView = ({ job, onSubmitted, onError }) => {
                       onClick={() => seek(w.start)}
                       className={`cursor-pointer rounded px-0.5 transition ${
                         isActive
-                          ? 'bg-amber-300 dark:bg-amber-600 text-gray-900 dark:text-white font-medium shadow-sm'
-                          : 'hover:bg-amber-100 dark:hover:bg-amber-900/30'
+                          ? 'bg-accent text-white dark:bg-accent-bright dark:text-ink-950 font-medium'
+                          : 'hover:bg-accent-soft dark:hover:bg-accent-deep'
                       }`}
                     >
                       {(w.word || '').trim()}{' '}
@@ -694,7 +707,7 @@ const ReviewView = ({ job, onSubmitted, onError }) => {
                     <span
                       key={item.key}
                       onClick={() => toggleGap(item.gap.idx)}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 mx-1 rounded-full text-[11px] font-semibold cursor-pointer transition select-none uppercase tracking-wide bg-rose-600 text-white shadow-sm hover:bg-rose-700 align-middle"
+                      className="chip chip-danger mx-1 align-middle cursor-pointer select-none transition hover:ring-1 hover:ring-danger dark:hover:ring-danger-bright"
                       title="Click para mantener este silencio"
                     >
                       ✂ Cortar · {item.gap.duration.toFixed(1)}s
@@ -702,12 +715,12 @@ const ReviewView = ({ job, onSubmitted, onError }) => {
                   );
                 }
                 if (isLong) {
-                  // Pausa larga que se está conservando: amarilla, llama la atención.
+                  // Pausa larga que se está conservando: aviso, llama la atención.
                   return (
                     <span
                       key={item.key}
                       onClick={() => toggleGap(item.gap.idx)}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 mx-1 rounded-full text-[11px] font-semibold cursor-pointer transition select-none uppercase tracking-wide bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-200 dark:border-amber-700/60 dark:hover:bg-amber-900/60 align-middle"
+                      className="chip chip-warn mx-1 align-middle cursor-pointer select-none transition hover:ring-1 hover:ring-warn dark:hover:ring-warn-bright"
                       title="Pausa larga que NO se está cortando · click para cortarla"
                     >
                       ⚠ Revisar · {item.gap.duration.toFixed(1)}s
@@ -719,7 +732,7 @@ const ReviewView = ({ job, onSubmitted, onError }) => {
                   <span
                     key={item.key}
                     onClick={() => toggleGap(item.gap.idx)}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 mx-1 rounded-full text-[10px] cursor-pointer select-none align-middle transition bg-gray-100 text-gray-700 border border-gray-300 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 dark:bg-gray-700/40 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-rose-900/30 dark:hover:text-rose-300"
+                    className="chip chip-neutral mx-1 align-middle cursor-pointer select-none transition hover:ring-1 hover:ring-danger dark:hover:ring-danger-bright"
                     title="Pausa corta · click para cortarla"
                   >
                     Mantener · {item.gap.duration.toFixed(1)}s
@@ -729,7 +742,7 @@ const ReviewView = ({ job, onSubmitted, onError }) => {
             </div>
           </div>
 
-          <p className="mt-4 text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+          <p className="mt-4 text-xs text-ink-500 dark:text-ink-400 leading-relaxed">
             Click sobre cualquier chip para cambiar su estado. Click en una palabra reproduce el video desde ese instante.
           </p>
         </div>
@@ -754,7 +767,7 @@ const TimelineBar = ({ totalDur, gaps, onSeek }) => {
 
   return (
     <div
-      className="flex h-3 rounded overflow-hidden gap-px bg-gray-100 dark:bg-gray-900 cursor-pointer"
+      className="flex h-3 rounded overflow-hidden gap-px bg-ink-100 dark:bg-ink-900 cursor-pointer"
       onClick={e => {
         const rect = e.currentTarget.getBoundingClientRect();
         const pct = (e.clientX - rect.left) / rect.width;
@@ -764,7 +777,7 @@ const TimelineBar = ({ totalDur, gaps, onSeek }) => {
       {segments.map((s, i) => (
         <div
           key={i}
-          className={s.type === 'keep' ? 'bg-gray-500 dark:bg-gray-600' : 'bg-rose-300 dark:bg-rose-700'}
+          className={s.type === 'keep' ? 'bg-ink-400 dark:bg-ink-600' : 'bg-danger/40 dark:bg-danger-bright/40'}
           style={{ width: `${((s.end - s.start) / totalDur) * 100}%` }}
         />
       ))}
@@ -808,14 +821,14 @@ const ColorPicker = ({ value, onChange, presets }) => {
           key={c.id}
           type="button"
           onClick={() => onChange(c.id)}
-          className={`w-8 h-8 rounded-full border-2 transition ${value?.toUpperCase() === c.id.toUpperCase() ? 'border-amber-500 scale-110 shadow-md' : 'border-gray-300 dark:border-gray-600 hover:scale-105'}`}
+          className={`w-8 h-8 rounded-full border-2 transition ${value?.toUpperCase() === c.id.toUpperCase() ? 'border-accent dark:border-accent-bright scale-110' : 'border-ink-200 dark:border-ink-600 hover:scale-105'}`}
           style={{ backgroundColor: c.id }}
           title={c.name}
         />
       ))}
       {/* Selector custom — native input type=color */}
       <label
-        className={`relative w-8 h-8 rounded-full border-2 cursor-pointer flex items-center justify-center transition ${isCustom ? 'border-amber-500 scale-110 shadow-md' : 'border-gray-300 dark:border-gray-600 hover:scale-105'}`}
+        className={`relative w-8 h-8 rounded-full border-2 cursor-pointer flex items-center justify-center transition ${isCustom ? 'border-accent dark:border-accent-bright scale-110' : 'border-ink-200 dark:border-ink-600 hover:scale-105'}`}
         style={{ background: isCustom
           ? value
           : 'conic-gradient(from 0deg, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000)' }}
@@ -830,7 +843,7 @@ const ColorPicker = ({ value, onChange, presets }) => {
         {!isCustom && <span className="text-white text-[10px] font-bold drop-shadow">+</span>}
       </label>
       {isCustom && (
-        <span className="text-[11px] font-mono text-gray-500">{value}</span>
+        <span className="text-[11px] font-mono text-ink-500 dark:text-ink-400">{value}</span>
       )}
     </div>
   );
@@ -881,37 +894,37 @@ const VoicePanel = ({ jobId, autolevel, gainDb, onAutolevelChange, onGainChange,
   const isPassthrough = !autolevel && gainDb === 0;
 
   return (
-    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
+    <div className="card p-5">
       <div className="flex items-start justify-between gap-3 mb-3">
         <div>
-          <h3 className="font-semibold text-sm text-gray-700 dark:text-gray-300 flex items-center gap-2">
+          <h3 className="font-display font-semibold tracking-tight text-base flex items-center gap-2">
             <span>🎙️</span> Voz
           </h3>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-ink-500 dark:text-ink-400 mt-1">
             ¿Tu voz se escucha bajita? Lo arreglamos sin que tengas que pensarlo.
           </p>
         </div>
         {isPassthrough && (
-          <span className="text-[10px] uppercase tracking-wider text-gray-400 px-2 py-0.5 border border-gray-300 dark:border-gray-600 rounded">
+          <span className="chip chip-neutral uppercase tracking-wider text-[10px]">
             sin procesar
           </span>
         )}
       </div>
 
       {/* Toggle de auto-nivelar */}
-      <label className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-amber-400 dark:hover:border-amber-600 cursor-pointer transition mb-3">
+      <label className="flex items-start gap-3 p-3 rounded-xl border hairline hover:border-accent dark:hover:border-accent-bright cursor-pointer transition-colors mb-3">
         <input
           type="checkbox"
           checked={autolevel}
           onChange={e => onAutolevelChange(e.target.checked)}
-          className="mt-0.5 w-4 h-4 accent-rose-600"
+          className="mt-0.5 w-4 h-4 accent-accent dark:accent-accent-bright"
         />
         <div className="flex-1">
-          <div className="text-sm font-medium text-gray-800 dark:text-gray-100 flex items-center gap-2">
+          <div className="text-sm font-medium flex items-center gap-2">
             Nivelar automáticamente
-            <span className="text-[10px] uppercase tracking-wider text-rose-700 bg-rose-50 dark:bg-rose-900/30 dark:text-rose-300 px-1.5 py-0.5 rounded">recomendado</span>
+            <span className="chip chip-accent uppercase tracking-wider text-[10px]">recomendado</span>
           </div>
-          <div className="text-xs text-gray-500 mt-0.5">
+          <div className="text-xs text-ink-500 dark:text-ink-400 mt-0.5">
             Lleva tu voz al volumen estándar de Instagram y TikTok, sin distorsión.
           </div>
         </div>
@@ -920,8 +933,8 @@ const VoicePanel = ({ jobId, autolevel, gainDb, onAutolevelChange, onGainChange,
       {/* Slider de ajuste fino */}
       <div className="mt-2">
         <div className="flex items-center justify-between mb-1.5">
-          <label className="text-xs text-gray-500">Ajuste fino</label>
-          <span className={`text-xs font-mono ${gainDb === 0 ? 'text-gray-400' : 'text-amber-700 dark:text-amber-400 font-semibold'}`}>
+          <label className="text-xs text-ink-500 dark:text-ink-400">Ajuste fino</label>
+          <span className={`text-xs font-mono tabular-nums ${gainDb === 0 ? 'text-ink-400 dark:text-ink-500' : 'text-accent dark:text-accent-bright font-semibold'}`}>
             {gainDb > 0 ? `+${gainDb}` : gainDb} dB
           </span>
         </div>
@@ -929,7 +942,7 @@ const VoicePanel = ({ jobId, autolevel, gainDb, onAutolevelChange, onGainChange,
           type="range" min="-6" max="12" step="1"
           value={gainDb}
           onChange={e => onGainChange(parseInt(e.target.value, 10))}
-          className="w-full accent-amber-500"
+          className="w-full accent-accent dark:accent-accent-bright"
         />
         <div className="flex justify-between mt-1.5 gap-1">
           {GAIN_PRESETS.map(preset => (
@@ -937,32 +950,32 @@ const VoicePanel = ({ jobId, autolevel, gainDb, onAutolevelChange, onGainChange,
               key={preset}
               type="button"
               onClick={() => onGainChange(preset)}
-              className={`flex-1 text-[10px] py-1 rounded transition ${
+              className={`flex-1 text-[10px] font-mono tabular-nums py-1 rounded-full transition-colors ${
                 gainDb === preset
-                  ? 'bg-amber-500 text-white font-semibold'
-                  : 'bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:bg-amber-50 dark:hover:bg-amber-900/30'
+                  ? 'bg-accent text-white dark:bg-accent-bright dark:text-ink-950 font-semibold'
+                  : 'bg-ink-100 dark:bg-ink-900 text-ink-500 dark:text-ink-400 hover:bg-accent-soft dark:hover:bg-accent-deep'
               }`}
             >
               {preset > 0 ? `+${preset}` : preset}
             </button>
           ))}
         </div>
-        <p className="text-[11px] text-gray-400 mt-2">
+        <p className="text-[11px] text-ink-400 dark:text-ink-500 mt-2">
           Sube si tras auto-nivelar igual te suena bajo. Si oyes distorsión, baja.
         </p>
       </div>
 
       {/* Muestra de audio */}
-      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+      <div className="mt-4 pt-4 border-t hairline">
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div className="text-xs text-gray-500">
+          <div className="text-xs text-ink-500 dark:text-ink-400">
             Escucha 10 segundos con el ajuste actual, sin re-renderizar.
           </div>
           <button
             type="button"
             onClick={handleSample}
             disabled={loading}
-            className="px-3 py-1.5 text-xs font-medium bg-gray-900 hover:bg-gray-800 dark:bg-amber-600 dark:hover:bg-amber-700 text-white rounded-lg disabled:opacity-50 inline-flex items-center gap-1.5"
+            className="btn btn-primary btn-sm"
           >
             {loading ? (
               <>
@@ -989,6 +1002,7 @@ const VoicePanel = ({ jobId, autolevel, gainDb, onAutolevelChange, onGainChange,
 };
 
 const StyleReviewView = ({ job, onChange, onError }) => {
+  const confirmDialog = useConfirm();
   const [localStyle, setLocalStyle] = useState({
     font_caption: job.font_caption || 'InterSemiBold',
     caption_color: job.caption_color || '#FFFFFF',
@@ -1159,10 +1173,18 @@ const StyleReviewView = ({ job, onChange, onError }) => {
 
   const handleReopen = async () => {
     const hasEdits = localChunks.some(c => c.edited || c.hidden);
-    const msg = hasEdits
-      ? '⚠ Volver al paso de silencios va a re-cortar el video con nuevos boundaries.\n\nLo que SE CONSERVA:\n• Estilo (fuente, tamaño, colores, posición)\n• Música seleccionada\n• Transcripción original\n\nLo que SE PIERDE:\n• Tus correcciones de texto en los subtítulos\n• Líneas ocultas\n\nTip: copia la transcripción primero (botón 📋 arriba) si te interesa conservarla.\n\n¿Continuar?'
-      : '¿Volver al paso de silencios? Tu estilo y música se conservan, solo confirmarás los cortes otra vez.';
-    if (!confirm(msg)) return;
+    const ok = await confirmDialog(hasEdits
+      ? {
+          title: '¿Volver al paso de silencios?',
+          message: 'Se re-cortará el video con nuevos boundaries. Se conservan el estilo (fuente, tamaño, colores, posición), la música seleccionada y la transcripción original. Se pierden tus correcciones de texto en los subtítulos y las líneas ocultas. Tip: copia la transcripción primero (botón 📋 arriba) si te interesa conservarla.',
+          confirmLabel: 'Volver a silencios',
+        }
+      : {
+          title: '¿Volver al paso de silencios?',
+          message: 'Tu estilo y música se conservan, solo confirmarás los cortes otra vez.',
+          confirmLabel: 'Volver',
+        });
+    if (!ok) return;
     try {
       await reopenSilences(job.id);
       onChange();
@@ -1190,19 +1212,19 @@ const StyleReviewView = ({ job, onChange, onError }) => {
 
   return (
     <div>
-      <div className="mb-4 flex items-end justify-between gap-4 flex-wrap">
+      <div className="mb-5 flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Paso 2 de 3 · Vestir los subtítulos</div>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+          <span className="eyebrow">Paso 2 de 3 · Estilo</span>
+          <h2 className="mt-2 font-display text-xl md:text-2xl font-semibold tracking-tight">
             Ajusta cómo se ven los subtítulos y cómo suena la voz
           </h2>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-ink-500 dark:text-ink-400 mt-1">
             Si un corte se llevó parte de una palabra, vuelve atrás a ajustar los silencios.
           </p>
         </div>
         <div className="text-right shrink-0">
-          <div className="text-[11px] uppercase tracking-wide text-gray-500 mb-1">Duración del reel</div>
-          <div className="text-2xl font-mono font-semibold text-gray-900 dark:text-white">{fmtTime(finalDur)}</div>
+          <div className="text-[11px] uppercase tracking-wide text-ink-500 dark:text-ink-400 mb-1">Duración del reel</div>
+          <div className="timecode text-2xl font-semibold">{fmtTime(finalDur)}</div>
         </div>
       </div>
 
@@ -1210,7 +1232,7 @@ const StyleReviewView = ({ job, onChange, onError }) => {
         {/* Preview sticky — WYSIWYG: base.mp4 sin subs + overlay HTML que refleja cambios en vivo */}
         <div className="lg:col-span-5">
           <div className="sticky top-6">
-            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+            <div className="card overflow-hidden">
               <LiveCaptionPreview
                 baseVideoSrc={baseVideoUrl(job.id)}
                 chunks={localChunks}
@@ -1220,13 +1242,13 @@ const StyleReviewView = ({ job, onChange, onError }) => {
                 seekRequest={seekRequest}
                 onTimeChange={setVideoTime}
               />
-              <div className="p-3 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-500 flex items-center justify-between gap-3">
-                <span className="text-emerald-700 dark:text-emerald-400">
+              <div className="p-3 border-t hairline text-xs flex items-center justify-between gap-3">
+                <span className="text-ok dark:text-ok-bright">
                   Los cambios se ven al instante
                 </span>
-                <label className="flex items-center gap-1.5 cursor-pointer shrink-0">
+                <label className="flex items-center gap-1.5 cursor-pointer shrink-0 text-ink-500 dark:text-ink-400">
                   <input type="checkbox" checked={showSafeZones} onChange={e => setShowSafeZones(e.target.checked)}
-                    className="accent-rose-600" />
+                    className="accent-accent dark:accent-accent-bright" />
                   <span className="text-[11px]">Mostrar zonas seguras de Instagram y TikTok</span>
                 </label>
               </div>
@@ -1236,17 +1258,17 @@ const StyleReviewView = ({ job, onChange, onError }) => {
               <button
                 onClick={handleContinueToMusic}
                 disabled={finalizing || rendering}
-                className="w-full bg-gradient-to-r from-amber-600 to-rose-600 hover:from-amber-700 hover:to-rose-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 rounded-lg font-medium transition"
+                className="btn btn-accent w-full"
               >
                 {finalizing ? 'Avanzando…' : 'Continuar a música →'}
               </button>
               <button
                 onClick={handleReopen}
-                className="w-full px-3 py-2 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg border border-gray-300 dark:border-gray-600"
+                className="btn btn-ghost btn-sm w-full"
               >
                 ← Volver a ajustar los silencios
               </button>
-              <p className="text-xs text-gray-500 text-center">
+              <p className="text-xs text-ink-500 dark:text-ink-400 text-center">
                 Siguiente paso: agregar música de fondo (opcional)
               </p>
             </div>
@@ -1257,22 +1279,22 @@ const StyleReviewView = ({ job, onChange, onError }) => {
         <div className="lg:col-span-7 space-y-5">
 
           {/* Subtítulos editables — primero: verificar que las palabras estén bien escritas */}
-          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
+          <div className="card p-5">
             <div className="flex items-start justify-between gap-3 mb-1">
-              <h3 className="font-semibold text-sm text-gray-700 dark:text-gray-300">Revisar y corregir los subtítulos</h3>
+              <h3 className="font-display font-semibold tracking-tight text-base">Revisar y corregir los subtítulos</h3>
               <button
                 onClick={handleCopyTranscript}
-                className={`text-xs px-2.5 py-1.5 rounded-lg border transition ${
+                className={`btn btn-sm ${
                   copyOk
-                    ? 'bg-emerald-600 text-white border-emerald-600'
-                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 hover:border-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20'
+                    ? 'bg-ok text-white dark:bg-ok-bright dark:text-ink-950'
+                    : 'btn-ghost'
                 }`}
                 title="Copia toda la transcripción visible al portapapeles"
               >
                 {copyOk ? '✓ Copiado' : '📋 Copiar transcripción'}
               </button>
             </div>
-            <p className="text-xs text-gray-500 mb-4">
+            <p className="text-xs text-ink-500 dark:text-ink-400 mb-4">
               Edita el texto si la transcripción tiene un error. Oculta una línea si no quieres que aparezca. Los tiempos se conservan.
             </p>
             <div ref={chunksContainerRef} className="space-y-2 max-h-[640px] overflow-y-auto pr-2">
@@ -1284,7 +1306,7 @@ const StyleReviewView = ({ job, onChange, onError }) => {
                     el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
                   }
                 }}
-                  className="sticky top-0 z-10 w-full mb-1 px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-medium rounded shadow-sm">
+                  className="sticky top-0 z-10 w-full mb-1 px-2 py-1 bg-accent hover:bg-[#1750B2] text-white dark:bg-accent-bright dark:hover:bg-[#7FABFF] dark:text-ink-950 text-[11px] font-medium rounded-full transition-colors">
                   ↺ Volver al momento del video
                 </button>
               )}
@@ -1295,21 +1317,21 @@ const StyleReviewView = ({ job, onChange, onError }) => {
                 <div
                   key={ch.idx}
                   ref={el => { chunkRefs.current[ch.idx] = el; }}
-                  className={`flex items-start gap-2 p-2 rounded-lg border transition ${
+                  className={`flex items-start gap-2 p-2 rounded-xl border transition ${
                     ch.hidden
-                      ? 'bg-gray-50 dark:bg-gray-900/50 border-gray-200 dark:border-gray-700 opacity-50'
+                      ? 'bg-ink-100/60 dark:bg-ink-900/50 border-ink-200 dark:border-ink-700 opacity-50'
                       : isActive
-                        ? 'bg-amber-100 dark:bg-amber-900/40 border-amber-500 dark:border-amber-600 shadow-md ring-1 ring-amber-400'
+                        ? 'bg-accent-soft dark:bg-accent-deep border-accent dark:border-accent-bright ring-1 ring-accent/40 dark:ring-accent-bright/40'
                         : isTracked
-                          ? 'bg-amber-50/60 dark:bg-amber-900/15 border-amber-300 dark:border-amber-700/50'
-                          : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 hover:border-amber-400 dark:hover:border-amber-600'
+                          ? 'bg-accent-soft/60 dark:bg-accent-deep/60 border-accent/40 dark:border-accent-bright/40'
+                          : 'bg-white dark:bg-ink-900 border-ink-200 dark:border-ink-700 hover:border-accent/60 dark:hover:border-accent-bright/60'
                   }`}
                 >
                   <button
                     type="button"
                     onClick={() => seekToChunk(ch)}
                     title="Saltar a este momento del video"
-                    className="text-[11px] font-mono text-gray-600 dark:text-gray-300 hover:text-amber-700 dark:hover:text-amber-400 pt-1.5 w-12 shrink-0 text-left cursor-pointer hover:underline"
+                    className="text-[11px] font-mono tabular-nums text-ink-500 dark:text-ink-400 hover:text-accent dark:hover:text-accent-bright pt-1.5 w-12 shrink-0 text-left cursor-pointer hover:underline"
                   >
                     ▶ {fmtTime(ch.start)}
                   </button>
@@ -1319,13 +1341,13 @@ const StyleReviewView = ({ job, onChange, onError }) => {
                     onChange={e => updateChunkText(ch.idx, e.target.value)}
                     onClick={() => seekToChunk(ch)}
                     disabled={ch.hidden}
-                    className={`flex-1 px-2 py-1 text-sm bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-amber-500 rounded ${ch.edited ? 'text-amber-700 dark:text-amber-400 font-medium' : 'text-gray-800 dark:text-gray-200'}`}
+                    className={`flex-1 px-2 py-1 text-sm bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-accent dark:focus:ring-accent-bright rounded ${ch.edited ? 'text-accent dark:text-accent-bright font-medium' : ''}`}
                   />
                   <div className="flex gap-1 shrink-0">
                     {ch.edited && (
                       <button
                         onClick={() => resetChunkText(ch.idx)}
-                        className="text-[10px] px-1.5 py-1 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                        className="text-[10px] px-1.5 py-1 text-ink-400 hover:text-ink-950 dark:hover:text-paper transition-colors"
                         title="Restaurar texto original"
                       >
                         ↺
@@ -1333,7 +1355,7 @@ const StyleReviewView = ({ job, onChange, onError }) => {
                     )}
                     <button
                       onClick={() => toggleChunkHidden(ch.idx)}
-                      className={`text-[10px] px-1.5 py-1 rounded ${ch.hidden ? 'text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30' : 'text-gray-600 dark:text-gray-300 hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-900/30 dark:hover:text-rose-300'}`}
+                      className={`text-[10px] px-1.5 py-1 rounded transition-colors ${ch.hidden ? 'text-ok dark:text-ok-bright hover:bg-ok-soft dark:hover:bg-ok-deep' : 'text-ink-500 dark:text-ink-400 hover:bg-danger-soft hover:text-danger dark:hover:bg-danger-deep dark:hover:text-danger-bright'}`}
                       title={ch.hidden ? 'Volver a mostrar esta línea' : 'Ocultar esta línea'}
                     >
                       {ch.hidden ? '👁 Mostrar' : '👁‍🗨 Ocultar'}
@@ -1343,24 +1365,24 @@ const StyleReviewView = ({ job, onChange, onError }) => {
                 );
               })}
               {localChunks.length === 0 && (
-                <p className="text-xs text-gray-500">Sin subtítulos detectados (¿transcripción vacía?)</p>
+                <p className="text-xs text-ink-500 dark:text-ink-400">Sin subtítulos detectados (¿transcripción vacía?)</p>
               )}
             </div>
           </div>
 
           {/* Estilo — segundo: decidir cómo se ven */}
-          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
-            <h3 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-4">Estilo visual</h3>
+          <div className="card p-5">
+            <h3 className="font-display font-semibold tracking-tight text-base mb-4">Estilo visual</h3>
 
             {/* Sub-bloque: Texto */}
-            <div className="bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700 rounded-lg p-3 mb-3 space-y-3">
-              <div className="text-xs font-medium text-gray-700 dark:text-gray-300">Texto</div>
+            <div className="bg-ink-100/60 dark:bg-ink-900 border hairline rounded-xl p-3 mb-3 space-y-3">
+              <div className="text-xs font-semibold">Texto</div>
               <div>
-                <label className="block text-[11px] text-gray-600 dark:text-gray-400 mb-1">Fuente</label>
+                <label className="block text-[11px] text-ink-500 dark:text-ink-400 mb-1">Fuente</label>
                 <select
                   value={localStyle.font_caption}
                   onChange={e => setStyleField('font_caption', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm"
+                  className="input"
                 >
                   {fontOptions.map(f => (
                     <option key={f.id} value={f.id}>
@@ -1370,16 +1392,16 @@ const StyleReviewView = ({ job, onChange, onError }) => {
                 </select>
               </div>
               <div>
-                <label className="block text-[11px] text-gray-600 dark:text-gray-400 mb-1">Tamaño · {localStyle.caption_font_size}px</label>
+                <label className="block text-[11px] text-ink-500 dark:text-ink-400 mb-1">Tamaño · <span className="font-mono tabular-nums">{localStyle.caption_font_size}px</span></label>
                 <input
                   type="range" min="40" max="100" step="2"
                   value={localStyle.caption_font_size}
                   onChange={e => setStyleField('caption_font_size', parseInt(e.target.value))}
-                  className="w-full accent-gray-900 dark:accent-amber-500"
+                  className="w-full accent-accent dark:accent-accent-bright"
                 />
               </div>
               <div>
-                <label className="block text-[11px] text-gray-600 dark:text-gray-400 mb-1">Color del texto</label>
+                <label className="block text-[11px] text-ink-500 dark:text-ink-400 mb-1">Color del texto</label>
                 <ColorPicker
                   value={localStyle.caption_color}
                   onChange={v => setStyleField('caption_color', v)}
@@ -1389,11 +1411,11 @@ const StyleReviewView = ({ job, onChange, onError }) => {
             </div>
 
             {/* Sub-bloque: Borde */}
-            <div className="bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700 rounded-lg p-3 mb-3 space-y-3">
-              <div className="text-xs font-medium text-gray-700 dark:text-gray-300">Borde alrededor del texto</div>
-              <p className="text-[11px] text-gray-600 dark:text-gray-400">Sirve para que el texto se lea sobre cualquier fondo del video.</p>
+            <div className="bg-ink-100/60 dark:bg-ink-900 border hairline rounded-xl p-3 mb-3 space-y-3">
+              <div className="text-xs font-semibold">Borde alrededor del texto</div>
+              <p className="text-[11px] text-ink-500 dark:text-ink-400">Sirve para que el texto se lea sobre cualquier fondo del video.</p>
               <div>
-                <label className="block text-[11px] text-gray-600 dark:text-gray-400 mb-1">Color del borde</label>
+                <label className="block text-[11px] text-ink-500 dark:text-ink-400 mb-1">Color del borde</label>
                 <ColorPicker
                   value={localStyle.outline_color}
                   onChange={v => setStyleField('outline_color', v)}
@@ -1401,16 +1423,16 @@ const StyleReviewView = ({ job, onChange, onError }) => {
                 />
               </div>
               <div>
-                <label className="block text-[11px] text-gray-600 dark:text-gray-400 mb-1">
-                  Grosor · {localStyle.outline_thickness === 0 ? 'sin borde' : `${localStyle.outline_thickness}px`}
+                <label className="block text-[11px] text-ink-500 dark:text-ink-400 mb-1">
+                  Grosor · <span className="font-mono tabular-nums">{localStyle.outline_thickness === 0 ? 'sin borde' : `${localStyle.outline_thickness}px`}</span>
                 </label>
                 <input
                   type="range" min="0" max="10" step="1"
                   value={localStyle.outline_thickness}
                   onChange={e => setStyleField('outline_thickness', parseInt(e.target.value))}
-                  className="w-full accent-gray-900 dark:accent-amber-500"
+                  className="w-full accent-accent dark:accent-accent-bright"
                 />
-                <div className="flex justify-between text-[10px] text-gray-600 dark:text-gray-400 mt-0.5">
+                <div className="flex justify-between text-[10px] text-ink-500 dark:text-ink-400 mt-0.5">
                   <span>0 · sin borde</span>
                   <span>4 · estándar</span>
                   <span>10 · muy grueso</span>
@@ -1419,8 +1441,8 @@ const StyleReviewView = ({ job, onChange, onError }) => {
             </div>
 
             {/* Sub-bloque: Posición */}
-            <div className="bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
-              <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Posición en pantalla</div>
+            <div className="bg-ink-100/60 dark:bg-ink-900 border hairline rounded-xl p-3">
+              <div className="text-xs font-semibold mb-2">Posición en pantalla</div>
               <SubPositionPicker
                 value={localStyle.sub_position}
                 onChange={v => setStyleField('sub_position', v)}
@@ -1521,7 +1543,7 @@ const LiveCaptionPreview = ({ baseVideoSrc, chunks, style, fontOptions, showSafe
     `;
 
   return (
-    <div ref={containerRef} className="bg-black aspect-[9/16] flex items-center justify-center relative overflow-hidden">
+    <div ref={containerRef} className="bg-ink-950 aspect-[9/16] flex items-center justify-center relative overflow-hidden">
       <video ref={videoRef} src={baseVideoSrc} controls className="max-h-full max-w-full" />
 
       {activeChunk && (
@@ -1584,10 +1606,10 @@ const SubPositionPicker = ({ value, onChange }) => {
   );
 
   const safetyBadge = () => {
-    if (value < 60) return <span className="text-rose-600 dark:text-rose-400">⚠ Invade UI de TikTok — los subs pueden quedar tapados por el action bar.</span>;
-    if (value < 65) return <span className="text-amber-600 dark:text-amber-400">⚠ Seguro en Instagram, riesgo en TikTok.</span>;
-    if (value <= 85) return <span className="text-emerald-600 dark:text-emerald-400">✓ Zona segura en Instagram y TikTok.</span>;
-    return <span className="text-amber-600 dark:text-amber-400">⚠ Muy alto, puede tapar al hablante.</span>;
+    if (value < 60) return <span className="text-danger dark:text-danger-bright">⚠ Invade UI de TikTok — los subs pueden quedar tapados por el action bar.</span>;
+    if (value < 65) return <span className="text-warn dark:text-warn-bright">⚠ Seguro en Instagram, riesgo en TikTok.</span>;
+    if (value <= 85) return <span className="text-ok dark:text-ok-bright">✓ Zona segura en Instagram y TikTok.</span>;
+    return <span className="text-warn dark:text-warn-bright">⚠ Muy alto, puede tapar al hablante.</span>;
   };
 
   return (
@@ -1596,17 +1618,17 @@ const SubPositionPicker = ({ value, onChange }) => {
         {SUB_POSITION_PRESETS.map(p => {
           const active = closestPreset.value === p.value;
           let cls = '';
-          if (active && p.warn === true) cls = 'bg-rose-600 text-white border-rose-600';
-          else if (active && p.warn === 'amber') cls = 'bg-amber-500 text-white border-amber-500';
-          else if (active && p.recommended) cls = 'bg-emerald-600 text-white border-emerald-600';
-          else if (active) cls = 'bg-gray-900 text-white border-gray-900 dark:bg-amber-600 dark:border-amber-600';
-          else cls = 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 hover:border-amber-400';
+          if (active && p.warn === true) cls = 'bg-danger text-white border-danger dark:bg-danger-bright dark:text-ink-950 dark:border-danger-bright';
+          else if (active && p.warn === 'amber') cls = 'bg-warn text-white border-warn dark:bg-warn-bright dark:text-ink-950 dark:border-warn-bright';
+          else if (active && p.recommended) cls = 'bg-ok text-white border-ok dark:bg-ok-bright dark:text-ink-950 dark:border-ok-bright';
+          else if (active) cls = 'bg-ink-950 text-paper border-ink-950 dark:bg-paper dark:text-ink-950 dark:border-paper';
+          else cls = 'bg-white dark:bg-ink-800 text-ink-500 dark:text-ink-300 border-ink-200 dark:border-ink-600 hover:border-accent/60 dark:hover:border-accent-bright/60';
           return (
             <button
               key={p.value}
               type="button"
               onClick={() => onChange(p.value)}
-              className={`px-2 py-2 rounded-lg border text-xs transition flex flex-col items-center gap-0.5 ${cls}`}
+              className={`px-2 py-2 rounded-xl border text-xs transition-colors flex flex-col items-center gap-0.5 ${cls}`}
             >
               <span className="font-semibold">{p.label}</span>
               <span className="text-[10px] opacity-80">{p.subtitle}</span>
@@ -1617,10 +1639,10 @@ const SubPositionPicker = ({ value, onChange }) => {
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <button type="button" onClick={() => onChange(Math.max(40, value - 2))}
-            className="w-8 h-8 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm">↓</button>
-          <span className="text-xs text-gray-500">Ajuste fino</span>
+            className="w-8 h-8 rounded-lg border hairline hover:bg-ink-100 dark:hover:bg-ink-800 text-sm transition-colors">↓</button>
+          <span className="text-xs text-ink-500 dark:text-ink-400">Ajuste fino</span>
           <button type="button" onClick={() => onChange(Math.min(90, value + 2))}
-            className="w-8 h-8 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm">↑</button>
+            className="w-8 h-8 rounded-lg border hairline hover:bg-ink-100 dark:hover:bg-ink-800 text-sm transition-colors">↑</button>
         </div>
         <div className="text-[11px]">{safetyBadge()}</div>
       </div>
@@ -1639,6 +1661,7 @@ function subPositionToBottomPct(sp) {
 // Paso 3: el usuario busca/elige un track del catálogo, ajusta volumen/ducking/fades,
 // re-mezcla on demand y finaliza. Puede saltarse el paso entero ("sin música").
 const MusicReviewView = ({ job, onChange, onError }) => {
+  const confirmDialog = useConfirm();
   const [tracks, setTracks] = useState([]);
   const [tagsCatalog, setTagsCatalog] = useState(job.music_tags_catalog || {});
   const [activeTags, setActiveTags] = useState([]);
@@ -1688,9 +1711,14 @@ const MusicReviewView = ({ job, onChange, onError }) => {
       return id;
     }).join(', ');
     const msg = filtered
-      ? `Se traerán más canciones de Jamendo SOLO con estas etiquetas: ${tagLabels}. ¿Continuar?`
-      : 'Se traerán ~200 canciones variadas desde Jamendo. Tarda alrededor de 40 segundos. ¿Continuar?';
-    if (!confirm(msg)) return;
+      ? `Se traerán más canciones de Jamendo SOLO con estas etiquetas: ${tagLabels}.`
+      : 'Se traerán ~200 canciones variadas desde Jamendo. Tarda alrededor de 40 segundos.';
+    const ok = await confirmDialog({
+      title: filtered ? '¿Traer canciones de estos estilos?' : '¿Ampliar el catálogo?',
+      message: msg,
+      confirmLabel: 'Continuar',
+    });
+    if (!ok) return;
     setCurating(true);
     setCurateResult(null);
     try {
@@ -1846,7 +1874,12 @@ const MusicReviewView = ({ job, onChange, onError }) => {
   };
 
   const handleBackToStyle = async () => {
-    if (!confirm('¿Volver al paso de subtítulos y estilo? Tu selección de música se conserva.')) return;
+    const ok = await confirmDialog({
+      title: '¿Volver al paso de subtítulos y estilo?',
+      message: 'Tu selección de música se conserva.',
+      confirmLabel: 'Volver',
+    });
+    if (!ok) return;
     try {
       await reopenStyle(job.id);
       onChange();
@@ -1877,19 +1910,19 @@ const MusicReviewView = ({ job, onChange, onError }) => {
 
   return (
     <div>
-      <div className="mb-4 flex items-end justify-between gap-4 flex-wrap">
+      <div className="mb-5 flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Paso 3 de 3 · Música de fondo (opcional)</div>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+          <span className="eyebrow">Paso 3 de 3 · Música</span>
+          <h2 className="mt-2 font-display text-xl md:text-2xl font-semibold tracking-tight">
             Elige una canción que acompañe la voz
           </h2>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-ink-500 dark:text-ink-400 mt-1">
             Si no quieres música, puedes saltar este paso.
           </p>
         </div>
         <div className="text-right shrink-0">
-          <div className="text-[11px] uppercase tracking-wide text-gray-500 mb-1">Duración del reel</div>
-          <div className="text-2xl font-mono font-semibold text-gray-900 dark:text-white">{fmtTime(finalDur)}</div>
+          <div className="text-[11px] uppercase tracking-wide text-ink-500 dark:text-ink-400 mb-1">Duración del reel</div>
+          <div className="timecode text-2xl font-semibold">{fmtTime(finalDur)}</div>
         </div>
       </div>
 
@@ -1897,21 +1930,21 @@ const MusicReviewView = ({ job, onChange, onError }) => {
         {/* Preview sticky */}
         <div className="lg:col-span-5">
           <div className="sticky top-6">
-            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
-              <div className="bg-black aspect-[9/16] relative flex items-center justify-center">
+            <div className="card overflow-hidden">
+              <div className="bg-ink-950 aspect-[9/16] relative flex items-center justify-center">
                 <video key={previewKey} src={previewSrc} controls className="max-h-full max-w-full" />
                 {selectedTrack && job.has_music_mix && !dirty && (
-                  <div className="absolute top-3 right-3 px-2 py-1 rounded-full bg-black/70 text-white text-[10px] flex items-center gap-1">
+                  <div className="absolute top-3 right-3 px-2 py-1 rounded-full bg-ink-950/80 text-paper text-[10px] flex items-center gap-1">
                     🎵 {selectedTrack.name}
                   </div>
                 )}
               </div>
-              <div className="p-3 border-t border-gray-200 dark:border-gray-700 text-xs">
+              <div className="p-3 border-t hairline text-xs">
                 {!selectedId
-                  ? <span className="text-gray-500">Selecciona una canción de la lista para mezclar</span>
+                  ? <span className="text-ink-500 dark:text-ink-400">Selecciona una canción de la lista para mezclar</span>
                   : dirty
-                    ? <span className="text-amber-700 dark:text-amber-400">⚠ Hay cambios sin previsualizar. Pulsa el botón naranja para escuchar.</span>
-                    : <span className="text-emerald-700 dark:text-emerald-400">✓ Vista previa actualizada</span>}
+                    ? <span className="text-warn dark:text-warn-bright">⚠ Hay cambios sin previsualizar. Pulsa "▶ Escuchar con esta canción".</span>
+                    : <span className="text-ok dark:text-ok-bright">✓ Vista previa actualizada</span>}
               </div>
             </div>
 
@@ -1921,12 +1954,12 @@ const MusicReviewView = ({ job, onChange, onError }) => {
                 <button
                   onClick={persistAndMix}
                   disabled={mixing || !dirty}
-                  className={`w-full px-3 py-2.5 rounded-lg text-sm font-medium transition flex items-center justify-center gap-2 ${
+                  className={`btn w-full ${
                     !dirty
-                      ? 'bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-500 cursor-not-allowed'
+                      ? 'btn-ghost'
                       : mixing
-                        ? 'bg-gray-900 dark:bg-gray-700 text-white opacity-70'
-                        : 'bg-amber-500 hover:bg-amber-600 text-white shadow-md ring-2 ring-amber-300 dark:ring-amber-700 animate-pulse'
+                        ? 'bg-ink-950 text-paper dark:bg-ink-800 opacity-70'
+                        : 'bg-warn text-white hover:bg-warn/90 dark:bg-warn-bright dark:text-ink-950 dark:hover:bg-warn-bright/90 animate-pulse'
                   }`}
                   title={!dirty ? 'No hay cambios para previsualizar' : 'Escuchar el reel con la canción y los ajustes actuales'}
                 >
@@ -1938,7 +1971,7 @@ const MusicReviewView = ({ job, onChange, onError }) => {
                 onClick={handleFinalize}
                 disabled={finalizing || mixing || !selectedId}
                 title={!selectedId ? 'Selecciona una canción primero o usa "Saltar música"' : ''}
-                className="w-full bg-gradient-to-r from-amber-600 to-rose-600 hover:from-amber-700 hover:to-rose-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 rounded-lg font-medium transition"
+                className="btn btn-accent w-full"
               >
                 {finalizing ? 'Finalizando…' : 'Exportar el reel →'}
               </button>
@@ -1946,14 +1979,14 @@ const MusicReviewView = ({ job, onChange, onError }) => {
               <button
                 onClick={handleSkip}
                 disabled={finalizing}
-                className="w-full px-3 py-2 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg border border-gray-300 dark:border-gray-600"
+                className="btn btn-ghost btn-sm w-full"
               >
                 Exportar sin música
               </button>
 
               <button
                 onClick={handleBackToStyle}
-                className="w-full px-3 py-2 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                className="w-full px-3 py-2 text-xs text-ink-500 dark:text-ink-400 hover:text-ink-950 dark:hover:text-paper rounded-full transition-colors"
               >
                 ← Volver al paso anterior
               </button>
@@ -1964,26 +1997,26 @@ const MusicReviewView = ({ job, onChange, onError }) => {
         {/* Panel: sugerencia + búsqueda + lista + controles */}
         <div className="lg:col-span-7 space-y-5">
           {/* Sugerencia IA — arriba según pediste */}
-          <div className="bg-gradient-to-r from-amber-50 to-rose-50 dark:from-amber-900/20 dark:to-rose-900/20 border border-amber-200 dark:border-amber-700/50 rounded-xl p-4">
+          <div className="bg-accent-soft dark:bg-accent-deep border border-accent/30 dark:border-accent-bright/30 rounded-2xl p-4">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="flex-1 min-w-0">
-                <strong className="font-medium text-gray-900 dark:text-white">✨ ¿No sabes cuál elegir?</strong>
-                <p className="text-xs text-gray-600 dark:text-gray-300 mt-0.5">
+                <strong className="font-medium">✨ ¿No sabes cuál elegir?</strong>
+                <p className="text-xs text-ink-500 dark:text-ink-400 mt-0.5">
                   La IA lee la transcripción y sugiere 3 opciones de tu biblioteca.
                 </p>
               </div>
               <button onClick={handleSuggest} disabled={suggesting || tracks.length === 0}
-                className="px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-amber-300 dark:border-amber-700/50 hover:bg-amber-100 dark:hover:bg-amber-900/40 rounded-lg disabled:opacity-50">
+                className="btn btn-primary btn-sm">
                 {suggesting ? 'Pensando…' : 'Sugerir música'}
               </button>
             </div>
             {suggestions && (
-              <div className="mt-3 pt-3 border-t border-amber-200 dark:border-amber-700/50">
+              <div className="mt-3 pt-3 border-t border-accent/30 dark:border-accent-bright/30">
                 {suggestions.summary && (
-                  <p className="text-xs italic text-gray-600 dark:text-gray-300 mb-2">"{suggestions.summary}"</p>
+                  <p className="text-xs italic text-ink-500 dark:text-ink-400 mb-2">"{suggestions.summary}"</p>
                 )}
                 {suggestions.suggestions.length === 0 ? (
-                  <p className="text-xs text-gray-500">No encontré opciones claras en tu biblioteca.</p>
+                  <p className="text-xs text-ink-500 dark:text-ink-400">No encontré opciones claras en tu biblioteca.</p>
                 ) : (
                   <div className="space-y-1">
                     {suggestions.suggestions.map((s, i) => {
@@ -1994,18 +2027,18 @@ const MusicReviewView = ({ job, onChange, onError }) => {
                         <button
                           key={s.id}
                           onClick={() => { selectTrack(t); togglePreview(t.id); }}
-                          className={`w-full text-left p-2 rounded-lg border flex items-center gap-2 transition ${
+                          className={`w-full text-left p-2 rounded-xl border flex items-center gap-2 transition-colors ${
                             isPlaying
-                              ? 'bg-rose-50 dark:bg-rose-900/30 border-rose-300 dark:border-rose-700/50'
-                              : 'bg-white dark:bg-gray-800 hover:bg-amber-50 dark:hover:bg-amber-900/30 border-amber-200 dark:border-amber-700/30'
+                              ? 'bg-white dark:bg-ink-850 border-accent dark:border-accent-bright ring-1 ring-accent/40 dark:ring-accent-bright/40'
+                              : 'bg-white dark:bg-ink-850 hover:border-accent/60 dark:hover:border-accent-bright/60 border-ink-200 dark:border-ink-700'
                           }`}
                         >
-                          <span className="text-xs font-mono text-amber-700 dark:text-amber-300">#{i + 1}</span>
-                          <span className="w-6 h-6 rounded-full bg-gray-900 dark:bg-amber-600 text-white flex items-center justify-center text-[10px] shrink-0">
+                          <span className="text-xs font-mono text-accent dark:text-accent-bright">#{i + 1}</span>
+                          <span className="w-6 h-6 rounded-full bg-accent dark:bg-accent-bright text-white dark:text-ink-950 flex items-center justify-center text-[10px] shrink-0">
                             {isPlaying ? '⏸' : '▶'}
                           </span>
                           <span className="text-sm font-medium flex-1 truncate">{t.name}</span>
-                          <span className="text-[11px] text-gray-500 truncate max-w-xs">{s.reason}</span>
+                          <span className="text-[11px] text-ink-500 dark:text-ink-400 truncate max-w-xs">{s.reason}</span>
                         </button>
                       );
                     })}
@@ -2016,52 +2049,52 @@ const MusicReviewView = ({ job, onChange, onError }) => {
           </div>
 
           {/* Ampliar catálogo desde fuentes gratuitas */}
-          <div className={`bg-white dark:bg-gray-800 border rounded-xl p-4 transition ${
+          <div className={`card p-4 transition ${
             activeTags.length > 0
-              ? 'border-emerald-400 dark:border-emerald-600 ring-1 ring-emerald-300 dark:ring-emerald-700/50'
-              : 'border-gray-200 dark:border-gray-700'
+              ? 'border-accent dark:border-accent-bright ring-1 ring-accent/40 dark:ring-accent-bright/40'
+              : ''
           }`}>
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-gray-900 dark:text-white">
+                <div className="text-sm font-medium">
                   📚 {activeTags.length > 0 ? 'Traer canciones de estos estilos a tu biblioteca' : 'Traer más canciones a tu biblioteca'}
                 </div>
                 {activeTags.length > 0 ? (
                   <>
                     <div className="mt-1.5 flex flex-wrap gap-1">
                       {activeTagLabels.map((label, i) => (
-                        <span key={i} className="inline-block px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700/60 text-[11px] font-medium">
+                        <span key={i} className="chip chip-accent">
                           {label}
                         </span>
                       ))}
                     </div>
-                    <p className="text-xs text-gray-500 mt-1.5">
+                    <p className="text-xs text-ink-500 dark:text-ink-400 mt-1.5">
                       Trae más canciones de Jamendo <strong>solo</strong> con estos estilos. Cada click trae nuevas, sin repetir las que ya tienes.
                     </p>
                   </>
                 ) : (
-                  <p className="text-xs text-gray-500 mt-0.5">
+                  <p className="text-xs text-ink-500 dark:text-ink-400 mt-0.5">
                     Trae ~200 canciones variadas desde <strong>Jamendo</strong>.
-                    {' '}<span className="text-gray-700 dark:text-gray-300">¿Buscas un estilo específico?</span> Marca etiquetas abajo y volverás a verlo aquí.
+                    {' '}<span className="text-ink-950 dark:text-paper">¿Buscas un estilo específico?</span> Marca etiquetas abajo y volverás a verlo aquí.
                   </p>
                 )}
                 {providers && !providers.jamendo?.configured && (
-                  <p className="text-xs text-rose-600 dark:text-rose-400 mt-1.5">
+                  <p className="text-xs text-danger dark:text-danger-bright mt-1.5">
                     ⚠ El catálogo externo está temporalmente fuera de servicio. Mientras tanto, sube tu propia música con el botón de abajo.
                   </p>
                 )}
               </div>
               <button onClick={handleCurate} disabled={curating}
-                className="px-3 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg whitespace-nowrap font-medium">
+                className="btn btn-primary btn-sm whitespace-nowrap">
                 {curating ? 'Buscando…' : activeTags.length > 0 ? `+ Traer de estos estilos` : '+ Ampliar catálogo'}
               </button>
             </div>
             {curateResult && (
-              <div className="mt-3 text-xs bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-200 rounded p-2 border border-emerald-200 dark:border-emerald-800/50">
+              <div className="mt-3 text-xs bg-ok-soft dark:bg-ok-deep text-ok dark:text-ok-bright rounded-xl p-2 border border-ok/30 dark:border-ok-bright/30">
                 ✓ {curateResult.added} canciones nuevas · {curateResult.skipped} ya estaban
                 {curateResult.errors?.length > 0 && (
                   <details className="mt-1">
-                    <summary className="cursor-pointer text-rose-600 dark:text-rose-400">{curateResult.errors.length} errores</summary>
+                    <summary className="cursor-pointer text-danger dark:text-danger-bright">{curateResult.errors.length} errores</summary>
                     <ul className="mt-1 ml-4 list-disc">
                       {curateResult.errors.map((e, i) => <li key={i}>{e}</li>)}
                     </ul>
@@ -2072,7 +2105,7 @@ const MusicReviewView = ({ job, onChange, onError }) => {
           </div>
 
           {/* Buscador + upload */}
-          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
+          <div className="card p-5">
             <div className="flex items-center gap-3 mb-3">
               <div className="relative flex-1">
                 <input
@@ -2080,12 +2113,12 @@ const MusicReviewView = ({ job, onChange, onError }) => {
                   value={query}
                   onChange={e => setQuery(e.target.value)}
                   placeholder="Buscar por nombre, autor…"
-                  className="w-full pl-9 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                  className="input pl-9"
                 />
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400 dark:text-ink-500">🔍</span>
               </div>
               <button onClick={() => setShowUpload(true)}
-                className="px-3 py-2 text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg whitespace-nowrap">
+                className="btn btn-ghost btn-sm whitespace-nowrap">
                 ⬆ Subir canción
               </button>
             </div>
@@ -2095,7 +2128,7 @@ const MusicReviewView = ({ job, onChange, onError }) => {
 
             {/* Aviso inline: explica la doble función de las etiquetas (filtrar + curar) */}
             {activeTags.length > 0 ? (
-              <div className="mt-3 flex items-start gap-2 text-[11px] bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/50 text-emerald-800 dark:text-emerald-200 rounded-lg px-3 py-2">
+              <div className="mt-3 flex items-start gap-2 text-[11px] bg-accent-soft dark:bg-accent-deep border border-accent/30 dark:border-accent-bright/30 text-accent dark:text-accent-bright rounded-xl px-3 py-2">
                 <span>↑</span>
                 <span>
                   <strong>{activeTags.length} {activeTags.length === 1 ? 'etiqueta activa' : 'etiquetas activas'}.</strong>
@@ -2103,7 +2136,7 @@ const MusicReviewView = ({ job, onChange, onError }) => {
                 </span>
               </div>
             ) : (
-              <p className="mt-3 text-[11px] text-gray-500 dark:text-gray-400">
+              <p className="mt-3 text-[11px] text-ink-500 dark:text-ink-400">
                 Marca una o más etiquetas para filtrar tu biblioteca. Esas mismas etiquetas también afectarán qué canciones se descargan al pulsar <strong>"+ Ampliar catálogo"</strong> arriba.
               </p>
             )}
@@ -2125,21 +2158,21 @@ const MusicReviewView = ({ job, onChange, onError }) => {
           )}
 
           {/* Lista */}
-          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
-            <div className="px-4 py-2.5 border-b border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 flex justify-between">
+          <div className="card overflow-hidden">
+            <div className="px-4 py-2.5 border-b hairline text-sm font-medium text-ink-500 dark:text-ink-400 flex justify-between">
               <span>{loadingTracks ? 'Cargando…' : `${tracks.length} canci${tracks.length === 1 ? 'ón' : 'ones'} en tu biblioteca · desplázate para ver más`}</span>
               {activeTags.length > 0 && (
-                <button onClick={() => setActiveTags([])} className="hover:text-gray-700 dark:hover:text-gray-200">
+                <button onClick={() => setActiveTags([])} className="hover:text-ink-950 dark:hover:text-paper transition-colors">
                   Limpiar filtros
                 </button>
               )}
             </div>
             <div className="max-h-[480px] overflow-y-auto">
             {tracks.length === 0 && !loadingTracks && (
-              <div className="p-8 text-center text-sm text-gray-500">
+              <div className="p-8 text-center text-sm text-ink-500 dark:text-ink-400">
                 {query || activeTags.length
                   ? 'Sin resultados con esos filtros. Prueba con otra búsqueda o limpia las etiquetas.'
-                  : <>Tu biblioteca está vacía. <button onClick={() => setShowUpload(true)} className="underline text-amber-700 hover:text-amber-800">Sube tu primera canción</button>.</>}
+                  : <>Tu biblioteca está vacía. <button onClick={() => setShowUpload(true)} className="link-accent">Sube tu primera canción</button>.</>}
               </div>
             )}
             {tracks.map(t => (
@@ -2152,7 +2185,12 @@ const MusicReviewView = ({ job, onChange, onError }) => {
                 onSelect={() => selectTrack(t)}
                 onTogglePreview={() => togglePreview(t.id)}
                 onDelete={async () => {
-                  if (!confirm(`¿Eliminar "${t.name}" de la biblioteca?`)) return;
+                  const ok = await confirmDialog({
+                    title: '¿Eliminar de la biblioteca?',
+                    message: `"${t.name}" se quitará de tu biblioteca.`,
+                    danger: true,
+                  });
+                  if (!ok) return;
                   try {
                     await deleteMusicTrack(t.id);
                     setTracks(prev => prev.filter(x => x.id !== t.id));
@@ -2166,36 +2204,36 @@ const MusicReviewView = ({ job, onChange, onError }) => {
 
           {/* Controles del track seleccionado */}
           {selectedTrack && (
-            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
-              <h3 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-1">
+            <div className="card p-5">
+              <h3 className="font-display font-semibold tracking-tight text-base mb-1">
                 Mezcla de "{selectedTrack.name}"
               </h3>
-              <p className="text-xs text-gray-500 mb-4">
+              <p className="text-xs text-ink-500 dark:text-ink-400 mb-4">
                 Cualquier cambio aquí deja la vista previa desactualizada. Pulsa "Mezclar" para escuchar el resultado.
               </p>
               <div className="space-y-5">
                 <div>
                   <div className="flex items-baseline justify-between mb-1">
-                    <label className="text-sm text-gray-700 dark:text-gray-200">Volumen de la música</label>
-                    <span className="text-sm font-mono font-semibold">{music.music_volume_db}dB</span>
+                    <label className="text-sm">Volumen de la música</label>
+                    <span className="timecode font-semibold">{music.music_volume_db}dB</span>
                   </div>
                   <input type="range" min="-30" max="0" step="1"
                     value={music.music_volume_db}
                     onChange={e => setMusicField('music_volume_db', parseInt(e.target.value))}
-                    className="w-full accent-gray-900 dark:accent-amber-500" />
-                  <div className="flex justify-between text-[10px] text-gray-400 mt-0.5">
+                    className="w-full accent-accent dark:accent-accent-bright" />
+                  <div className="flex justify-between text-[10px] text-ink-400 dark:text-ink-500 mt-0.5">
                     <span>← muy suave (-30dB)</span><span>volumen pleno (0dB) →</span>
                   </div>
                 </div>
 
-                <label className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50 rounded-lg cursor-pointer">
+                <label className="flex items-start gap-3 p-3 bg-ink-100/60 dark:bg-ink-900 border hairline rounded-xl cursor-pointer hover:border-accent dark:hover:border-accent-bright transition-colors">
                   <input type="checkbox"
                     checked={!!music.music_ducking}
                     onChange={e => setMusicField('music_ducking', e.target.checked ? 1 : 0)}
-                    className="mt-1 accent-amber-600" />
+                    className="mt-1 accent-accent dark:accent-accent-bright" />
                   <div className="flex-1">
-                    <div className="text-sm font-medium text-gray-900 dark:text-white">Bajar música automáticamente cuando hablas</div>
-                    <p className="text-xs text-gray-600 dark:text-gray-300 mt-0.5">
+                    <div className="text-sm font-medium">Bajar música automáticamente cuando hablas</div>
+                    <p className="text-xs text-ink-500 dark:text-ink-400 mt-0.5">
                       La música se atenúa cuando hay voz y vuelve a su nivel en pausas. Recomendado para que tu mensaje siempre se escuche claro.
                     </p>
                   </div>
@@ -2203,36 +2241,36 @@ const MusicReviewView = ({ job, onChange, onError }) => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">Fade in (entrada) · {music.music_fade_in.toFixed(1)}s</label>
+                    <label className="block text-xs text-ink-500 dark:text-ink-400 mb-1">Fade in (entrada) · <span className="font-mono tabular-nums">{music.music_fade_in.toFixed(1)}s</span></label>
                     <input type="range" min="0" max="3" step="0.5"
                       value={music.music_fade_in}
                       onChange={e => setMusicField('music_fade_in', parseFloat(e.target.value))}
-                      className="w-full accent-gray-900 dark:accent-amber-500" />
+                      className="w-full accent-accent dark:accent-accent-bright" />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">Fade out (salida) · {music.music_fade_out.toFixed(1)}s</label>
+                    <label className="block text-xs text-ink-500 dark:text-ink-400 mb-1">Fade out (salida) · <span className="font-mono tabular-nums">{music.music_fade_out.toFixed(1)}s</span></label>
                     <input type="range" min="0" max="3" step="0.5"
                       value={music.music_fade_out}
                       onChange={e => setMusicField('music_fade_out', parseFloat(e.target.value))}
-                      className="w-full accent-gray-900 dark:accent-amber-500" />
+                      className="w-full accent-accent dark:accent-accent-bright" />
                   </div>
                 </div>
 
                 <div>
                   <div className="flex items-baseline justify-between mb-1">
-                    <label className="text-sm text-gray-700 dark:text-gray-200">Empezar la canción desde</label>
-                    <span className="text-xs font-mono text-gray-500">{fmtTime(music.music_start_offset)} {music.music_start_offset > 0 ? '(salta intro)' : ''}</span>
+                    <label className="text-sm">Empezar la canción desde</label>
+                    <span className="text-xs font-mono tabular-nums text-ink-500 dark:text-ink-400">{fmtTime(music.music_start_offset)} {music.music_start_offset > 0 ? '(salta intro)' : ''}</span>
                   </div>
                   <input type="range" min="0" max={Math.max(0, (selectedTrack.duration_seconds || 60) - finalDur - 1)} step="1"
                     value={music.music_start_offset}
                     onChange={e => setMusicField('music_start_offset', parseFloat(e.target.value))}
-                    className="w-full accent-gray-900 dark:accent-amber-500" />
-                  <div className="text-[10px] text-gray-400 mt-0.5">
+                    className="w-full accent-accent dark:accent-accent-bright" />
+                  <div className="text-[10px] text-ink-400 dark:text-ink-500 mt-0.5">
                     Si la canción empieza con silencio o intro pesada, salta unos segundos.
                   </div>
                 </div>
 
-                <div className="text-xs text-gray-500 bg-gray-50 dark:bg-gray-900/50 rounded p-3 border border-gray-200 dark:border-gray-700">
+                <div className="text-xs text-ink-500 dark:text-ink-400 bg-ink-100/60 dark:bg-ink-900 rounded-xl p-3 border hairline">
                   💡 La canción dura {fmtTime(selectedTrack.duration_seconds || 0)} y tu reel {fmtTime(finalDur)}.
                   {(selectedTrack.duration_seconds || 0) >= finalDur
                     ? ' La música se recorta a la duración del reel con fade-out.'
@@ -2272,46 +2310,46 @@ const MiniPlayer = ({ track, currentTime, duration, volume, onTogglePlay, onSeek
     return id;
   });
   return (
-    <div className="sticky top-0 z-20 -mt-1 pt-2 pb-2 bg-stone-50 dark:bg-gray-900">
-      <div className="bg-gradient-to-r from-amber-50 to-rose-50 dark:from-amber-900/30 dark:to-rose-900/30 border-2 border-amber-400 dark:border-amber-600 rounded-xl p-3 shadow-md">
+    <div className="sticky top-0 z-20 -mt-1 pt-2 pb-2 bg-ink-50 dark:bg-ink-950">
+      <div className="bg-ink-950 border border-ink-700 rounded-2xl p-3 text-paper">
         <div className="flex items-center gap-3">
           {/* Thumbnail con barras animadas */}
-          <div className="relative w-12 h-12 rounded shrink-0 overflow-hidden">
+          <div className="relative w-12 h-12 rounded-lg shrink-0 overflow-hidden">
             {track.thumbnail_url ? (
               <img src={track.thumbnail_url} alt="" className="w-full h-full object-cover" />
             ) : (
-              <div className="w-full h-full bg-gradient-to-br from-amber-400 to-rose-500 flex items-center justify-center text-white">♪</div>
+              <div className="w-full h-full bg-accent-deep flex items-center justify-center text-accent-bright">♪</div>
             )}
-            <div className="absolute inset-0 bg-black/40 flex items-end justify-center gap-0.5 px-2 pb-1">
-              <span className="w-1 bg-white rounded-t animate-eq-1" />
-              <span className="w-1 bg-white rounded-t animate-eq-2" />
-              <span className="w-1 bg-white rounded-t animate-eq-3" />
-              <span className="w-1 bg-white rounded-t animate-eq-4" />
+            <div className="absolute inset-0 bg-ink-950/50 flex items-end justify-center gap-0.5 px-2 pb-1">
+              <span className="w-1 bg-accent-bright rounded-t animate-eq-1" />
+              <span className="w-1 bg-accent-bright rounded-t animate-eq-2" />
+              <span className="w-1 bg-accent-bright rounded-t animate-eq-3" />
+              <span className="w-1 bg-accent-bright rounded-t animate-eq-4" />
             </div>
           </div>
 
           {/* Info */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400">▶ Sonando</span>
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-accent-bright">▶ Sonando</span>
               {tagLabels.map((l, i) => (
-                <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-white/60 dark:bg-gray-800/60 text-gray-700 dark:text-gray-300">{l}</span>
+                <span key={i} className="text-[10px] px-1.5 py-0.5 rounded-full bg-ink-800 text-ink-300">{l}</span>
               ))}
             </div>
-            <div className="font-semibold text-sm text-gray-900 dark:text-white truncate">{track.name}</div>
-            {track.artist && <div className="text-xs text-gray-600 dark:text-gray-300 truncate">{track.artist}</div>}
+            <div className="font-semibold text-sm text-paper truncate">{track.name}</div>
+            {track.artist && <div className="text-xs text-ink-400 truncate">{track.artist}</div>}
           </div>
 
           {/* Controles */}
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={onTogglePlay}
-              className="w-10 h-10 rounded-full bg-gray-900 dark:bg-amber-600 hover:bg-gray-800 dark:hover:bg-amber-700 text-white flex items-center justify-center"
+              className="w-10 h-10 rounded-full bg-paper text-ink-950 hover:bg-white flex items-center justify-center transition-colors"
               title="Pausar"
             >⏸</button>
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center justify-center"
+              className="w-8 h-8 rounded-full text-ink-400 hover:bg-ink-800 hover:text-paper flex items-center justify-center transition-colors"
               title="Cerrar preview"
             >✕</button>
           </div>
@@ -2319,29 +2357,29 @@ const MiniPlayer = ({ track, currentTime, duration, volume, onTogglePlay, onSeek
 
         {/* Progress + tiempo */}
         <div className="mt-2 flex items-center gap-2">
-          <span className="text-[10px] font-mono text-gray-600 dark:text-gray-300 w-9 text-right">{fmtTime(currentTime)}</span>
+          <span className="text-[10px] font-mono tabular-nums text-ink-300 w-9 text-right">{fmtTime(currentTime)}</span>
           <div
-            className="flex-1 h-1.5 bg-gray-300 dark:bg-gray-700 rounded-full cursor-pointer relative overflow-hidden"
+            className="flex-1 h-1.5 bg-ink-700 rounded-full cursor-pointer relative overflow-hidden"
             onClick={e => {
               const rect = e.currentTarget.getBoundingClientRect();
               onSeek((e.clientX - rect.left) / rect.width);
             }}
           >
-            <div className="h-full bg-gradient-to-r from-amber-500 to-rose-500 transition-all" style={{ width: `${pct}%` }} />
+            <div className="h-full bg-accent-bright transition-all" style={{ width: `${pct}%` }} />
           </div>
-          <span className="text-[10px] font-mono text-gray-500 w-9">{fmtTime(duration)}</span>
+          <span className="text-[10px] font-mono tabular-nums text-ink-400 w-9">{fmtTime(duration)}</span>
         </div>
 
         {/* Volumen */}
         <div className="mt-1.5 flex items-center gap-2">
-          <span className="text-[10px] text-gray-500">🔉</span>
+          <span className="text-[10px] text-ink-400">🔉</span>
           <input
             type="range" min="0" max="1" step="0.05"
             value={volume}
             onChange={e => onVolumeChange(parseFloat(e.target.value))}
-            className="flex-1 accent-amber-600 h-1"
+            className="flex-1 accent-accent-bright h-1"
           />
-          <span className="text-[10px] font-mono text-gray-500 w-8">{Math.round(volume * 100)}%</span>
+          <span className="text-[10px] font-mono tabular-nums text-ink-400 w-8">{Math.round(volume * 100)}%</span>
         </div>
       </div>
     </div>
@@ -2361,7 +2399,7 @@ const TagsPicker = ({ catalog, activeTags, onToggle, onClear }) => {
     <div className="space-y-2">
       {Object.entries(groups).map(([groupKey, items]) => (
         <div key={groupKey}>
-          <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+          <div className="text-xs font-medium text-ink-500 dark:text-ink-400 mb-1">
             {groupKey === 'mood' ? 'Estado de ánimo' : groupKey === 'energy' ? 'Energía' : 'Género'}
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -2369,10 +2407,10 @@ const TagsPicker = ({ catalog, activeTags, onToggle, onClear }) => {
               const active = activeTags.includes(t.id);
               return (
                 <button key={t.id} onClick={() => onToggle(t.id)}
-                  className={`px-2.5 py-1 rounded-full text-[11px] border transition ${
+                  className={`px-2.5 py-1 rounded-full text-[11px] border transition-colors ${
                     active
-                      ? 'bg-gray-900 text-white border-gray-900 dark:bg-amber-600 dark:border-amber-600'
-                      : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 hover:border-amber-400'
+                      ? 'bg-accent-soft dark:bg-accent-deep text-accent dark:text-accent-bright border-accent/50 dark:border-accent-bright/50 font-semibold'
+                      : 'bg-white dark:bg-ink-800 text-ink-500 dark:text-ink-300 border-ink-200 dark:border-ink-600 hover:border-accent/60 dark:hover:border-accent-bright/60'
                   }`}>
                   {t.emoji ? `${t.emoji} ` : ''}{t.label}
                 </button>
@@ -2396,25 +2434,25 @@ const TrackRow = ({ track, selected, playing, tagsCatalog, onSelect, onTogglePre
   return (
     <div
       onClick={onSelect}
-      className={`px-4 py-3 border-b border-gray-100 dark:border-gray-700/50 flex items-center gap-3 cursor-pointer transition ${
+      className={`px-4 py-3 border-b border-ink-200/60 dark:border-ink-700/50 flex items-center gap-3 cursor-pointer transition-colors ${
         playing
-          ? 'bg-gradient-to-r from-amber-100 to-rose-100 dark:from-amber-900/40 dark:to-rose-900/40 border-l-4 border-l-rose-500'
+          ? 'bg-accent-soft dark:bg-accent-deep border-l-4 border-l-accent dark:border-l-accent-bright'
           : selected
-            ? 'bg-amber-50 dark:bg-amber-900/20 border-l-4 border-l-amber-600'
-            : 'hover:bg-gray-50 dark:hover:bg-gray-700/30 border-l-4 border-l-transparent'
+            ? 'bg-ok-soft/60 dark:bg-ok-deep/50 border-l-4 border-l-ok dark:border-l-ok-bright'
+            : 'hover:bg-ink-100/60 dark:hover:bg-ink-800/40 border-l-4 border-l-transparent'
       }`}
     >
       <div className="relative shrink-0">
         {track.thumbnail_url ? (
-          <img src={track.thumbnail_url} alt="" className="w-10 h-10 rounded object-cover" loading="lazy" />
+          <img src={track.thumbnail_url} alt="" className="w-10 h-10 rounded-lg object-cover" loading="lazy" />
         ) : (
-          <div className="w-10 h-10 rounded bg-gradient-to-br from-amber-300 to-rose-400 dark:from-amber-700 dark:to-rose-700 flex items-center justify-center text-white text-xs">♪</div>
+          <div className="w-10 h-10 rounded-lg bg-accent-deep flex items-center justify-center text-accent-bright text-xs">♪</div>
         )}
         {/* Botón de play hover (cuando no está sonando) */}
         {!playing && (
           <button
             onClick={e => { e.stopPropagation(); onTogglePreview(); }}
-            className="absolute inset-0 rounded bg-black/40 hover:bg-black/60 text-white flex items-center justify-center opacity-0 hover:opacity-100 transition"
+            className="absolute inset-0 rounded-lg bg-ink-950/50 hover:bg-ink-950/70 text-paper flex items-center justify-center opacity-0 hover:opacity-100 transition"
             title="Escuchar preview"
           >
             <span className="text-lg">▶</span>
@@ -2424,34 +2462,34 @@ const TrackRow = ({ track, selected, playing, tagsCatalog, onSelect, onTogglePre
         {playing && (
           <button
             onClick={e => { e.stopPropagation(); onTogglePreview(); }}
-            className="absolute inset-0 rounded bg-black/55 hover:bg-black/70 text-white flex items-end justify-center gap-0.5 px-2 pb-1.5 transition"
+            className="absolute inset-0 rounded-lg bg-ink-950/60 hover:bg-ink-950/75 text-paper flex items-end justify-center gap-0.5 px-2 pb-1.5 transition"
             title="Pausar"
           >
-            <span className="w-1 bg-white rounded-t animate-eq-1" />
-            <span className="w-1 bg-white rounded-t animate-eq-2" />
-            <span className="w-1 bg-white rounded-t animate-eq-3" />
-            <span className="w-1 bg-white rounded-t animate-eq-4" />
+            <span className="w-1 bg-accent-bright rounded-t animate-eq-1" />
+            <span className="w-1 bg-accent-bright rounded-t animate-eq-2" />
+            <span className="w-1 bg-accent-bright rounded-t animate-eq-3" />
+            <span className="w-1 bg-accent-bright rounded-t animate-eq-4" />
           </button>
         )}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-medium text-sm text-gray-900 dark:text-white truncate">{track.name}</span>
-          {track.artist && <span className="text-xs text-gray-500">· {track.artist}</span>}
+          <span className="font-medium text-sm truncate">{track.name}</span>
+          {track.artist && <span className="text-xs text-ink-500 dark:text-ink-400">· {track.artist}</span>}
           {tagLabels.map((l, i) => (
-            <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">{l}</span>
+            <span key={i} className="text-[10px] px-1.5 py-0.5 rounded-full bg-ink-100 dark:bg-ink-800 text-ink-500 dark:text-ink-400">{l}</span>
           ))}
         </div>
-        <div className="text-[11px] text-gray-500 mt-0.5">
+        <div className="text-[11px] text-ink-500 dark:text-ink-400 mt-0.5">
           {track.source || 'tu biblioteca'} · {track.bpm ? `${track.bpm} BPM · ` : ''}{fmtTime(track.duration_seconds || 0)}
           {track.license ? ` · ${track.license}` : ''}
         </div>
       </div>
-      {playing && <span className="text-[10px] font-semibold uppercase tracking-wider text-white px-2 py-1 bg-rose-600 rounded-full shadow-sm">▶ Sonando</span>}
-      {selected && !playing && <span className="text-[10px] font-semibold uppercase tracking-wider text-white px-2 py-1 bg-emerald-600 rounded-full shadow-sm">✓ Seleccionado</span>}
+      {playing && <span className="chip chip-accent">▶ Sonando</span>}
+      {selected && !playing && <span className="chip chip-ok">✓ Seleccionado</span>}
       <button
         onClick={e => { e.stopPropagation(); onDelete(); }}
-        className="text-gray-400 hover:text-rose-600 px-2"
+        className="text-ink-400 hover:text-danger dark:hover:text-danger-bright px-2 transition-colors"
         title="Eliminar de la biblioteca"
       >✕</button>
     </div>
@@ -2487,39 +2525,39 @@ const UploadTrackModal = ({ tagsCatalog, onClose, onUploaded, onError }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-ink-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div onClick={e => e.stopPropagation()}
-        className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-          <h3 className="font-semibold text-lg">Subir track a tu biblioteca</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">✕</button>
+        className="card rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6 border-b hairline flex items-center justify-between">
+          <h3 className="font-display font-semibold tracking-tight text-lg">Subir track a tu biblioteca</h3>
+          <button onClick={onClose} className="text-ink-400 hover:text-ink-950 dark:hover:text-paper transition-colors">✕</button>
         </div>
         <div className="p-6 space-y-4">
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Archivo de audio</label>
+            <label className="block text-xs text-ink-500 dark:text-ink-400 mb-1">Archivo de audio</label>
             <input type="file"
               accept="audio/mpeg,audio/wav,audio/mp4,audio/ogg,.mp3,.wav,.m4a,.ogg,.aac,.flac"
               onChange={e => setFile(e.target.files?.[0] || null)}
               className="w-full text-sm" />
-            <p className="text-[10px] text-gray-400 mt-1">MP3, WAV, M4A, OGG, AAC, FLAC · máximo 50MB</p>
+            <p className="text-[10px] text-ink-400 dark:text-ink-500 mt-1">MP3, WAV, M4A, OGG, AAC, FLAC · máximo 50MB</p>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Nombre</label>
+              <label className="block text-xs text-ink-500 dark:text-ink-400 mb-1">Nombre</label>
               <input type="text" value={name} onChange={e => setName(e.target.value)}
                 placeholder="(si vacío, usa nombre del archivo)"
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900" />
+                className="input" />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Artista (opcional)</label>
+              <label className="block text-xs text-ink-500 dark:text-ink-400 mb-1">Artista (opcional)</label>
               <input type="text" value={artist} onChange={e => setArtist(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900" />
+                className="input" />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Fuente</label>
+              <label className="block text-xs text-ink-500 dark:text-ink-400 mb-1">Fuente</label>
               <select value={source} onChange={e => setSource(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900">
+                className="input">
                 <option value="subido_por_ti">Subido por ti</option>
                 <option value="pixabay">Pixabay Music</option>
                 <option value="youtube_audio_library">YouTube Audio Library</option>
@@ -2530,38 +2568,40 @@ const UploadTrackModal = ({ tagsCatalog, onClose, onUploaded, onError }) => {
               </select>
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Licencia / atribución</label>
+              <label className="block text-xs text-ink-500 dark:text-ink-400 mb-1">Licencia / atribución</label>
               <input type="text" value={license} onChange={e => setLicense(e.target.value)}
                 placeholder="Ej: royalty-free comercial"
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900" />
+                className="input" />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">BPM (opcional)</label>
+              <label className="block text-xs text-ink-500 dark:text-ink-400 mb-1">BPM (opcional)</label>
               <input type="number" value={bpm} onChange={e => setBpm(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900" />
+                className="input" />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs text-gray-500 mb-2">Tags (selecciona los que apliquen, mejora búsqueda y sugerencias IA)</label>
+            <label className="block text-xs text-ink-500 dark:text-ink-400 mb-2">Tags (selecciona los que apliquen, mejora búsqueda y sugerencias IA)</label>
             <TagsPicker catalog={tagsCatalog} activeTags={tags} onToggle={toggleTag} onClear={() => setTags([])} />
           </div>
 
           {uploading && (
             <div>
-              <div className="text-xs text-gray-500 mb-1">Subiendo… {progress}%</div>
-              <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded overflow-hidden">
-                <div className="h-full bg-amber-500 transition-all" style={{ width: `${progress}%` }} />
+              <div className="text-xs text-ink-500 dark:text-ink-400 mb-1">
+                Subiendo… <span className="font-mono tabular-nums">{progress}%</span>
+              </div>
+              <div className="h-1.5 bg-ink-200 dark:bg-ink-700 rounded-full overflow-hidden">
+                <div className="h-full bg-accent dark:bg-accent-bright transition-all" style={{ width: `${progress}%` }} />
               </div>
             </div>
           )}
         </div>
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
-          <button onClick={onClose} className="px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+        <div className="p-4 border-t hairline flex justify-end gap-2">
+          <button onClick={onClose} className="btn btn-ghost btn-sm">
             Cancelar
           </button>
           <button onClick={handleSubmit} disabled={!file || uploading}
-            className="px-4 py-2 text-sm bg-gray-900 hover:bg-gray-800 text-white rounded-lg disabled:opacity-50">
+            className="btn btn-primary btn-sm">
             {uploading ? 'Subiendo…' : 'Subir track'}
           </button>
         </div>
@@ -2572,6 +2612,7 @@ const UploadTrackModal = ({ tagsCatalog, onClose, onUploaded, onError }) => {
 
 // Título editable inline. Click sobre el título → input; Enter o blur guarda; Esc cancela.
 const EditableTitle = ({ jobId, value, onSaved, className = '', placeholder = 'Sin título' }) => {
+  const toast = useToast();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value || '');
   const [saving, setSaving] = useState(false);
@@ -2588,7 +2629,7 @@ const EditableTitle = ({ jobId, value, onSaved, className = '', placeholder = 'S
       await updateReelTitle(jobId, next);
       onSaved?.(next);
     } catch (e) {
-      alert(e.message);
+      toast(e.message, { type: 'danger' });
       setDraft(value || '');
     } finally {
       setSaving(false);
@@ -2610,7 +2651,7 @@ const EditableTitle = ({ jobId, value, onSaved, className = '', placeholder = 'S
           else if (e.key === 'Escape') { setDraft(value || ''); setEditing(false); }
         }}
         placeholder={placeholder}
-        className={`bg-white dark:bg-gray-900 border border-amber-500 rounded px-2 py-1 outline-none focus:ring-2 focus:ring-amber-300 ${className}`}
+        className={`bg-white dark:bg-ink-900 border border-accent dark:border-accent-bright rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-accent/40 dark:focus:ring-accent-bright/40 ${className}`}
       />
     );
   }
@@ -2619,10 +2660,10 @@ const EditableTitle = ({ jobId, value, onSaved, className = '', placeholder = 'S
       type="button"
       onClick={e => { e.stopPropagation(); setEditing(true); }}
       title="Click para renombrar"
-      className={`text-left hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded px-1 -mx-1 transition flex items-center gap-2 group ${className}`}
+      className={`text-left hover:bg-ink-100 dark:hover:bg-ink-800 rounded-lg px-1 -mx-1 transition flex items-center gap-2 group ${className}`}
     >
       <span className="truncate">{value || placeholder}</span>
-      <span className="opacity-0 group-hover:opacity-100 text-xs text-gray-400 transition">✏️</span>
+      <span className="opacity-0 group-hover:opacity-100 text-xs text-ink-400 transition">✏️</span>
     </button>
   );
 };
@@ -2632,9 +2673,9 @@ const DoneView = ({ job, onBack, onReopen, onError }) => {
   const finalDur = job.output_duration_seconds || 0;
   const removed = Math.max(0, totalDur - finalDur);
   return (
-    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
+    <div className="card p-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-        <div className="bg-black aspect-[9/16] rounded-lg overflow-hidden flex items-center justify-center">
+        <div className="bg-ink-950 aspect-[9/16] rounded-xl overflow-hidden flex items-center justify-center">
           <video
             src={job.has_music_mix && !job.music_skipped ? outputWithMusicUrl(job.id) : outputVideoUrl(job.id)}
             controls
@@ -2642,18 +2683,18 @@ const DoneView = ({ job, onBack, onReopen, onError }) => {
           />
         </div>
         <div>
-          <div className="text-xs font-medium text-emerald-700 dark:text-emerald-400 mb-1">✓ Reel listo</div>
+          <span className="eyebrow mb-2">Reel listo</span>
           <EditableTitle
             jobId={job.id}
             value={job.title || 'Tu reel'}
             onSaved={onReopen /* refresca el job */}
-            className="text-2xl font-semibold text-gray-900 dark:text-white mb-3 block w-full"
+            className="font-display text-2xl font-semibold tracking-tight mb-3 block w-full"
           />
-          <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1 mb-4">
-            <div><span className="text-gray-400">Original:</span> {fmtTime(totalDur)}</div>
-            <div><span className="text-gray-400">Final:</span> {fmtTime(finalDur)}</div>
+          <div className="text-sm text-ink-500 dark:text-ink-400 space-y-1 mb-4">
+            <div><span className="text-ink-400 dark:text-ink-500">Original:</span> <span className="timecode">{fmtTime(totalDur)}</span></div>
+            <div><span className="text-ink-400 dark:text-ink-500">Final:</span> <span className="timecode">{fmtTime(finalDur)}</span></div>
             {removed > 0.5 && (
-              <div className="text-rose-700 dark:text-rose-400">
+              <div className="text-danger dark:text-danger-bright">
                 −{Math.round(removed)}s de silencios eliminados
               </div>
             )}
@@ -2661,7 +2702,7 @@ const DoneView = ({ job, onBack, onReopen, onError }) => {
           <div className="flex flex-wrap gap-2">
             <a
               href={downloadUrl(job.id)}
-              className="px-4 py-2 bg-gradient-to-r from-amber-600 to-rose-600 hover:from-amber-700 hover:to-rose-700 text-white rounded-lg font-medium text-sm"
+              className="btn btn-accent btn-sm"
             >
               Descargar MP4
             </a>
@@ -2672,13 +2713,13 @@ const DoneView = ({ job, onBack, onReopen, onError }) => {
                   onReopen();
                 } catch (e) { onError?.(e.message); }
               }}
-              className="px-4 py-2 bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/30 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700/50 rounded-lg text-sm"
+              className="btn btn-ghost btn-sm"
             >
               ← Volver a editar
             </button>
             <button
               onClick={onBack}
-              className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg text-sm"
+              className="btn btn-ghost btn-sm"
             >
               Subir otro video
             </button>
@@ -2691,18 +2732,18 @@ const DoneView = ({ job, onBack, onReopen, onError }) => {
 
 const JobsList = ({ jobs, activeId, onSelect, onDelete, onTitleChanged }) => (
   <section>
-    <h3 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-3">Historial</h3>
+    <h3 className="mb-3"><span className="eyebrow">Historial</span></h3>
     <div className="space-y-2">
       {jobs.map(j => (
-        <div key={j.id} className={`bg-white dark:bg-gray-800 border rounded-lg px-4 py-3 flex items-center gap-3 ${activeId === j.id ? 'border-amber-500' : 'border-gray-200 dark:border-gray-700'}`}>
+        <div key={j.id} className={`bg-white dark:bg-ink-850 border rounded-2xl px-4 py-3 flex items-center gap-3 ${activeId === j.id ? 'border-accent dark:border-accent-bright' : 'border-ink-200 dark:border-ink-700'}`}>
           <div className="flex-1 min-w-0">
             <EditableTitle
               jobId={j.id}
               value={j.title || j.source_filename || 'Sin título'}
               onSaved={() => onTitleChanged?.()}
-              className="font-medium text-sm text-gray-900 dark:text-white truncate max-w-full"
+              className="font-medium text-sm truncate max-w-full"
             />
-            <button onClick={() => onSelect(j.id)} className="text-xs text-gray-500 mt-0.5 hover:text-amber-700 dark:hover:text-amber-400 text-left block">
+            <button onClick={() => onSelect(j.id)} className="text-xs text-ink-500 dark:text-ink-400 mt-0.5 hover:text-accent dark:hover:text-accent-bright text-left block transition-colors">
               {statusLabel(j.status)} · {j.duration_seconds ? fmtTime(j.duration_seconds) : '—'}
               {j.output_duration_seconds ? ` → ${fmtTime(j.output_duration_seconds)}` : ''}
               · {new Date(j.created_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })}
@@ -2710,7 +2751,7 @@ const JobsList = ({ jobs, activeId, onSelect, onDelete, onTitleChanged }) => (
           </div>
           <button
             onClick={() => onDelete(j.id)}
-            className="text-xs text-gray-400 hover:text-rose-600"
+            className="text-xs text-ink-400 hover:text-danger dark:hover:text-danger-bright transition-colors"
             title="Eliminar este reel"
           >
             ✕

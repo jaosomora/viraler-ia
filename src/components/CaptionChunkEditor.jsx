@@ -35,7 +35,7 @@ const CaptionChunkEditor = ({ chunks, overrides, onChange, onSeek }) => {
 
   if (!chunks || chunks.length === 0) {
     return (
-      <div className="text-[11px] text-gray-500 dark:text-gray-400 italic px-3 py-4">
+      <div className="text-[11px] text-ink-500 dark:text-ink-400 italic px-3 py-4">
         Aún no hay subtítulos generados para este clip.
       </div>
     );
@@ -52,19 +52,19 @@ const CaptionChunkEditor = ({ chunks, overrides, onChange, onSeek }) => {
         return (
           <div
             key={c.idx}
-            className={`flex items-center gap-2 group rounded-md px-2 py-1.5 border transition ${
+            className={`flex items-center gap-2 group rounded-lg px-2 py-1.5 border transition-colors ${
               isHidden
-                ? 'opacity-40 bg-gray-100 dark:bg-gray-800/50 border-gray-200 dark:border-gray-800'
+                ? 'opacity-40 bg-ink-100 dark:bg-ink-900/50 border-ink-200 dark:border-ink-700'
                 : isEdited
-                  ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800/50'
-                  : 'bg-gray-50 dark:bg-gray-800/30 border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700'
+                  ? 'bg-accent-soft/70 dark:bg-accent-deep/70 border-accent/30 dark:border-accent-bright/30'
+                  : 'bg-ink-100/50 dark:bg-ink-900/40 border-ink-200 dark:border-ink-700 hover:border-ink-300 dark:hover:border-ink-600'
             }`}
           >
             <button
               type="button"
               onClick={() => onSeek?.(c.start)}
               title="Ir a este momento del video"
-              className="text-[10px] font-mono text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 px-1 py-0.5 shrink-0 tabular-nums"
+              className="text-[10px] font-mono text-ink-400 dark:text-ink-500 hover:text-accent dark:hover:text-accent-bright px-1 py-0.5 shrink-0 tabular-nums"
             >
               {fmt(c.start)}
             </button>
@@ -73,14 +73,14 @@ const CaptionChunkEditor = ({ chunks, overrides, onChange, onSeek }) => {
               value={text}
               onChange={e => update(c.idx, { text: e.target.value })}
               disabled={isHidden}
-              className="flex-1 bg-transparent border-0 focus:ring-0 focus:outline-none text-sm text-gray-900 dark:text-white px-1 disabled:line-through"
+              className="flex-1 bg-transparent border-0 focus:ring-0 focus:outline-none text-sm text-ink-950 dark:text-paper px-1 disabled:line-through"
             />
             {isEdited && !isHidden && (
               <button
                 type="button"
                 onClick={() => reset(c.idx)}
                 title="Restablecer al texto original"
-                className="text-[10px] text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 opacity-0 group-hover:opacity-100"
+                className="text-[10px] text-ink-400 hover:text-ink-950 dark:hover:text-paper opacity-0 group-hover:opacity-100"
               >
                 ↺
               </button>
@@ -91,8 +91,8 @@ const CaptionChunkEditor = ({ chunks, overrides, onChange, onSeek }) => {
               title={isHidden ? 'Mostrar este subtítulo' : 'Ocultar este subtítulo'}
               className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 ${
                 isHidden
-                  ? 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'
-                  : 'text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100'
+                  ? 'text-ink-500 hover:text-ink-950 dark:hover:text-paper'
+                  : 'text-ink-400 hover:text-danger dark:hover:text-danger-bright opacity-0 group-hover:opacity-100'
               }`}
             >
               {isHidden ? '👁' : '🚫'}

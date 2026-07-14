@@ -8,6 +8,31 @@ ordenado por fecha descendente. Para detalles del MCP server ver `docs/MCP.md`.
 
 ---
 
+## 2026-07-13 — Rebranding visual completo: sistema "Sala de edición"
+
+Rebrand de toda la capa visual del frontend para alinear la app con la marca real de
+algosentido.com y poder venderla a clientes del estudio. Solo UI — cero cambios de lógica,
+endpoints o pipeline de render. Dirección aprobada: dark-first ("la app vive en oscuro como
+una suite de edición"), tinta cálida + azul de marca como única luz de señal.
+
+- **Sistema de diseño nuevo** documentado en `docs/DESIGN.md`: tokens `ink/paper/accent/ok/warn/danger`
+  en `tailwind.config.js`, primitivas CSS (`.btn` pills, `.card`, `.input`, `.chip`, `.eyebrow`,
+  `.timecode`) en `src/index.css`. Tipografía: Inter (cuerpo) + Archivo (display, ya self-hosteada)
+  + mono tabular para timecodes/costos.
+- **Identidad**: wordmark `AlgoSentido · Estudio` (componente `Wordmark.jsx`, "Sentido" en azul),
+  favicon SVG real (flecha azul sobre tinta — el anterior tenía 0 bytes), título "Algo Sentido · Estudio".
+- **Dark-first sin parpadeo**: script anti-FOUC en `index.html`; oscuro por defecto, claro opt-in;
+  toggle también en el login.
+- **Feedback de la casa**: `src/components/ui/feedback.jsx` (FeedbackProvider + `useToast` +
+  `useConfirm`) reemplaza todos los `alert()`/`confirm()` nativos del navegador.
+- **Todas las páginas y componentes** migrados al sistema: hub, login, transcribir, convertir,
+  clips (incl. editor), reels cleaner, ideas, secretos, resultados, admin, 404. Fuera los 6
+  gradientes por herramienta y el morado Tailwind genérico. Las superficies de video quedan
+  siempre en oscuro (se edita video sobre oscuro), en ambos temas.
+- **Intocado**: overlay WYSIWYG de captions, `captionTemplates.js`, `FONT_CATALOG`, `@font-face`
+  block, y todo el backend. Paletas de subtítulos = contenido del usuario, no UI.
+- MCP: no aplica (cambio 100% visual de frontend).
+
 ## 2026-05-20 — Reels Cleaner: conexión visible entre etiquetas y curación de catálogo
 
 Bug de UX: cuando el usuario marca tags en el TagsPicker, esas etiquetas filtran la lista local Y también determinan qué se descarga al pulsar "+ Ampliar catálogo". La conexión solo estaba dicha en una línea de helper text que casi nadie leía. Y la sugerencia IA tampoco se veía si había tags activos.

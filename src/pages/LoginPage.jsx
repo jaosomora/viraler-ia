@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import Wordmark from '../components/Wordmark';
+
+const MODES = [
+  { id: 'login', label: 'Iniciar sesión' },
+  { id: 'magic', label: 'Magic link' },
+  { id: 'register', label: 'Registrarse' },
+];
 
 const LoginPage = () => {
   const [mode, setMode] = useState('login');
@@ -9,7 +16,17 @@ const LoginPage = () => {
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [magicSent, setMagicSent] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(
+    localStorage.getItem('darkMode') !== 'false'
+  );
   const { login, register, requestMagicLink } = useAuth();
+
+  const toggleDarkMode = () => {
+    const next = !isDarkMode;
+    setIsDarkMode(next);
+    document.documentElement.classList.toggle('dark', next);
+    localStorage.setItem('darkMode', next);
+  };
 
   const switchMode = (next) => {
     setMode(next);
@@ -44,71 +61,69 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
+    <div className="min-h-screen flex items-center justify-center px-4 py-10 relative">
+      <button
+        onClick={toggleDarkMode}
+        className="absolute top-5 right-5 p-2 rounded-full text-ink-500 dark:text-ink-400 hover:bg-ink-100 dark:hover:bg-ink-800 transition-colors"
+        aria-label="Cambiar tema"
+      >
+        {isDarkMode ? (
+          <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+        ) : (
+          <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+          </svg>
+        )}
+      </button>
+
       <div className="w-full max-w-md">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 flex items-center justify-center text-white text-3xl font-bold mb-4">
-            AS
-          </div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
-            Algo Sentido Tools
-          </h1>
-          <p className="mt-2 text-gray-500 dark:text-gray-400">
-            Registrate para usar las herramientas de Algo Sentido. Tus transcripciones, conversiones y secretos quedan asociados a tu cuenta y disponibles desde cualquier dispositivo.
+        {/* Marca */}
+        <div className="text-center mb-8 flex flex-col items-center gap-3">
+          <Wordmark size="lg" />
+          <p className="text-ink-500 dark:text-ink-400 text-sm max-w-sm">
+            Las herramientas del estudio para crear tu contenido: transcripción, clips,
+            reels limpios e ideas con tu voz. Tu trabajo queda en tu cuenta, disponible
+            desde cualquier dispositivo.
           </p>
         </div>
 
         {/* Card */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
-          {/* Tabs */}
-          <div className="flex mb-6 border-b border-gray-200 dark:border-gray-700">
-            <button
-              type="button"
-              onClick={() => switchMode('login')}
-              className={`flex-1 py-2 text-sm font-medium text-center border-b-2 transition ${
-                mode === 'login'
-                  ? 'border-purple-600 text-purple-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-              }`}
-            >
-              Iniciar Sesion
-            </button>
-            <button
-              type="button"
-              onClick={() => switchMode('magic')}
-              className={`flex-1 py-2 text-sm font-medium text-center border-b-2 transition ${
-                mode === 'magic'
-                  ? 'border-purple-600 text-purple-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-              }`}
-            >
-              Magic Link
-            </button>
-            <button
-              type="button"
-              onClick={() => switchMode('register')}
-              className={`flex-1 py-2 text-sm font-medium text-center border-b-2 transition ${
-                mode === 'register'
-                  ? 'border-purple-600 text-purple-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-              }`}
-            >
-              Registrarse
-            </button>
+        <div className="card p-6">
+          {/* Selector de modo */}
+          <div className="flex gap-1 mb-6 p-1 rounded-full bg-ink-100 dark:bg-ink-900">
+            {MODES.map(({ id, label }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => switchMode(id)}
+                className={`flex-1 py-1.5 px-2 text-xs sm:text-sm font-semibold text-center rounded-full transition-colors ${
+                  mode === id
+                    ? 'bg-white dark:bg-ink-850 text-ink-950 dark:text-paper shadow-sm'
+                    : 'text-ink-500 dark:text-ink-400 hover:text-ink-950 dark:hover:text-paper'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
 
           {magicSent ? (
-            <div className="space-y-3 text-center">
-              <div className="text-4xl">📧</div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Revisa tu correo</h2>
-              <p className="text-sm text-gray-600 dark:text-gray-300">
-                Si tu email está registrado, te enviamos un link para entrar. Caduca en 15 minutos.
+            <div className="space-y-3 text-center py-2">
+              <span className="eyebrow">Revisa tu correo</span>
+              <h2 className="font-display text-lg font-semibold tracking-tight">
+                Te enviamos el acceso
+              </h2>
+              <p className="text-sm text-ink-500 dark:text-ink-400">
+                Si tu email está registrado, recibirás un link para entrar. Caduca en 15 minutos.
               </p>
               <button
                 type="button"
                 onClick={() => switchMode('login')}
-                className="text-sm text-purple-600 dark:text-purple-400 hover:underline"
+                className="link-accent text-sm font-medium"
               >
                 Volver
               </button>
@@ -117,7 +132,7 @@ const LoginPage = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === 'register' && (
               <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label htmlFor="name" className="form-label">
                   Nombre
                 </label>
                 <input
@@ -126,14 +141,14 @@ const LoginPage = () => {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Tu nombre"
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="input"
                   disabled={isSubmitting}
                 />
               </div>
             )}
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="email" className="form-label">
                 Email
               </label>
               <input
@@ -142,7 +157,7 @@ const LoginPage = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="tu@email.com"
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="input"
                 disabled={isSubmitting}
                 required
               />
@@ -150,16 +165,16 @@ const LoginPage = () => {
 
             {mode !== 'magic' && (
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Contrasena
+                <label htmlFor="password" className="form-label">
+                  Contraseña
                 </label>
                 <input
                   id="password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Minimo 6 caracteres"
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="Mínimo 6 caracteres"
+                  className="input"
                   disabled={isSubmitting}
                   required
                   minLength={6}
@@ -168,29 +183,29 @@ const LoginPage = () => {
             )}
 
             {mode === 'magic' && (
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Te enviaremos un link para entrar sin contraseña. Útil si la olvidaste.
+              <p className="text-sm text-ink-500 dark:text-ink-400">
+                Te enviamos un link para entrar sin contraseña. Útil si la olvidaste.
               </p>
             )}
 
             {error && (
-              <div className="p-3 bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg">
-                <p className="text-red-700 dark:text-red-300 text-sm">{error}</p>
+              <div className="p-3 rounded-xl bg-danger-soft dark:bg-danger-deep border border-danger/30 dark:border-danger-bright/30">
+                <p className="text-danger dark:text-danger-bright text-sm">{error}</p>
               </div>
             )}
 
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-3 px-4 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition duration-300 disabled:opacity-70"
+              className="btn btn-accent w-full"
             >
               {isSubmitting
-                ? 'Procesando...'
+                ? 'Procesando…'
                 : mode === 'login'
-                  ? 'Iniciar Sesion'
+                  ? 'Entrar al estudio →'
                   : mode === 'magic'
-                    ? 'Enviar link'
-                    : 'Crear Cuenta'}
+                    ? 'Enviar link →'
+                    : 'Crear cuenta →'}
             </button>
           </form>
           )}

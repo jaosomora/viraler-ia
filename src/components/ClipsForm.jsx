@@ -67,51 +67,51 @@ const ClipsForm = () => {
   ));
 
   return (
-    <details open className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
-      <summary className="px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 list-none">
-        <div className="flex items-center gap-3">
-          <span className="w-8 h-8 rounded-lg bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold">1</span>
-          <span className="font-semibold text-gray-900 dark:text-white">Generar nuevos clips</span>
+    <details open className="card overflow-hidden">
+      <summary className="px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-ink-100/60 dark:hover:bg-ink-800/40 transition-colors list-none">
+        <div className="flex flex-col gap-1">
+          <span className="eyebrow">Paso 1 · Configuración</span>
+          <span className="font-display font-semibold tracking-tight">Generar nuevos clips</span>
         </div>
-        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/></svg>
+        <svg className="w-5 h-5 text-ink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/></svg>
       </summary>
 
-      <form onSubmit={handleSubmit} className="p-6 border-t border-gray-200 dark:border-gray-700 grid lg:grid-cols-3 gap-6">
+      <form onSubmit={handleSubmit} className="p-6 border-t hairline grid lg:grid-cols-3 gap-6">
         {/* Columna izquierda: fuente + dropdowns (2/3) */}
         <div className="lg:col-span-2 space-y-4">
           {/* Modo de selección: Auto (IA) vs Manual (yo elijo) */}
           <div>
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">¿Quién elige qué va en los clips?</label>
+            <label className="form-label">¿Quién elige qué va en los clips?</label>
             <div className="grid grid-cols-2 gap-2">
               <button type="button" onClick={() => setSelectionMode('auto')}
-                className={`text-left border rounded-lg px-3 py-2.5 transition ${selectionMode === 'auto' ? 'border-purple-500 bg-purple-500/10' : 'border-gray-300 dark:border-gray-700 hover:border-gray-400'}`}>
-                <div className="text-sm font-medium text-gray-900 dark:text-white">✨ Automático <span className="text-[10px] uppercase tracking-wide text-purple-600 dark:text-purple-400 ml-1">IA</span></div>
-                <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">La IA segmenta por capítulos y elige los mejores momentos.</div>
+                className={`text-left border rounded-xl px-3 py-2.5 transition-colors ${selectionMode === 'auto' ? 'border-accent dark:border-accent-bright bg-accent-soft dark:bg-accent-deep' : 'border-ink-200 dark:border-ink-700 hover:border-ink-300 dark:hover:border-ink-600'}`}>
+                <div className="text-sm font-medium text-ink-950 dark:text-paper">✨ Automático <span className="text-[10px] uppercase tracking-wide text-accent dark:text-accent-bright ml-1">IA</span></div>
+                <div className="text-[11px] text-ink-500 dark:text-ink-400 mt-0.5">La IA segmenta por capítulos y elige los mejores momentos.</div>
               </button>
               <button type="button" onClick={() => setSelectionMode('manual')}
-                className={`text-left border rounded-lg px-3 py-2.5 transition ${selectionMode === 'manual' ? 'border-purple-500 bg-purple-500/10' : 'border-gray-300 dark:border-gray-700 hover:border-gray-400'}`}>
-                <div className="text-sm font-medium text-gray-900 dark:text-white">✂️ Yo elijo</div>
-                <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Te muestro la transcripción y marcas los fragmentos que quieres como clips.</div>
+                className={`text-left border rounded-xl px-3 py-2.5 transition-colors ${selectionMode === 'manual' ? 'border-accent dark:border-accent-bright bg-accent-soft dark:bg-accent-deep' : 'border-ink-200 dark:border-ink-700 hover:border-ink-300 dark:hover:border-ink-600'}`}>
+                <div className="text-sm font-medium text-ink-950 dark:text-paper">✂️ Yo elijo</div>
+                <div className="text-[11px] text-ink-500 dark:text-ink-400 mt-0.5">Te muestro la transcripción y marcas los fragmentos que quieres como clips.</div>
               </button>
             </div>
             {selectionMode === 'manual' && (
-              <label className="flex items-center gap-2 mt-2 cursor-pointer text-xs text-gray-700 dark:text-gray-300">
+              <label className="flex items-center gap-2 mt-2 cursor-pointer text-xs text-ink-500 dark:text-ink-400">
                 <input type="checkbox" checked={hookAutoEnabled} onChange={e => setHookAutoEnabled(e.target.checked)}
-                  className="accent-purple-500" />
+                  className="accent-accent dark:accent-accent-bright" />
                 <span>Que la IA genere gancho, nota y hashtags para cada fragmento</span>
               </label>
             )}
           </div>
 
           <div>
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">Fuente del video</label>
-            <div className="flex gap-2 mb-3">
+            <label className="form-label">Fuente del video</label>
+            <div className="flex gap-1 mb-3 p-1 rounded-full bg-ink-100 dark:bg-ink-900">
               <button type="button" onClick={() => setMode('url')}
-                className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition ${mode === 'url' ? 'bg-purple-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
+                className={`flex-1 py-1.5 px-4 text-sm font-semibold text-center rounded-full transition-colors ${mode === 'url' ? 'bg-white dark:bg-ink-850 text-ink-950 dark:text-paper shadow-sm' : 'text-ink-500 dark:text-ink-400 hover:text-ink-950 dark:hover:text-paper'}`}>
                 URL
               </button>
               <button type="button" onClick={() => setMode('file')}
-                className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition ${mode === 'file' ? 'bg-purple-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
+                className={`flex-1 py-1.5 px-4 text-sm font-semibold text-center rounded-full transition-colors ${mode === 'file' ? 'bg-white dark:bg-ink-850 text-ink-950 dark:text-paper shadow-sm' : 'text-ink-500 dark:text-ink-400 hover:text-ink-950 dark:hover:text-paper'}`}>
                 Subir archivo
               </button>
             </div>
@@ -119,17 +119,17 @@ const ClipsForm = () => {
               <>
                 <input type="url" value={url} onChange={(e) => setUrl(e.target.value)}
                   placeholder="https://www.youtube.com/watch?v=…"
-                  className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2.5 text-sm text-gray-900 dark:text-gray-100 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  className="input"
                   disabled={isGenerating} />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">YouTube · Instagram · TikTok · Facebook · máx 60 minutos</p>
+                <p className="text-xs text-ink-500 dark:text-ink-400 mt-1.5">YouTube · Instagram · TikTok · Facebook · máx 60 minutos</p>
               </>
             ) : (
               <>
                 <input type="file" accept="video/mp4,video/quicktime,video/x-matroska,video/webm"
                   onChange={(e) => setFile(e.target.files[0])}
-                  className="w-full text-sm text-gray-700 dark:text-gray-300 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-purple-50 dark:file:bg-purple-900/30 file:text-purple-700 dark:file:text-purple-300"
+                  className="w-full text-sm text-ink-500 dark:text-ink-400 file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:cursor-pointer file:bg-accent-soft dark:file:bg-accent-deep file:text-accent dark:file:text-accent-bright"
                   disabled={isGenerating} />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">MP4, MOV, MKV, WEBM · máx 1GB</p>
+                <p className="text-xs text-ink-500 dark:text-ink-400 mt-1.5">MP4, MOV, MKV, WEBM · máx 1GB</p>
               </>
             )}
           </div>
@@ -137,9 +137,9 @@ const ClipsForm = () => {
           <div className={`grid gap-4 ${selectionMode === 'auto' ? 'grid-cols-2' : 'grid-cols-1'}`}>
             {selectionMode === 'auto' && (
               <div>
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">Cantidad de clips</label>
+                <label className="form-label">Cantidad de clips</label>
                 <select value={clipCount} onChange={e => setClipCount(e.target.value)}
-                  className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-100">
+                  className="input">
                   <option value="auto">Auto (decide la IA)</option>
                   <option value="3">3 clips</option>
                   <option value="5">5 clips</option>
@@ -148,9 +148,9 @@ const ClipsForm = () => {
               </div>
             )}
             <div>
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">Resolución de salida</label>
+              <label className="form-label">Resolución de salida</label>
               <select value={defaultResolution} onChange={e => setDefaultResolution(e.target.value)}
-                className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-100">
+                className="input">
                 {RESOLUTIONS.map(r => (
                   <option key={r.id} value={r.id}>{r.label}</option>
                 ))}
@@ -159,7 +159,7 @@ const ClipsForm = () => {
           </div>
 
           <div>
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">Formato</label>
+            <label className="form-label">Formato</label>
             <div className="grid grid-cols-3 gap-2">
               {[
                 { id: '9:16', label: '9:16', sub: 'IG / TikTok' },
@@ -167,8 +167,8 @@ const ClipsForm = () => {
                 { id: '4:5', label: '4:5', sub: 'Feed vertical' },
               ].map(a => (
                 <button key={a.id} type="button" onClick={() => setAspectRatio(a.id)}
-                  className={`border rounded-lg px-3 py-2 text-center transition ${aspectRatio === a.id ? 'border-purple-500 bg-purple-500/10 text-purple-700 dark:text-purple-300' : 'border-gray-300 dark:border-gray-700 hover:border-gray-400 text-gray-700 dark:text-gray-300'}`}>
-                  <div className="text-sm font-medium">{a.label}</div>
+                  className={`border rounded-xl px-3 py-2 text-center transition-colors ${aspectRatio === a.id ? 'border-accent dark:border-accent-bright bg-accent-soft dark:bg-accent-deep text-accent dark:text-accent-bright' : 'border-ink-200 dark:border-ink-700 hover:border-ink-300 dark:hover:border-ink-600 text-ink-500 dark:text-ink-400'}`}>
+                  <div className="text-sm font-semibold">{a.label}</div>
                   <div className="text-[10px] opacity-70">{a.sub}</div>
                 </button>
               ))}
@@ -178,46 +178,46 @@ const ClipsForm = () => {
 
         {/* Columna derecha: tipografías + botón (1/3) */}
         <div className="space-y-4">
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block">Tipografías</label>
+          <label className="form-label">Tipografías</label>
 
-          <div className="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-3">
+          <div className="bg-ink-100 dark:bg-ink-900 border hairline rounded-xl p-3 space-y-3">
             <label className="flex items-start gap-2 cursor-pointer">
-              <input type="radio" name="font-mode" checked={fontPresetMode === 'auto'} onChange={() => setFontPresetMode('auto')} className="mt-0.5 accent-purple-500" />
+              <input type="radio" name="font-mode" checked={fontPresetMode === 'auto'} onChange={() => setFontPresetMode('auto')} className="mt-0.5 accent-accent dark:accent-accent-bright" />
               <div className="flex-1">
-                <div className="text-sm font-medium text-gray-900 dark:text-white">Auto · Recomendado</div>
-                <div className="text-[11px] text-gray-500 dark:text-gray-400">Anton + Inter SemiBold + Montserrat Bold</div>
+                <div className="text-sm font-medium text-ink-950 dark:text-paper">Auto · Recomendado</div>
+                <div className="text-[11px] text-ink-500 dark:text-ink-400">Anton + Inter SemiBold + Montserrat Bold</div>
               </div>
             </label>
 
             <label className="flex items-start gap-2 cursor-pointer">
-              <input type="radio" name="font-mode" checked={fontPresetMode === 'role'} onChange={() => setFontPresetMode('role')} className="mt-0.5 accent-purple-500" />
-              <div className="flex-1"><div className="text-sm text-gray-900 dark:text-white">Elegir una fuente por rol</div><div className="text-[11px] text-gray-500 dark:text-gray-400">Gancho, cuerpo y palabras destacadas por separado.</div></div>
+              <input type="radio" name="font-mode" checked={fontPresetMode === 'role'} onChange={() => setFontPresetMode('role')} className="mt-0.5 accent-accent dark:accent-accent-bright" />
+              <div className="flex-1"><div className="text-sm text-ink-950 dark:text-paper">Elegir una fuente por rol</div><div className="text-[11px] text-ink-500 dark:text-ink-400">Gancho, cuerpo y palabras destacadas por separado.</div></div>
             </label>
             {fontPresetMode === 'role' && (
               <div className="space-y-2 pl-6">
                 <select value={fontHook} onChange={e => setFontHook(e.target.value)}
-                  className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded px-2 py-1.5 text-xs">
+                  className="input px-2 py-1.5 text-xs dark:bg-ink-850">
                   {fontOpts('hook')}
                 </select>
                 <select value={fontCaption} onChange={e => setFontCaption(e.target.value)}
-                  className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded px-2 py-1.5 text-xs">
+                  className="input px-2 py-1.5 text-xs dark:bg-ink-850">
                   {fontOpts('caption')}
                 </select>
                 <select value={fontKeyword} onChange={e => setFontKeyword(e.target.value)}
-                  className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded px-2 py-1.5 text-xs">
+                  className="input px-2 py-1.5 text-xs dark:bg-ink-850">
                   {fontOpts('keyword')}
                 </select>
               </div>
             )}
 
             <label className="flex items-start gap-2 cursor-pointer">
-              <input type="radio" name="font-mode" checked={fontPresetMode === 'single'} onChange={() => setFontPresetMode('single')} className="mt-0.5 accent-purple-500" />
-              <div className="flex-1"><div className="text-sm text-gray-900 dark:text-white">Una sola fuente</div><div className="text-[11px] text-gray-500 dark:text-gray-400">La misma tipografía para todo.</div></div>
+              <input type="radio" name="font-mode" checked={fontPresetMode === 'single'} onChange={() => setFontPresetMode('single')} className="mt-0.5 accent-accent dark:accent-accent-bright" />
+              <div className="flex-1"><div className="text-sm text-ink-950 dark:text-paper">Una sola fuente</div><div className="text-[11px] text-ink-500 dark:text-ink-400">La misma tipografía para todo.</div></div>
             </label>
             {fontPresetMode === 'single' && (
               <div className="pl-6">
                 <select value={singleFont} onChange={e => setSingleFont(e.target.value)}
-                  className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded px-2 py-1.5 text-xs">
+                  className="input px-2 py-1.5 text-xs dark:bg-ink-850">
                   {allFonts.map(f => (
                     <option key={f.id} value={f.id} style={{ fontFamily: f.familyName || f.name, fontWeight: f.weight || 400 }}>
                       {f.name}
@@ -229,23 +229,23 @@ const ClipsForm = () => {
           </div>
 
           {error && (
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 rounded-lg px-3 py-2 text-xs">
+            <div className="rounded-xl bg-danger-soft dark:bg-danger-deep border border-danger/30 dark:border-danger-bright/30 text-danger dark:text-danger-bright px-3 py-2 text-xs">
               {error}
             </div>
           )}
 
           <button type="submit"
             disabled={isGenerating || (mode === 'url' ? !url.trim() : !file)}
-            className="w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-semibold text-white text-sm">
+            className="btn btn-accent w-full">
             {isGenerating
               ? (uploadProgress
                   ? `Subiendo… ${Math.round(uploadProgress.pct * 100)}% (${(uploadProgress.loaded / 1024 / 1024).toFixed(1)}/${(uploadProgress.total / 1024 / 1024).toFixed(1)} MB)`
                   : 'Procesando…')
-              : '✨ Generar clips'}
+              : 'Generar clips →'}
           </button>
           {isGenerating && uploadProgress && (
-            <div className="h-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden -mt-1">
-              <div className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 transition-all duration-200"
+            <div className="h-1.5 bg-ink-200 dark:bg-ink-700 rounded-full overflow-hidden -mt-1">
+              <div className="h-full bg-accent dark:bg-accent-bright transition-all duration-200"
                    style={{ width: `${Math.round(uploadProgress.pct * 100)}%` }} />
             </div>
           )}

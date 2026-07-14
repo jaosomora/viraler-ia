@@ -1,11 +1,10 @@
 - [Julian - Owner](user_julian.md) — Owner de AS Transcribe (Algo Sentido), trabaja desde múltiples dispositivos
 - [Push main+develop](feedback_push_always.md) — Siempre push a ambas ramas después de commit
 - [Claude config en git](feedback_claude_config_in_git.md) — Todo versionado para portabilidad entre máquinas
-- [Worktree .env](feedback_worktree_env.md) — Copiar .env del repo principal al worktree antes de levantar dev
-- [Branch por trabajo](feedback_branch_por_trabajo.md) — Cada trabajo nuevo parte de main + reportar la ruta del worktree
 - [Estilo directo](feedback_direct_style.md) — Ejecutar primero, explicar después, sin rodeos
 - [Simplicidad](feedback_simplicity.md) — Si no se usa, se elimina. No agregar features especulativas
-- [Estética AS Clips](feedback_clips_aesthetic.md) — Editorial elegante, NO Opus Clip neón. Filtro para templates/colores/fuentes
+- [AdminPanel refleja costos reales](feedback_admin_panel_costs.md) — Toda herramienta con costo externo se enchufa en AdminPanel (Resumen + Modelos + Historial + tab propio) en el mismo commit
+- [No usar español argentino](feedback_no_argentine_spanish.md) — Nada de voseo en chat, UI, prompts, copy ni docs. Usar tú/tienes/haces (neutro/colombiano)
 - [Estado AS Transcribe v2.1](project_viralai_state.md) — React+Express+SQLite, auth JWT, deploy en Render
-- [AS Clips - Estado y pendientes](project_clips_pending.md) — Lo que ya está hecho (no proponer de nuevo) + pendientes priorizados
+- [Rebrand Sala de edición](project_rebrand_sala_edicion.md) — Dark-first aprobado 2026-07-13, docs/DESIGN.md es la ley, wordmark AlgoSentido·Estudio
 - [Render deploy](reference_render_deploy.md) — Docker, /opt/data, env vars necesarias

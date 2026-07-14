@@ -1,225 +1,139 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import Wordmark from './Wordmark';
+
+const NAV_LINKS = [
+  { to: '/transcribir', label: 'Transcribir' },
+  { to: '/clips', label: 'Clips' },
+  { to: '/reels-cleaner', label: 'Reels Cleaner' },
+  { to: '/mapa-de-ideas', label: 'Ideas' },
+  { to: '/convertir', label: 'Convertir' },
+  { to: '/mis-resultados', label: 'Mis Resultados' },
+];
 
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
+  // Dark-first: oscuro salvo que el usuario haya elegido claro explícitamente
   const [isDarkMode, setIsDarkMode] = useState(
-    localStorage.getItem('darkMode') === 'true' || 
-    window.matchMedia('(prefers-color-scheme: dark)').matches
+    localStorage.getItem('darkMode') !== 'false'
   );
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
   const { user, isOwner, logout } = useAuth();
 
-  // Detectar scroll para cambiar estilo del header
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 10);
     };
-    
     window.addEventListener('scroll', handleScroll);
-    
     return () => {
       window.removeEventListener('scroll', handleScroll);
     };
   }, []);
 
-  // Manejar cambios en el modo oscuro
   useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-    
+    document.documentElement.classList.toggle('dark', isDarkMode);
     localStorage.setItem('darkMode', isDarkMode);
   }, [isDarkMode]);
 
-  // Alternar modo oscuro
   const toggleDarkMode = () => {
     setIsDarkMode(!isDarkMode);
   };
 
-  // Verificar si un enlace está activo
-  const isActive = (path) => {
-    return location.pathname === path;
-  };
+  const isActive = (path) => location.pathname === path;
+
+  const desktopLinkClass = (path) =>
+    `text-sm font-medium transition-colors ${
+      isActive(path)
+        ? 'text-accent dark:text-accent-bright'
+        : 'text-ink-500 dark:text-ink-400 hover:text-ink-950 dark:hover:text-paper'
+    }`;
+
+  const mobileLinkClass = (path) =>
+    `block py-2 px-4 rounded-xl text-sm font-medium transition-colors ${
+      isActive(path)
+        ? 'bg-accent-soft dark:bg-accent-deep text-accent dark:text-accent-bright'
+        : 'text-ink-500 dark:text-ink-400 hover:bg-ink-100 dark:hover:bg-ink-800'
+    }`;
+
+  const themeIcon = isDarkMode ? (
+    <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+        d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+    </svg>
+  ) : (
+    <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+        d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+    </svg>
+  );
 
   return (
     <header
       className={`sticky top-0 z-50 transition-all duration-300 ${
-        isScrolled ? 'bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg shadow-sm' : 'bg-transparent'
+        isScrolled
+          ? 'bg-ink-50/85 dark:bg-ink-950/85 backdrop-blur-lg border-b border-ink-200 dark:border-ink-700'
+          : 'bg-transparent border-b border-transparent'
       }`}
     >
       <div className="container mx-auto px-4 py-4">
         <div className="flex justify-between items-center">
-          {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 flex items-center justify-center text-white font-bold">
-              AS
-            </div>
-            <span className="text-xl font-bold">AS Tools</span>
+          {/* Wordmark */}
+          <Link to="/" aria-label="Ir al inicio" className="shrink-0">
+            <Wordmark size="md" />
           </Link>
 
           {/* Navigation - Desktop */}
-          <nav className="hidden md:flex items-center space-x-8">
-  <Link
-    to="/transcribir"
-    className={`font-medium transition ${
-      isActive('/transcribir')
-        ? 'text-purple-600 dark:text-purple-400'
-        : 'text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400'
-    }`}
-  >
-    Transcribir
-  </Link>
-  <Link
-    to="/clips"
-    className={`font-medium transition ${
-      isActive('/clips')
-        ? 'text-purple-600 dark:text-purple-400'
-        : 'text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400'
-    }`}
-  >
-    Clips
-  </Link>
-  <Link
-    to="/reels-cleaner"
-    className={`font-medium transition ${
-      isActive('/reels-cleaner')
-        ? 'text-purple-600 dark:text-purple-400'
-        : 'text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400'
-    }`}
-  >
-    Reels Cleaner
-  </Link>
-  <Link
-    to="/mapa-de-ideas"
-    className={`font-medium transition ${
-      isActive('/mapa-de-ideas')
-        ? 'text-purple-600 dark:text-purple-400'
-        : 'text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400'
-    }`}
-  >
-    Ideas
-  </Link>
-  <Link
-    to="/convertir"
-    className={`font-medium transition ${
-      isActive('/convertir')
-        ? 'text-purple-600 dark:text-purple-400'
-        : 'text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400'
-    }`}
-  >
-    Convertir
-  </Link>
-  <Link
-    to="/mis-resultados"
-    className={`font-medium transition ${
-      isActive('/mis-resultados')
-        ? 'text-purple-600 dark:text-purple-400'
-        : 'text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400'
-    }`}
-  >
-    Mis Resultados
-  </Link>
-  {isOwner && (
-    <Link
-      to="/admin"
-      className={`font-medium transition ${
-        isActive('/admin')
-          ? 'text-purple-600 dark:text-purple-400'
-          : 'text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400'
-      }`}
-    >
-      Admin
-    </Link>
-  )}
-  <span className="text-sm text-gray-500 dark:text-gray-400">{user?.name}</span>
-  <button
-    onClick={logout}
-    className="text-sm text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 font-medium transition"
-  >
-    Salir
-  </button>
-  <button
-    onClick={toggleDarkMode}
-    className="p-2 rounded-full text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-    aria-label="Toggle dark mode"
-  >
-              {isDarkMode ? (
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-                  />
-                </svg>
-              ) : (
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-                  />
-                </svg>
-              )}
+          <nav className="hidden md:flex items-center gap-7">
+            {NAV_LINKS.map(({ to, label }) => (
+              <Link key={to} to={to} className={desktopLinkClass(to)}>
+                {label}
+              </Link>
+            ))}
+            {isOwner && (
+              <Link to="/admin" className={desktopLinkClass('/admin')}>
+                Admin
+              </Link>
+            )}
+            <span className="text-sm text-ink-400 dark:text-ink-500">{user?.name}</span>
+            <button
+              onClick={logout}
+              className="text-sm font-medium text-ink-500 dark:text-ink-400 hover:text-danger dark:hover:text-danger-bright transition-colors"
+            >
+              Salir
+            </button>
+            <button
+              onClick={toggleDarkMode}
+              className="p-2 rounded-full text-ink-500 dark:text-ink-400 hover:bg-ink-100 dark:hover:bg-ink-800 transition-colors"
+              aria-label="Cambiar tema"
+            >
+              {themeIcon}
             </button>
           </nav>
 
           {/* Mobile Menu Button */}
-          <div className="md:hidden flex items-center space-x-2">
+          <div className="md:hidden flex items-center gap-1">
             <button
               onClick={toggleDarkMode}
-              className="p-2 rounded-full text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-              aria-label="Toggle dark mode"
+              className="p-2 rounded-full text-ink-500 dark:text-ink-400 hover:bg-ink-100 dark:hover:bg-ink-800 transition-colors"
+              aria-label="Cambiar tema"
             >
-              {isDarkMode ? (
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-                  />
-                </svg>
-              ) : (
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-                  />
-                </svg>
-              )}
+              {themeIcon}
             </button>
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+              className="p-2 rounded-full text-ink-500 dark:text-ink-400 hover:bg-ink-100 dark:hover:bg-ink-800 transition-colors"
               aria-expanded={isMobileMenuOpen}
-              aria-label="Toggle menu"
+              aria-label="Abrir menú"
             >
               {isMobileMenuOpen ? (
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               ) : (
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 6h16M4 12h16M4 18h16"
-                  />
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
               )}
             </button>
@@ -228,93 +142,33 @@ const Header = () => {
 
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
-          <nav className="md:hidden pt-4 pb-2 space-y-2">
-            <Link
-              to="/transcribir"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className={`block py-2 px-4 rounded ${
-                isActive('/transcribir')
-                  ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-              }`}
-            >
-              Transcribir
-            </Link>
-            <Link
-              to="/clips"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className={`block py-2 px-4 rounded ${
-                isActive('/clips')
-                  ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-              }`}
-            >
-              Clips
-            </Link>
-            <Link
-              to="/reels-cleaner"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className={`block py-2 px-4 rounded ${
-                isActive('/reels-cleaner')
-                  ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-              }`}
-            >
-              Reels Cleaner
-            </Link>
-            <Link
-              to="/mapa-de-ideas"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className={`block py-2 px-4 rounded ${
-                isActive('/mapa-de-ideas')
-                  ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-              }`}
-            >
-              Ideas
-            </Link>
-            <Link
-              to="/convertir"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className={`block py-2 px-4 rounded ${
-                isActive('/convertir')
-                  ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-              }`}
-            >
-              Convertir
-            </Link>
-            <Link
-              to="/mis-resultados"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className={`block py-2 px-4 rounded ${
-                isActive('/mis-resultados')
-                  ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-              }`}
-            >
-              Mis Resultados
-            </Link>
+          <nav className="md:hidden pt-4 pb-2 space-y-1">
+            {NAV_LINKS.map(({ to, label }) => (
+              <Link
+                key={to}
+                to={to}
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={mobileLinkClass(to)}
+              >
+                {label}
+              </Link>
+            ))}
             {isOwner && (
               <Link
                 to="/admin"
                 onClick={() => setIsMobileMenuOpen(false)}
-                className={`block py-2 px-4 rounded ${
-                  isActive('/admin')
-                    ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-                }`}
+                className={mobileLinkClass('/admin')}
               >
                 Admin
               </Link>
             )}
-            <div className="border-t border-gray-200 dark:border-gray-700 mt-2 pt-2 px-4">
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">{user?.name}</p>
+            <div className="border-t border-ink-200 dark:border-ink-700 mt-2 pt-3 px-4 flex items-center justify-between">
+              <p className="text-sm text-ink-400 dark:text-ink-500">{user?.name}</p>
               <button
                 onClick={() => { logout(); setIsMobileMenuOpen(false); }}
-                className="text-sm text-red-500 hover:text-red-700 font-medium"
+                className="text-sm font-medium text-ink-500 dark:text-ink-400 hover:text-danger dark:hover:text-danger-bright transition-colors"
               >
-                Cerrar sesion
+                Cerrar sesión
               </button>
             </div>
           </nav>

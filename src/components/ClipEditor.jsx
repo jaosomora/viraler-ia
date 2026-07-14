@@ -9,6 +9,7 @@ import Tooltip from './Tooltip';
 import CaptionChunkEditor from './CaptionChunkEditor';
 import TranscriptProseView from './TranscriptProseView';
 import TransitionFader from './TransitionFader';
+import { useToast, useConfirm } from './ui/feedback';
 
 const KEYWORD_COLORS = [
   // Sutiles / brand-friendly
@@ -47,6 +48,8 @@ const fmtTime = (s) => {
 
 const ClipEditor = ({ clip, onClose }) => {
   const { fontCatalog, activeJob, updateClip, regenerateCaption, downloadClip, exportClip, loadCaptions, loadFonts, applyFontsToAll, applyStyleToAll, redetectKeywords, userTemplates, loadUserTemplates, saveUserTemplate, deleteUserTemplate } = useClips();
+  const toast = useToast();
+  const confirmDialog = useConfirm();
   const [draft, setDraft] = useState(null);
   const [original, setOriginal] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -233,7 +236,7 @@ const ClipEditor = ({ clip, onClose }) => {
 
   const persist = async () => {
     setSaving(true);
-    try { await updateClip(clip.id, draft); } catch (e) { alert(e.message); }
+    try { await updateClip(clip.id, draft); } catch (e) { toast(e.message, { type: 'danger' }); }
     setSaving(false);
   };
 
@@ -258,7 +261,7 @@ const ClipEditor = ({ clip, onClose }) => {
         post_caption: res.post_caption,
         post_captions_cache: { ...draft.post_captions_cache, [tone]: res.post_caption },
       });
-    } catch (e) { alert(e.message); }
+    } catch (e) { toast(e.message, { type: 'danger' }); }
     setRegenerating(false);
   };
 
@@ -268,12 +271,17 @@ const ClipEditor = ({ clip, onClose }) => {
       await updateClip(clip.id, { caption: draft.caption, hook: draft.hook });
       const res = await redetectKeywords(clip.id);
       update({ keywords: res.keywords || [] });
-    } catch (e) { alert(e.message); }
+    } catch (e) { toast(e.message, { type: 'danger' }); }
     setRedetecting(false);
   };
 
   const handleApplyFontsToAll = async () => {
-    if (!confirm('¿Aplicar estas fuentes (hook, caption, keyword + color) a TODOS los clips de este job?')) return;
+    const okFonts = await confirmDialog({
+      title: 'Aplicar fuentes a todos',
+      message: '¿Aplicar estas fuentes (hook, caption, keyword + color) a TODOS los clips de este job?',
+      confirmLabel: 'Aplicar',
+    });
+    if (!okFonts) return;
     setApplyingFonts(true);
     try {
       await applyFontsToAll(clip.job_id, {
@@ -282,8 +290,8 @@ const ClipEditor = ({ clip, onClose }) => {
         font_keyword: draft.font_keyword,
         keyword_color: draft.keyword_color,
       });
-      alert('Fuentes aplicadas a todos los clips');
-    } catch (e) { alert(e.message); }
+      toast('Fuentes aplicadas a todos los clips', { type: 'ok' });
+    } catch (e) { toast(e.message, { type: 'danger' }); }
     setApplyingFonts(false);
   };
 
@@ -296,7 +304,7 @@ const ClipEditor = ({ clip, onClose }) => {
       } else {
         await exportClip({ ...clip, ...draft }, clip.output_resolution || '1080');
       }
-    } catch (e) { alert(e.message); }
+    } catch (e) { toast(e.message, { type: 'danger' }); }
     setExporting(false);
   };
 
@@ -307,11 +315,16 @@ const ClipEditor = ({ clip, onClose }) => {
   const applyTemplateToAll = async (tpl) => {
     if (!activeJob) return;
     const total = activeJob.clips?.length || 0;
-    if (!confirm(`Aplicar plantilla "${tpl.name}" a los ${total} clips de este job?\nLos cambios sobrescriben los estilos actuales.`)) return;
+    const okTpl = await confirmDialog({
+      title: `Aplicar plantilla "${tpl.name}"`,
+      message: `Se aplicará a los ${total} clips de este job. Los cambios sobrescriben los estilos actuales.`,
+      confirmLabel: 'Aplicar',
+    });
+    if (!okTpl) return;
     try {
       await applyStyleToAll(activeJob.id, tpl.params);
       update({ ...tpl.params }); // también el clip activo
-    } catch (e) { alert(e.message); }
+    } catch (e) { toast(e.message, { type: 'danger' }); }
   };
 
   const handleSaveCustomTemplate = async () => {
@@ -330,14 +343,19 @@ const ClipEditor = ({ clip, onClose }) => {
       keyword_italic: draft.keyword_italic, keyword_underline: draft.keyword_underline,
     };
     try { await saveUserTemplate(name.trim(), params); }
-    catch (e) { alert(e.message); }
+    catch (e) { toast(e.message, { type: 'danger' }); }
   };
 
   const handleDeleteCustomTemplate = async (e, tpl) => {
     e.stopPropagation();
-    if (!confirm(`Eliminar plantilla "${tpl.name}"?`)) return;
+    const okDelete = await confirmDialog({
+      title: '¿Eliminar plantilla?',
+      message: `Se eliminará "${tpl.name}".`,
+      danger: true,
+    });
+    if (!okDelete) return;
     try { await deleteUserTemplate(tpl.id); }
-    catch (err) { alert(err.message); }
+    catch (err) { toast(err.message, { type: 'danger' }); }
   };
 
   const removeKeyword = (idx) => update({ keywords: draft.keywords.filter((_, i) => i !== idx) });
@@ -407,28 +425,34 @@ const ClipEditor = ({ clip, onClose }) => {
   })();
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 w-full max-w-6xl max-h-[92vh] overflow-hidden flex flex-col">
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
-          <div>
-            <div className="text-xs text-gray-500 mb-0.5">Editando clip {clipPos} de {clipTotal} · Score {clip.virality_score}</div>
-            <h3 className="font-bold text-lg text-gray-900 dark:text-white">{draft.title}</h3>
+    <div className="fixed inset-0 bg-ink-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="card shadow-2xl w-full max-w-6xl max-h-[92vh] overflow-hidden flex flex-col">
+        <div className="px-6 py-4 border-b border-ink-200 dark:border-ink-700 flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-1">
+              <span className="eyebrow">Editor de clip</span>
+              <span className="text-xs text-ink-400 dark:text-ink-500 tabular-nums">Editando clip {clipPos} de {clipTotal} · Score {clip.virality_score}</span>
+            </div>
+            <h3 className="font-display font-semibold tracking-tight text-lg truncate">{draft.title}</h3>
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={handleReset} className="text-xs text-gray-500 hover:text-gray-900 dark:hover:text-white px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+          <div className="flex items-center gap-2 shrink-0">
+            <button onClick={handleReset} className="btn btn-ghost btn-sm">
               Restablecer cambios
             </button>
-            <button onClick={handleClose} className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center justify-center text-gray-700 dark:text-gray-300">
+            <button onClick={handleClose} aria-label="Cerrar editor" className="w-9 h-9 rounded-full border border-ink-200 dark:border-ink-700 hover:bg-ink-100 dark:hover:bg-ink-800 flex items-center justify-center text-ink-500 dark:text-ink-400 transition-colors">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
           </div>
         </div>
 
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
-          <div className="lg:col-span-5 border-b lg:border-b-0 lg:border-r border-gray-200 dark:border-gray-800 p-6 bg-gray-50 dark:bg-gray-950/50 overflow-y-auto">
-            <div className={`${aspectClass} max-w-[280px] mx-auto bg-gradient-to-br from-indigo-900 via-purple-700 to-cyan-700 rounded-xl relative shadow-2xl overflow-hidden group`}>
-              <div className="absolute top-[13%] left-0 right-0 h-px bg-yellow-400/30 z-10"></div>
-              <div className="absolute bottom-[25%] left-0 right-0 h-px bg-yellow-400/30 z-10"></div>
+          {/* Superficie de video: siempre oscura, aunque el modo sea claro. La clase
+              `dark` ancla las variantes dark: de todos los descendientes (incl. TrimSlider)
+              para que los controles se rendericen claros sobre ink-950 en ambos modos. */}
+          <div className="dark lg:col-span-5 border-b lg:border-b-0 lg:border-r border-ink-200 dark:border-ink-700 p-6 bg-ink-950 overflow-y-auto">
+            <div className={`${aspectClass} max-w-[280px] mx-auto bg-ink-900 ring-1 ring-ink-700 rounded-xl relative overflow-hidden group`}>
+              <div className="absolute top-[13%] left-0 right-0 h-px bg-warn-bright/40 z-10"></div>
+              <div className="absolute bottom-[25%] left-0 right-0 h-px bg-warn-bright/40 z-10"></div>
               <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-black/60 backdrop-blur rounded text-[10px] text-white z-20"
                 title={`Cámara: ${draft.camera_motion}`}>
                 {draft.camera_motion === 'zoom-in' ? '🔍 zoom in' : draft.camera_motion === 'zoom-out' ? '🔎 zoom out' : '⏸ estático'}
@@ -480,7 +504,7 @@ const ClipEditor = ({ clip, onClose }) => {
                 }
               />
             </div>
-            <p className="text-[11px] text-gray-500 dark:text-gray-400 text-center mt-3 mb-5">
+            <p className="text-[11px] text-ink-400 text-center mt-3 mb-5">
               {isLegacy
                 ? 'Clip legacy: los subtítulos están quemados en el video. Re-genera el job para editarlos en vivo.'
                 : 'Click en play y verás los subtítulos cambiar al ritmo del audio · Edita texto/estilos y se actualiza al instante.'}
@@ -502,14 +526,14 @@ const ClipEditor = ({ clip, onClose }) => {
               <CollapsibleSection id="plantillas" icon="🎨" title="Elegir un estilo base" {...sectionProps('plantillas')}>
               <section>
                 <div className="flex items-center justify-between mb-2">
-                  <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300">Plantillas listas para usar</h5>
+                  <h5 className="text-xs font-semibold uppercase tracking-wider text-ink-500 dark:text-ink-400">Plantillas listas para usar</h5>
                   <button type="button" onClick={handleSaveCustomTemplate}
                     title="Guarda los estilos actuales como una plantilla reutilizable"
-                    className="text-[11px] px-2 py-1 rounded bg-purple-600 hover:bg-purple-500 text-white font-medium">
+                    className="btn btn-ghost btn-sm">
                     Guardar el estilo actual
                   </button>
                 </div>
-                <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2">
+                <p className="text-[11px] text-ink-500 dark:text-ink-400 mb-2">
                   Click = solo este clip · Click + Shift = todos los clips del job.
                 </p>
                 <div className="grid grid-cols-3 gap-2">
@@ -518,7 +542,7 @@ const ClipEditor = ({ clip, onClose }) => {
                       <button type="button"
                         onClick={(e) => e.shiftKey ? applyTemplateToAll(tpl) : applyTemplate(tpl)}
                         title={tpl.description + ' · shift+click para aplicar a todos los clips'}
-                        className="w-full border border-gray-300 dark:border-gray-700 hover:border-purple-500 hover:shadow rounded-lg overflow-hidden transition">
+                        className="w-full border border-ink-200 dark:border-ink-700 hover:border-accent dark:hover:border-accent-bright rounded-lg overflow-hidden transition">
                         <div className="aspect-[4/3] flex items-center justify-center" style={{ background: tpl.swatch.bg }}>
                           <div className="text-center px-2">
                             <div className="text-[11px] font-black uppercase mb-0.5" style={{ color: tpl.swatch.text, lineHeight: 1 }}>HOOK</div>
@@ -534,13 +558,13 @@ const ClipEditor = ({ clip, onClose }) => {
                             </div>
                           </div>
                         </div>
-                        <div className="px-2 py-1.5 bg-white dark:bg-gray-900 text-[11px] font-medium text-gray-900 dark:text-white">
+                        <div className="px-2 py-1.5 bg-white dark:bg-ink-900 text-[11px] font-medium text-ink-950 dark:text-paper">
                           {tpl.name}
                         </div>
                       </button>
                       <button type="button" onClick={() => applyTemplateToAll(tpl)}
                         title="Aplicar a todos los clips del job"
-                        className="absolute top-1 right-1 px-1.5 py-0.5 bg-black/70 backdrop-blur text-white text-[10px] rounded opacity-0 group-hover/tpl:opacity-100 transition hover:bg-purple-600">
+                        className="absolute top-1 right-1 px-1.5 py-0.5 bg-ink-950/70 backdrop-blur text-paper text-[10px] rounded-full opacity-0 group-hover/tpl:opacity-100 transition hover:bg-accent hover:text-white dark:hover:bg-accent-bright dark:hover:text-ink-950">
                         → todos
                       </button>
                     </div>
@@ -549,14 +573,14 @@ const ClipEditor = ({ clip, onClose }) => {
 
                 {userTemplates.length > 0 && (
                   <>
-                    <div className="text-[11px] text-gray-500 mt-4 mb-2 font-medium">Mis plantillas guardadas</div>
+                    <div className="text-xs font-semibold uppercase tracking-wider text-ink-500 dark:text-ink-400 mt-4 mb-2">Mis plantillas guardadas</div>
                     <div className="grid grid-cols-3 gap-2">
                       {userTemplates.map(tpl => (
                         <div key={tpl.id} className="relative group/tpl">
                           <button type="button"
                             onClick={(e) => e.shiftKey ? applyTemplateToAll(tpl) : applyTemplate(tpl)}
                             title={`Tu plantilla · shift+click para aplicar a todos los clips`}
-                            className="w-full border border-gray-300 dark:border-gray-700 hover:border-purple-500 hover:shadow rounded-lg overflow-hidden transition">
+                            className="w-full border border-ink-200 dark:border-ink-700 hover:border-accent dark:hover:border-accent-bright rounded-lg overflow-hidden transition">
                             <div className="aspect-[4/3] flex items-center justify-center"
                               style={{ background: '#1f2937' }}>
                               <div className="text-center px-2">
@@ -574,13 +598,13 @@ const ClipEditor = ({ clip, onClose }) => {
                                 </div>
                               </div>
                             </div>
-                            <div className="px-2 py-1.5 bg-white dark:bg-gray-900 text-[11px] font-medium text-gray-900 dark:text-white truncate">
+                            <div className="px-2 py-1.5 bg-white dark:bg-ink-900 text-[11px] font-medium text-ink-950 dark:text-paper truncate">
                               {tpl.name}
                             </div>
                           </button>
                           <button type="button" onClick={(e) => handleDeleteCustomTemplate(e, tpl)}
                             title="Eliminar plantilla"
-                            className="absolute top-1 right-1 w-5 h-5 bg-red-500 hover:bg-red-600 text-white text-[10px] rounded opacity-0 group-hover/tpl:opacity-100 transition flex items-center justify-center">
+                            className="absolute top-1 right-1 w-5 h-5 bg-danger hover:bg-[#9A3C31] dark:bg-danger-bright dark:hover:bg-[#EBA49B] text-white dark:text-ink-950 text-[10px] rounded-full opacity-0 group-hover/tpl:opacity-100 transition flex items-center justify-center">
                             ✕
                           </button>
                         </div>
@@ -594,18 +618,18 @@ const ClipEditor = ({ clip, onClose }) => {
               {/* 2 · Definir el formato y el encuadre */}
               <CollapsibleSection id="lienzo" icon="🎬" title="Definir el formato y el encuadre" badge={draft.aspect_ratio} {...sectionProps('lienzo')}>
                 <section className="mb-5">
-                  <h4 className="text-sm text-gray-500 mb-2 font-semibold">Formato del video</h4>
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-3">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-ink-500 dark:text-ink-400 mb-2">Formato del video</h4>
+                  <p className="text-[11px] text-ink-500 dark:text-ink-400 mb-3">
                     Define la forma final. Cambiarlo después puede mover el texto y el encuadre fuera de lugar.
                   </p>
                   <div className="grid grid-cols-3 gap-2">
                     {ASPECT_RATIOS.map(a => (
                       <button key={a.id} type="button" onClick={() => update({ aspect_ratio: a.id })}
                         className={`border rounded-lg p-3 text-center transition ${draft.aspect_ratio === a.id
-                          ? 'border-purple-500 bg-purple-500/10'
-                          : 'border-gray-300 dark:border-gray-700 hover:border-gray-400'}`}>
-                        <div className="text-xs font-medium text-gray-800 dark:text-gray-200">{a.label}</div>
-                        <div className="text-[10px] text-gray-500">{a.sub}</div>
+                          ? 'border-accent bg-accent-soft dark:border-accent-bright dark:bg-accent-deep'
+                          : 'border-ink-200 dark:border-ink-700 hover:border-ink-400 dark:hover:border-ink-500'}`}>
+                        <div className="text-xs font-medium text-ink-950 dark:text-paper">{a.label}</div>
+                        <div className="text-[10px] text-ink-500 dark:text-ink-400">{a.sub}</div>
                       </button>
                     ))}
                   </div>
@@ -613,9 +637,9 @@ const ClipEditor = ({ clip, onClose }) => {
 
                 <section>
                   <Tooltip text="Útil cuando el video original tiene a una persona a un lado. Mueve el corte para mantenerla centrada.">
-                    <h4 className="text-sm text-gray-500 mb-2 font-semibold">Qué parte del cuadro mostrar</h4>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-ink-500 dark:text-ink-400 mb-2">Qué parte del cuadro mostrar</h4>
                   </Tooltip>
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-3">
+                  <p className="text-[11px] text-ink-500 dark:text-ink-400 mb-3">
                     Útil cuando el video original tiene a una persona a un lado.
                   </p>
                   <div className="grid grid-cols-3 gap-2 mb-3">
@@ -626,17 +650,17 @@ const ClipEditor = ({ clip, onClose }) => {
                     ].map(o => (
                       <button key={o.id} type="button" onClick={() => update({ crop_x_pct: o.id })}
                         className={`border rounded-lg p-3 text-center transition ${draft.crop_x_pct === o.id
-                          ? 'border-purple-500 bg-purple-500/10'
-                          : 'border-gray-300 dark:border-gray-700 hover:border-gray-400'}`}>
+                          ? 'border-accent bg-accent-soft dark:border-accent-bright dark:bg-accent-deep'
+                          : 'border-ink-200 dark:border-ink-700 hover:border-ink-400 dark:hover:border-ink-500'}`}>
                         <div className="text-2xl mb-1">{o.icon}</div>
-                        <div className="text-xs font-medium text-gray-800 dark:text-gray-200">{o.label}</div>
+                        <div className="text-xs font-medium text-ink-950 dark:text-paper">{o.label}</div>
                       </button>
                     ))}
                   </div>
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
-                      <label className="text-[11px] text-gray-500">Ajuste fino</label>
-                      <span className="text-[10px] text-gray-500 font-mono">{cropSliderValue}%</span>
+                      <label className="text-[11px] text-ink-500 dark:text-ink-400">Ajuste fino</label>
+                      <span className="text-[10px] text-ink-500 dark:text-ink-400 font-mono tabular-nums">{cropSliderValue}%</span>
                     </div>
                     <input type="range" min="0" max="100" step="1" value={cropSliderValue}
                       onMouseDown={() => setCropPreviewActive(true)}
@@ -647,11 +671,11 @@ const ClipEditor = ({ clip, onClose }) => {
                       onTouchEnd={e => { setCropPreviewActive(false); update({ crop_x_pct: +e.target.value }); }}
                       onKeyUp={e => { setCropPreviewActive(false); update({ crop_x_pct: +e.target.value }); }}
                       onBlur={e => { if (cropPreviewActive) { setCropPreviewActive(false); update({ crop_x_pct: +e.target.value }); } }}
-                      className="w-full accent-purple-500" />
-                    <div className="flex justify-between text-[10px] text-gray-500 mt-0.5">
+                      className="w-full accent-accent dark:accent-accent-bright" />
+                    <div className="flex justify-between text-[10px] text-ink-500 dark:text-ink-400 mt-0.5">
                       <span>← izquierda</span><span>centro</span><span>derecha →</span>
                     </div>
-                    <p className="text-[10px] text-gray-500 mt-1.5 leading-snug">
+                    <p className="text-[10px] text-ink-500 dark:text-ink-400 mt-1.5 leading-snug">
                       Mueve el deslizador para ver el encuadre en vivo. Al soltar, se aplica al video.
                     </p>
                   </div>
@@ -663,24 +687,24 @@ const ClipEditor = ({ clip, onClose }) => {
                 <CollapsibleSection id="subtitulos" icon="💬" title="Revisar lo que se transcribió" badge={`${chunks.length} líneas`} {...sectionProps('subtitulos')}>
                 <section>
                   <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-sm text-gray-500 font-semibold sr-only">
+                    <h4 className="text-sm text-ink-500 dark:text-ink-400 font-semibold sr-only">
                       Subtítulos del clip
                     </h4>
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-gray-400">{chunks.length} línea{chunks.length === 1 ? '' : 's'}</span>
-                      <div className="flex bg-gray-100 dark:bg-gray-800 rounded-md p-0.5 text-[11px]">
+                      <span className="text-[10px] font-mono tabular-nums text-ink-400 dark:text-ink-500">{chunks.length} línea{chunks.length === 1 ? '' : 's'}</span>
+                      <div className="flex bg-ink-100 dark:bg-ink-900 rounded-full p-0.5 text-[11px]">
                         <button type="button" onClick={() => setCaptionsView('prose')}
-                          className={`px-2 py-0.5 rounded ${captionsView === 'prose' ? 'bg-white dark:bg-gray-700 shadow text-gray-900 dark:text-white' : 'text-gray-500'}`}>
+                          className={`px-2.5 py-0.5 rounded-full font-medium transition-colors ${captionsView === 'prose' ? 'bg-white dark:bg-ink-850 shadow-sm text-ink-950 dark:text-paper' : 'text-ink-500 dark:text-ink-400 hover:text-ink-950 dark:hover:text-paper'}`}>
                           Texto fluido
                         </button>
                         <button type="button" onClick={() => setCaptionsView('list')}
-                          className={`px-2 py-0.5 rounded ${captionsView === 'list' ? 'bg-white dark:bg-gray-700 shadow text-gray-900 dark:text-white' : 'text-gray-500'}`}>
+                          className={`px-2.5 py-0.5 rounded-full font-medium transition-colors ${captionsView === 'list' ? 'bg-white dark:bg-ink-850 shadow-sm text-ink-950 dark:text-paper' : 'text-ink-500 dark:text-ink-400 hover:text-ink-950 dark:hover:text-paper'}`}>
                           Lista editable
                         </button>
                       </div>
                     </div>
                   </div>
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2">
+                  <p className="text-[11px] text-ink-500 dark:text-ink-400 mb-2">
                     {captionsView === 'prose'
                       ? 'Click en cualquier palabra para saltar a ese momento del video. Para corregir el texto cambia a "Lista editable".'
                       : 'Edita el texto de cada línea. Click en el tiempo para saltar a ese momento. Los cambios se previsualizan al instante.'}
@@ -707,48 +731,48 @@ const ClipEditor = ({ clip, onClose }) => {
               {/* 4 · Escribir el texto del clip */}
               <CollapsibleSection id="texto" icon="📝" title="Escribir el texto del clip" {...sectionProps('texto')}>
               <section>
-                <h4 className="text-sm text-gray-500 mb-3 font-semibold">Texto sobre el video</h4>
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-ink-500 dark:text-ink-400 mb-3">Texto sobre el video</h4>
                 <div className="space-y-3">
                   <div>
-                    <label className="text-[11px] text-gray-500 mb-1 block">Título <span className="text-gray-400">· solo interno, no aparece en el video</span></label>
+                    <label className="form-label">Título <span className="text-ink-400 dark:text-ink-500">· solo interno, no aparece en el video</span></label>
                     <input type="text" value={draft.title} onChange={e => update({ title: e.target.value })}
-                      className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white" />
+                      className="input" />
                   </div>
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <Tooltip text="Línea grande que aparece quemada en los primeros 4 segundos del video. Sirve para captar al espectador antes de que haga scroll.">
-                        <label className="text-[11px] text-gray-500">Gancho <span className="text-gray-400">· línea grande, primeros segundos</span></label>
+                        <label className="text-sm font-medium text-ink-500 dark:text-ink-400">Gancho <span className="text-ink-400 dark:text-ink-500">· línea grande, primeros segundos</span></label>
                       </Tooltip>
                       <label className="flex items-center gap-1.5 cursor-pointer">
                         <input type="checkbox" checked={!!draft.hook_enabled}
                           onChange={e => update({ hook_enabled: e.target.checked ? 1 : 0 })}
-                          className="accent-purple-500 w-3.5 h-3.5" />
-                        <span className="text-[11px] text-gray-600 dark:text-gray-400">
+                          className="accent-accent dark:accent-accent-bright w-3.5 h-3.5" />
+                        <span className="text-[11px] text-ink-500 dark:text-ink-400">
                           {draft.hook_enabled ? 'Mostrar gancho en el video' : 'Gancho desactivado'}
                         </span>
                       </label>
                     </div>
                     <textarea rows={2} value={draft.hook} onChange={e => update({ hook: e.target.value })}
                       disabled={!draft.hook_enabled}
-                      className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm resize-none text-gray-900 dark:text-white disabled:opacity-50"
+                      className="input resize-none"
                       style={{ fontFamily: hookFont }} />
                   </div>
                   <div>
-                    <label className="text-[11px] text-gray-500 mb-1 block">
+                    <label className="form-label">
                       Nota {isLegacy
                         ? '(línea de soporte)'
-                        : <span className="text-gray-400">· resumen interno · los subtítulos del video se editan en "Revisar lo que se transcribió"</span>}
+                        : <span className="text-ink-400 dark:text-ink-500">· resumen interno · los subtítulos del video se editan en "Revisar lo que se transcribió"</span>}
                     </label>
                     <textarea rows={2} value={draft.caption} onChange={e => update({ caption: e.target.value })}
-                      className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm resize-none text-gray-900 dark:text-white" />
+                      className="input resize-none" />
                   </div>
-                  <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-800 rounded-lg p-3">
+                  <div className="bg-ink-100 dark:bg-ink-900 border border-ink-200 dark:border-ink-700 rounded-xl p-3">
                     <div className="flex items-center justify-between mb-2">
                       <Tooltip text="Palabras del subtítulo que se pintan con color o fondo distinto. La IA las detecta automáticamente y se pueden editar o detectar de nuevo.">
-                        <label className="text-[11px] text-gray-500">Palabras destacadas</label>
+                        <label className="text-[11px] text-ink-500 dark:text-ink-400">Palabras destacadas</label>
                       </Tooltip>
                       <button type="button" onClick={handleRedetectKeywords} disabled={redetecting}
-                        className="text-[11px] text-purple-600 dark:text-purple-400 hover:text-purple-500 disabled:opacity-50">
+                        className="text-[11px] font-medium link-accent disabled:opacity-50">
                         {redetecting ? 'Detectando…' : 'Detectar de nuevo'}
                       </button>
                     </div>
@@ -760,15 +784,15 @@ const ClipEditor = ({ clip, onClose }) => {
                           {k} ✕
                         </span>
                       ))}
-                      {draft.keywords.length === 0 && <span className="text-[11px] text-gray-400">Sin palabras destacadas. Agrégalas manualmente o usa "Detectar de nuevo".</span>}
+                      {draft.keywords.length === 0 && <span className="text-[11px] text-ink-400 dark:text-ink-500">Sin palabras destacadas. Agrégalas manualmente o usa "Detectar de nuevo".</span>}
                     </div>
                     <div className="flex gap-1.5">
                       <input type="text" value={newKeyword} onChange={e => setNewKeyword(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addKeyword(); } }}
                         placeholder="Agregar palabra manualmente…"
-                        className="flex-1 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded px-2 py-1 text-xs text-gray-900 dark:text-white" />
+                        className="flex-1 rounded-lg border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-900 px-2.5 py-1 text-xs text-ink-950 dark:text-paper placeholder-ink-400 dark:placeholder-ink-500 focus:outline-none focus:ring-2 focus:ring-accent dark:focus:ring-accent-bright focus:border-transparent" />
                       <button type="button" onClick={addKeyword} disabled={!newKeyword.trim()}
-                        className="px-3 py-1 bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white rounded text-xs font-medium">+</button>
+                        className="btn btn-accent btn-sm">+</button>
                     </div>
                   </div>
                 </div>
@@ -776,11 +800,11 @@ const ClipEditor = ({ clip, onClose }) => {
 
               <section>
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-sm text-gray-500 font-semibold">
-                    Texto para publicar <span className="text-gray-400 normal-case">· lo que copias y pegas al subirlo</span>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-ink-500 dark:text-ink-400">
+                    Texto para publicar <span className="text-ink-400 dark:text-ink-500 normal-case">· lo que copias y pegas al subirlo</span>
                   </h4>
                   <button type="button" onClick={handleRegenerateCaption} disabled={regenerating}
-                    className="text-[11px] px-2.5 py-1 rounded-md bg-purple-600 hover:bg-purple-500 text-white disabled:opacity-50 flex items-center gap-1 font-medium"
+                    className="btn btn-accent btn-sm"
                     title="Pide una nueva variación del texto en el tono seleccionado">
                     <svg className={`w-3 h-3 ${regenerating ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                     {regenerating ? 'Generando…' : 'Pedir otra versión'}
@@ -790,28 +814,28 @@ const ClipEditor = ({ clip, onClose }) => {
                   {TONES.map(t => (
                     <button key={t.id} type="button" disabled={regenerating}
                       onClick={() => handleSelectTone(t.id)}
-                      className={`px-2.5 py-1 rounded-md font-medium border transition ${draft.post_caption_tone === t.id
-                        ? 'bg-purple-500/10 border-purple-500 text-purple-700 dark:text-purple-300'
-                        : 'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-400'}`}>
+                      className={`px-2.5 py-1 rounded-full font-medium border transition ${draft.post_caption_tone === t.id
+                        ? 'bg-accent-soft dark:bg-accent-deep border-accent dark:border-accent-bright text-accent dark:text-accent-bright'
+                        : 'bg-ink-100 dark:bg-ink-800 border-ink-200 dark:border-ink-700 text-ink-500 dark:text-ink-400 hover:border-ink-400 dark:hover:border-ink-500'}`}>
                       {t.label}
                     </button>
                   ))}
                   <button type="button" disabled
                     title="Próximamente: pega tu framework personal"
-                    className="px-2.5 py-1 rounded-md font-medium border border-dashed border-gray-300 dark:border-gray-700 text-gray-400 italic cursor-not-allowed">
+                    className="px-2.5 py-1 rounded-full font-medium border border-dashed border-ink-300 dark:border-ink-600 text-ink-400 dark:text-ink-500 italic cursor-not-allowed">
                     + Mi propio prompt
                   </button>
                 </div>
-                <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2">
+                <p className="text-[11px] text-ink-500 dark:text-ink-400 mb-2">
                   Click en un tono para ver su versión guardada. "Pedir otra versión" genera una nueva con el tono activo.
                 </p>
                 <textarea rows={6} value={draft.post_caption} onChange={e => update({ post_caption: e.target.value })}
-                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2.5 text-sm leading-relaxed resize-none text-gray-900 dark:text-white"
+                  className="input leading-relaxed resize-none"
                   placeholder={regenerating ? 'Regenerando…' : ''} disabled={regenerating} />
                 <div className="mt-2 flex items-center justify-between">
-                  <span className="text-[11px] text-gray-500">{(draft.post_caption || '').length} caracteres · {hashtagCount} hashtags</span>
+                  <span className="text-[11px] font-mono tabular-nums text-ink-500 dark:text-ink-400">{(draft.post_caption || '').length} caracteres · {hashtagCount} hashtags</span>
                   <button type="button" onClick={() => navigator.clipboard.writeText(draft.post_caption || '').catch(() => {})}
-                    className="text-[11px] text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-2 py-1 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-md">
+                    className="btn btn-ghost btn-sm">
                     Copiar al portapapeles
                   </button>
                 </div>
@@ -822,18 +846,18 @@ const ClipEditor = ({ clip, onClose }) => {
               <CollapsibleSection id="estilo" icon="🖌️" title="Afinar la tipografía y los colores" {...sectionProps('estilo')}>
               <section>
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-sm text-gray-500 font-semibold">Tipografías</h4>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-ink-500 dark:text-ink-400">Tipografías</h4>
                   <button type="button" onClick={handleApplyFontsToAll} disabled={applyingFonts}
-                    className="text-[11px] text-purple-600 dark:text-purple-400 hover:text-purple-500 disabled:opacity-50">
+                    className="text-[11px] font-medium link-accent disabled:opacity-50">
                     {applyingFonts ? 'Aplicando…' : 'Aplicar a todos los clips'}
                   </button>
                 </div>
                 <div className="space-y-4">
                   {/* Hook */}
-                  <div className="bg-gray-50 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-800 rounded-lg p-3 space-y-2">
+                  <div className="bg-ink-100 dark:bg-ink-900 border border-ink-200 dark:border-ink-700 rounded-xl p-3 space-y-2">
                     <div className="flex items-center justify-between gap-2">
-                      <h5 className="text-sm text-gray-700 dark:text-gray-300 font-semibold">Gancho · línea de impacto</h5>
-                      <span className="inline-flex items-center justify-center min-w-[48px] h-8 rounded bg-gray-900 dark:bg-black px-2 shrink-0" title="Vista previa con la fuente y color actuales">
+                      <h5 className="text-sm font-semibold text-ink-950 dark:text-paper">Gancho · línea de impacto</h5>
+                      <span className="inline-flex items-center justify-center min-w-[48px] h-8 rounded-lg bg-ink-950 px-2 shrink-0" title="Vista previa con la fuente y color actuales">
                         <span style={{
                           ...fontStyleFor('hook', draft.font_hook),
                           color: draft.hook_color,
@@ -844,57 +868,57 @@ const ClipEditor = ({ clip, onClose }) => {
                     </div>
                     <select value={draft.font_hook} onChange={e => update({ font_hook: e.target.value })}
                       style={{ ...fontStyleFor('hook', draft.font_hook), fontSize: '17px' }}
-                      className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white">
+                      className="input">
                       {fontOptions('hook')}
                       <option disabled>──── personalizada (próximamente) ────</option>
                       <option disabled>+ Subir mi propia fuente (.ttf)</option>
                     </select>
                     <div className="flex items-center gap-2">
-                      <label className="text-[11px] text-gray-500 shrink-0">Tamaño</label>
+                      <label className="text-[11px] text-ink-500 dark:text-ink-400 shrink-0">Tamaño</label>
                       <input type="range" min="40" max="180" step="2"
                         value={draft.hook_font_size || 90}
                         onChange={e => update({ hook_font_size: +e.target.value })}
-                        className="flex-1 accent-purple-500" />
+                        className="flex-1 accent-accent dark:accent-accent-bright" />
                       <input type="number" min="20" max="240"
                         value={draft.hook_font_size || 90}
                         onChange={e => update({ hook_font_size: +e.target.value })}
-                        className="w-16 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded px-2 py-1 text-xs text-gray-900 dark:text-white" />
-                      <span className="text-[10px] text-gray-500">px</span>
+                        className="w-16 rounded-lg border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-900 px-2 py-1 text-xs font-mono tabular-nums text-ink-950 dark:text-paper focus:outline-none focus:ring-2 focus:ring-accent dark:focus:ring-accent-bright focus:border-transparent" />
+                      <span className="text-[10px] text-ink-500 dark:text-ink-400">px</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <button type="button" onClick={() => update({ hook_italic: draft.hook_italic ? 0 : 1 })}
                         title="Itálica"
-                        className={`px-2.5 py-1 text-sm italic rounded ${draft.hook_italic ? 'bg-purple-500/20 text-purple-700 dark:text-purple-300 ring-1 ring-purple-500' : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-700'}`}>I</button>
+                        className={`px-2.5 py-1 text-sm italic rounded ${draft.hook_italic ? 'bg-accent-soft dark:bg-accent-deep text-accent dark:text-accent-bright ring-1 ring-accent dark:ring-accent-bright' : 'bg-white dark:bg-ink-900 text-ink-500 dark:text-ink-400 border border-ink-200 dark:border-ink-700'}`}>I</button>
                       <button type="button" onClick={() => update({ hook_underline: draft.hook_underline ? 0 : 1 })}
                         title="Subrayado"
-                        className={`px-2.5 py-1 text-sm underline rounded ${draft.hook_underline ? 'bg-purple-500/20 text-purple-700 dark:text-purple-300 ring-1 ring-purple-500' : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-700'}`}>U</button>
+                        className={`px-2.5 py-1 text-sm underline rounded ${draft.hook_underline ? 'bg-accent-soft dark:bg-accent-deep text-accent dark:text-accent-bright ring-1 ring-accent dark:ring-accent-bright' : 'bg-white dark:bg-ink-900 text-ink-500 dark:text-ink-400 border border-ink-200 dark:border-ink-700'}`}>U</button>
                       <button type="button" onClick={() => update({ hook_font_size: null, hook_italic: 0, hook_underline: 0 })}
                         title="Auto (tamaño según largo)"
-                        className="ml-auto text-[10px] text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 px-2 py-1">
+                        className="ml-auto text-[10px] text-ink-500 dark:text-ink-400 hover:text-ink-950 dark:hover:text-paper px-2 py-1">
                         auto
                       </button>
                     </div>
                     <div className="flex items-center gap-2">
-                      <label className="text-[11px] text-gray-500 shrink-0">Color</label>
+                      <label className="text-[11px] text-ink-500 dark:text-ink-400 shrink-0">Color</label>
                       <input type="color" value={draft.hook_color}
                         onChange={e => update({ hook_color: e.target.value })}
-                        className="w-9 h-7 border border-gray-300 dark:border-gray-700 rounded cursor-pointer" />
+                        className="w-9 h-7 border border-ink-200 dark:border-ink-700 rounded-lg cursor-pointer" />
                       <input type="text" value={draft.hook_color}
                         onChange={e => {
                           const v = e.target.value.trim();
                           if (/^#?[0-9A-Fa-f]{0,6}$/.test(v)) update({ hook_color: v.startsWith('#') ? v : '#' + v });
                         }}
-                        className="flex-1 max-w-[110px] bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded px-2 py-1 text-xs font-mono uppercase text-gray-900 dark:text-white" />
+                        className="flex-1 max-w-[110px] rounded-lg border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-900 px-2 py-1 text-xs font-mono uppercase text-ink-950 dark:text-paper focus:outline-none focus:ring-2 focus:ring-accent dark:focus:ring-accent-bright focus:border-transparent" />
                       <button type="button" onClick={() => update({ hook_color: '#FFFFFF' })}
-                        className="text-[10px] text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">reset</button>
+                        className="text-[10px] text-ink-500 dark:text-ink-400 hover:text-ink-950 dark:hover:text-paper">reset</button>
                     </div>
                   </div>
 
                   {/* Caption */}
-                  <div className="bg-gray-50 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-800 rounded-lg p-3 space-y-2">
+                  <div className="bg-ink-100 dark:bg-ink-900 border border-ink-200 dark:border-ink-700 rounded-xl p-3 space-y-2">
                     <div className="flex items-center justify-between gap-2">
-                      <h5 className="text-sm text-gray-700 dark:text-gray-300 font-semibold">Cuerpo · subtítulos</h5>
-                      <span className="inline-flex items-center justify-center min-w-[48px] h-8 rounded bg-gray-900 dark:bg-black px-2 shrink-0" title="Vista previa con la fuente y color actuales">
+                      <h5 className="text-sm font-semibold text-ink-950 dark:text-paper">Cuerpo · subtítulos</h5>
+                      <span className="inline-flex items-center justify-center min-w-[48px] h-8 rounded-lg bg-ink-950 px-2 shrink-0" title="Vista previa con la fuente y color actuales">
                         <span style={{
                           ...fontStyleFor('caption', draft.font_caption),
                           color: draft.caption_color,
@@ -905,48 +929,48 @@ const ClipEditor = ({ clip, onClose }) => {
                     </div>
                     <select value={draft.font_caption} onChange={e => update({ font_caption: e.target.value })}
                       style={{ ...fontStyleFor('caption', draft.font_caption), fontSize: '15px' }}
-                      className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white">
+                      className="input">
                       {fontOptions('caption')}
                     </select>
                     <div className="flex items-center gap-2">
-                      <label className="text-[11px] text-gray-500 shrink-0">Tamaño</label>
+                      <label className="text-[11px] text-ink-500 dark:text-ink-400 shrink-0">Tamaño</label>
                       <input type="range" min="30" max="120" step="2"
                         value={draft.caption_font_size}
                         onChange={e => update({ caption_font_size: +e.target.value })}
-                        className="flex-1 accent-purple-500" />
+                        className="flex-1 accent-accent dark:accent-accent-bright" />
                       <input type="number" min="20" max="200"
                         value={draft.caption_font_size}
                         onChange={e => update({ caption_font_size: +e.target.value })}
-                        className="w-16 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded px-2 py-1 text-xs text-gray-900 dark:text-white" />
-                      <span className="text-[10px] text-gray-500">px</span>
+                        className="w-16 rounded-lg border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-900 px-2 py-1 text-xs font-mono tabular-nums text-ink-950 dark:text-paper focus:outline-none focus:ring-2 focus:ring-accent dark:focus:ring-accent-bright focus:border-transparent" />
+                      <span className="text-[10px] text-ink-500 dark:text-ink-400">px</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <button type="button" onClick={() => update({ caption_italic: draft.caption_italic ? 0 : 1 })}
-                        className={`px-2.5 py-1 text-sm italic rounded ${draft.caption_italic ? 'bg-purple-500/20 text-purple-700 dark:text-purple-300 ring-1 ring-purple-500' : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-700'}`}>I</button>
+                        className={`px-2.5 py-1 text-sm italic rounded ${draft.caption_italic ? 'bg-accent-soft dark:bg-accent-deep text-accent dark:text-accent-bright ring-1 ring-accent dark:ring-accent-bright' : 'bg-white dark:bg-ink-900 text-ink-500 dark:text-ink-400 border border-ink-200 dark:border-ink-700'}`}>I</button>
                       <button type="button" onClick={() => update({ caption_underline: draft.caption_underline ? 0 : 1 })}
-                        className={`px-2.5 py-1 text-sm underline rounded ${draft.caption_underline ? 'bg-purple-500/20 text-purple-700 dark:text-purple-300 ring-1 ring-purple-500' : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-700'}`}>U</button>
+                        className={`px-2.5 py-1 text-sm underline rounded ${draft.caption_underline ? 'bg-accent-soft dark:bg-accent-deep text-accent dark:text-accent-bright ring-1 ring-accent dark:ring-accent-bright' : 'bg-white dark:bg-ink-900 text-ink-500 dark:text-ink-400 border border-ink-200 dark:border-ink-700'}`}>U</button>
                     </div>
                     <div className="flex items-center gap-2">
-                      <label className="text-[11px] text-gray-500 shrink-0">Color</label>
+                      <label className="text-[11px] text-ink-500 dark:text-ink-400 shrink-0">Color</label>
                       <input type="color" value={draft.caption_color}
                         onChange={e => update({ caption_color: e.target.value })}
-                        className="w-9 h-7 border border-gray-300 dark:border-gray-700 rounded cursor-pointer" />
+                        className="w-9 h-7 border border-ink-200 dark:border-ink-700 rounded-lg cursor-pointer" />
                       <input type="text" value={draft.caption_color}
                         onChange={e => {
                           const v = e.target.value.trim();
                           if (/^#?[0-9A-Fa-f]{0,6}$/.test(v)) update({ caption_color: v.startsWith('#') ? v : '#' + v });
                         }}
-                        className="flex-1 max-w-[110px] bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded px-2 py-1 text-xs font-mono uppercase text-gray-900 dark:text-white" />
+                        className="flex-1 max-w-[110px] rounded-lg border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-900 px-2 py-1 text-xs font-mono uppercase text-ink-950 dark:text-paper focus:outline-none focus:ring-2 focus:ring-accent dark:focus:ring-accent-bright focus:border-transparent" />
                       <button type="button" onClick={() => update({ caption_color: '#FFFFFF' })}
-                        className="text-[10px] text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">reset</button>
+                        className="text-[10px] text-ink-500 dark:text-ink-400 hover:text-ink-950 dark:hover:text-paper">reset</button>
                     </div>
                   </div>
 
                   {/* Keyword */}
-                  <div className="bg-gray-50 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-800 rounded-lg p-3 space-y-2">
+                  <div className="bg-ink-100 dark:bg-ink-900 border border-ink-200 dark:border-ink-700 rounded-xl p-3 space-y-2">
                     <div className="flex items-center justify-between gap-2">
-                      <h5 className="text-sm text-gray-700 dark:text-gray-300 font-semibold">Palabras destacadas · énfasis</h5>
-                      <span className="inline-flex items-center justify-center min-w-[48px] h-8 rounded bg-gray-900 dark:bg-black px-2 shrink-0" title="Vista previa con la fuente, color y fondo actuales"
+                      <h5 className="text-sm font-semibold text-ink-950 dark:text-paper">Palabras destacadas · énfasis</h5>
+                      <span className="inline-flex items-center justify-center min-w-[48px] h-8 rounded-lg bg-ink-950 px-2 shrink-0" title="Vista previa con la fuente, color y fondo actuales"
                         style={draft.keyword_bg_color ? { backgroundColor: draft.keyword_bg_color } : undefined}>
                         <span style={{
                           ...fontStyleFor('keyword', draft.font_keyword),
@@ -958,29 +982,29 @@ const ClipEditor = ({ clip, onClose }) => {
                     </div>
                     <select value={draft.font_keyword} onChange={e => update({ font_keyword: e.target.value })}
                       style={{ ...fontStyleFor('keyword', draft.font_keyword), fontSize: '15px' }}
-                      className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white">
+                      className="input">
                       {fontOptions('keyword')}
                     </select>
                     <div className="flex items-center gap-1">
                       <button type="button" onClick={() => update({ keyword_italic: draft.keyword_italic ? 0 : 1 })}
-                        className={`px-2.5 py-1 text-sm italic rounded ${draft.keyword_italic ? 'bg-purple-500/20 text-purple-700 dark:text-purple-300 ring-1 ring-purple-500' : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-700'}`}>I</button>
+                        className={`px-2.5 py-1 text-sm italic rounded ${draft.keyword_italic ? 'bg-accent-soft dark:bg-accent-deep text-accent dark:text-accent-bright ring-1 ring-accent dark:ring-accent-bright' : 'bg-white dark:bg-ink-900 text-ink-500 dark:text-ink-400 border border-ink-200 dark:border-ink-700'}`}>I</button>
                       <button type="button" onClick={() => update({ keyword_underline: draft.keyword_underline ? 0 : 1 })}
-                        className={`px-2.5 py-1 text-sm underline rounded ${draft.keyword_underline ? 'bg-purple-500/20 text-purple-700 dark:text-purple-300 ring-1 ring-purple-500' : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-700'}`}>U</button>
+                        className={`px-2.5 py-1 text-sm underline rounded ${draft.keyword_underline ? 'bg-accent-soft dark:bg-accent-deep text-accent dark:text-accent-bright ring-1 ring-accent dark:ring-accent-bright' : 'bg-white dark:bg-ink-900 text-ink-500 dark:text-ink-400 border border-ink-200 dark:border-ink-700'}`}>U</button>
                     </div>
 
                     <div>
-                      <label className="text-[11px] text-gray-500 mb-1.5 block">Color del texto</label>
+                      <label className="text-[11px] text-ink-500 dark:text-ink-400 mb-1.5 block">Color del texto</label>
                       <div className="flex flex-wrap gap-1.5 mb-2">
                         {KEYWORD_COLORS.map(c => (
                           <button key={c.hex} title={c.name} type="button" onClick={() => update({ keyword_color: c.hex })}
-                            className={`w-8 h-8 rounded transition border border-black/10 dark:border-white/20 ${draft.keyword_color.toLowerCase() === c.hex.toLowerCase() ? 'ring-2 ring-offset-2 ring-purple-500 ring-offset-gray-50 dark:ring-offset-gray-900' : ''}`}
+                            className={`w-8 h-8 rounded transition border border-black/10 dark:border-white/20 ${draft.keyword_color.toLowerCase() === c.hex.toLowerCase() ? 'ring-2 ring-offset-2 ring-accent dark:ring-accent-bright ring-offset-ink-100 dark:ring-offset-ink-900' : ''}`}
                             style={{ background: c.hex }} />
                         ))}
                       </div>
                       <div className="flex items-center gap-2">
                         <input type="color" value={draft.keyword_color}
                           onChange={e => update({ keyword_color: e.target.value })}
-                          className="w-10 h-8 border border-gray-300 dark:border-gray-700 rounded cursor-pointer" />
+                          className="w-10 h-8 border border-ink-200 dark:border-ink-700 rounded-lg cursor-pointer" />
                         <input type="text" value={draft.keyword_color}
                           onChange={e => {
                             const v = e.target.value.trim();
@@ -989,24 +1013,24 @@ const ClipEditor = ({ clip, onClose }) => {
                             }
                           }}
                           placeholder="#FDE047"
-                          className="flex-1 max-w-[120px] bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded px-2 py-1 text-xs font-mono uppercase text-gray-900 dark:text-white" />
+                          className="flex-1 max-w-[120px] rounded-lg border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-900 px-2 py-1 text-xs font-mono uppercase text-ink-950 dark:text-paper focus:outline-none focus:ring-2 focus:ring-accent dark:focus:ring-accent-bright focus:border-transparent" />
                       </div>
                     </div>
 
-                    <div className="pt-2 border-t border-gray-200 dark:border-gray-800">
+                    <div className="pt-2 border-t border-ink-200 dark:border-ink-700">
                       <div className="flex items-center justify-between mb-2">
-                        <label className="text-[11px] text-gray-500 font-medium">Color de fondo de palabra</label>
+                        <label className="text-[11px] text-ink-500 dark:text-ink-400 font-medium">Color de fondo de palabra</label>
                         <input type="checkbox"
                           checked={!!draft.keyword_bg_color}
                           onChange={e => update({ keyword_bg_color: e.target.checked ? '#000000' : '' })}
-                          className="accent-purple-500 w-4 h-4" />
+                          className="accent-accent dark:accent-accent-bright w-4 h-4" />
                       </div>
                       {draft.keyword_bg_color && (
                         <>
                           <div className="flex items-center gap-2 mb-2">
                             <input type="color" value={draft.keyword_bg_color}
                               onChange={e => update({ keyword_bg_color: e.target.value })}
-                              className="w-10 h-8 border border-gray-300 dark:border-gray-700 rounded cursor-pointer" />
+                              className="w-10 h-8 border border-ink-200 dark:border-ink-700 rounded-lg cursor-pointer" />
                             <input type="text" value={draft.keyword_bg_color}
                               onChange={e => {
                                 const v = e.target.value.trim();
@@ -1015,14 +1039,14 @@ const ClipEditor = ({ clip, onClose }) => {
                                 }
                               }}
                               placeholder="#000000"
-                              className="flex-1 max-w-[120px] bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded px-2 py-1 text-xs font-mono uppercase text-gray-900 dark:text-white" />
-                            <span className="text-[10px] text-gray-500 tabular-nums">{draft.keyword_bg_opacity}%</span>
+                              className="flex-1 max-w-[120px] rounded-lg border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-900 px-2 py-1 text-xs font-mono uppercase text-ink-950 dark:text-paper focus:outline-none focus:ring-2 focus:ring-accent dark:focus:ring-accent-bright focus:border-transparent" />
+                            <span className="text-[10px] text-ink-500 dark:text-ink-400 font-mono tabular-nums">{draft.keyword_bg_opacity}%</span>
                           </div>
                           <input type="range" min="0" max="100"
                             value={draft.keyword_bg_opacity}
                             onChange={e => update({ keyword_bg_opacity: +e.target.value })}
-                            className="w-full accent-purple-500" />
-                          <p className="text-[10px] text-gray-500 mt-1">El fondo se quema en el video como un resaltado detrás de cada palabra destacada.</p>
+                            className="w-full accent-accent dark:accent-accent-bright" />
+                          <p className="text-[10px] text-ink-500 dark:text-ink-400 mt-1">El fondo se quema en el video como un resaltado detrás de cada palabra destacada.</p>
                         </>
                       )}
                     </div>
@@ -1032,70 +1056,70 @@ const ClipEditor = ({ clip, onClose }) => {
 
               <section>
                 <Tooltip text="El borde ayuda a que el texto se lea sobre cualquier fondo. La sombra suaviza la lectura. Si el texto es oscuro, cambia el color del borde a claro o desactívalo.">
-                  <h4 className="text-sm text-gray-500 mb-3 font-semibold">Borde y sombra del texto</h4>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-ink-500 dark:text-ink-400 mb-3">Borde y sombra del texto</h4>
                 </Tooltip>
-                <div className="space-y-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-800 rounded-lg p-3">
+                <div className="space-y-3 bg-ink-100 dark:bg-ink-900 border border-ink-200 dark:border-ink-700 rounded-xl p-3">
                   <label className="flex items-center justify-between cursor-pointer">
-                    <span className="text-sm text-gray-900 dark:text-white">Borde alrededor del texto</span>
+                    <span className="text-sm text-ink-950 dark:text-paper">Borde alrededor del texto</span>
                     <input type="checkbox" checked={!!draft.outline_enabled}
                       onChange={e => update({ outline_enabled: e.target.checked ? 1 : 0 })}
-                      className="accent-purple-500 w-4 h-4" />
+                      className="accent-accent dark:accent-accent-bright w-4 h-4" />
                   </label>
                   {draft.outline_enabled ? (
                     <>
                       <div>
-                        <label className="text-[11px] text-gray-500 mb-1 block">Grosor del borde · {draft.outline_thickness}</label>
+                        <label className="text-[11px] text-ink-500 dark:text-ink-400 mb-1 block">Grosor del borde · <span className="font-mono tabular-nums">{draft.outline_thickness}</span></label>
                         <input type="range" min="1" max="10" value={draft.outline_thickness}
                           onChange={e => update({ outline_thickness: +e.target.value })}
-                          className="w-full accent-purple-500" />
+                          className="w-full accent-accent dark:accent-accent-bright" />
                       </div>
                       <div className="flex items-center gap-2">
-                        <label className="text-[11px] text-gray-500 shrink-0">Color del borde</label>
+                        <label className="text-[11px] text-ink-500 dark:text-ink-400 shrink-0">Color del borde</label>
                         <input type="color" value={draft.outline_color}
                           onChange={e => update({ outline_color: e.target.value })}
-                          className="w-9 h-7 border border-gray-300 dark:border-gray-700 rounded cursor-pointer" />
+                          className="w-9 h-7 border border-ink-200 dark:border-ink-700 rounded-lg cursor-pointer" />
                         <input type="text" value={draft.outline_color}
                           onChange={e => {
                             const v = e.target.value.trim();
                             if (/^#?[0-9A-Fa-f]{0,6}$/.test(v)) update({ outline_color: v.startsWith('#') ? v : '#' + v });
                           }}
-                          className="flex-1 max-w-[110px] bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded px-2 py-1 text-xs font-mono uppercase text-gray-900 dark:text-white" />
+                          className="flex-1 max-w-[110px] rounded-lg border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-900 px-2 py-1 text-xs font-mono uppercase text-ink-950 dark:text-paper focus:outline-none focus:ring-2 focus:ring-accent dark:focus:ring-accent-bright focus:border-transparent" />
                         <button type="button" onClick={() => update({ outline_color: '#000000' })}
-                          className="text-[10px] text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">reset</button>
+                          className="text-[10px] text-ink-500 dark:text-ink-400 hover:text-ink-950 dark:hover:text-paper">reset</button>
                       </div>
-                      <p className="text-[10px] text-gray-500 -mt-1">
+                      <p className="text-[10px] text-ink-500 dark:text-ink-400 -mt-1">
                         Tip: si el texto es oscuro, usa borde claro (o desactívalo). Si es claro, borde negro.
                       </p>
                     </>
                   ) : null}
                   <div>
-                    <label className="text-[11px] text-gray-500 mb-1 block">Opacidad de la sombra · {draft.shadow_opacity}%</label>
+                    <label className="text-[11px] text-ink-500 dark:text-ink-400 mb-1 block">Opacidad de la sombra · <span className="font-mono tabular-nums">{draft.shadow_opacity}%</span></label>
                     <input type="range" min="0" max="100" value={draft.shadow_opacity}
                       onChange={e => update({ shadow_opacity: +e.target.value })}
-                      className="w-full accent-purple-500" />
-                    <p className="text-[10px] text-gray-500 mt-1">0% = sin sombra · 100% = sombra negra fuerte</p>
+                      className="w-full accent-accent dark:accent-accent-bright" />
+                    <p className="text-[10px] text-ink-500 dark:text-ink-400 mt-1">0% = sin sombra · 100% = sombra negra fuerte</p>
                   </div>
                 </div>
 
                 <Tooltip text="Las palabras se iluminan al pronunciarse. Las que aún no se dijeron se ven atenuadas. Solo se ve en el MP4 exportado, no en la vista previa.">
-                  <h4 className="text-sm text-gray-500 mb-3 mt-4 font-semibold">Efecto karaoke</h4>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-ink-500 dark:text-ink-400 mb-3 mt-4">Efecto karaoke</h4>
                 </Tooltip>
-                <div className="space-y-2 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-800 rounded-lg p-3">
+                <div className="space-y-2 bg-ink-100 dark:bg-ink-900 border border-ink-200 dark:border-ink-700 rounded-xl p-3">
                   <label className="flex items-center justify-between cursor-pointer">
-                    <span className="text-sm text-gray-900 dark:text-white">Cada palabra se ilumina cuando se dice</span>
+                    <span className="text-sm text-ink-950 dark:text-paper">Cada palabra se ilumina cuando se dice</span>
                     <input type="checkbox" checked={!!draft.karaoke_enabled}
                       onChange={e => update({ karaoke_enabled: e.target.checked ? 1 : 0 })}
-                      className="accent-purple-500 w-4 h-4" />
+                      className="accent-accent dark:accent-accent-bright w-4 h-4" />
                   </label>
                   {draft.karaoke_enabled ? (
                     <div>
-                      <label className="text-[11px] text-gray-500 mb-1 block">
-                        Atenuación de palabras no dichas · {draft.karaoke_dim_opacity}%
+                      <label className="text-[11px] text-ink-500 dark:text-ink-400 mb-1 block">
+                        Atenuación de palabras no dichas · <span className="font-mono tabular-nums">{draft.karaoke_dim_opacity}%</span>
                       </label>
                       <input type="range" min="20" max="80" value={draft.karaoke_dim_opacity}
                         onChange={e => update({ karaoke_dim_opacity: +e.target.value })}
-                        className="w-full accent-purple-500" />
-                      <p className="text-[10px] text-gray-500 mt-1">
+                        className="w-full accent-accent dark:accent-accent-bright" />
+                      <p className="text-[10px] text-ink-500 dark:text-ink-400 mt-1">
                         Más bajo = más atenuado. El efecto solo se ve en el MP4 exportado.
                       </p>
                     </div>
@@ -1108,7 +1132,7 @@ const ClipEditor = ({ clip, onClose }) => {
               <CollapsibleSection id="movimiento" icon="🎞️" title="Añadir movimiento y transiciones" {...sectionProps('movimiento')}>
               <section>
                 <Tooltip text="Movimiento lento que abarca todo el clip (acercamiento cinematográfico, alejamiento o sin movimiento). Distinto a las transiciones, que son golpes rápidos en los bordes.">
-                  <h4 className="text-sm text-gray-500 mb-3 font-semibold">Movimiento de cámara</h4>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-ink-500 dark:text-ink-400 mb-3">Movimiento de cámara</h4>
                 </Tooltip>
                 <div className="grid grid-cols-3 gap-2">
                   {[
@@ -1118,27 +1142,27 @@ const ClipEditor = ({ clip, onClose }) => {
                   ].map(o => (
                     <button key={o.id} type="button" onClick={() => update({ camera_motion: o.id })}
                       className={`border rounded-lg p-3 text-center transition ${draft.camera_motion === o.id
-                        ? 'border-purple-500 bg-purple-500/10'
-                        : 'border-gray-300 dark:border-gray-700 hover:border-gray-400'}`}>
+                        ? 'border-accent bg-accent-soft dark:border-accent-bright dark:bg-accent-deep'
+                        : 'border-ink-200 dark:border-ink-700 hover:border-ink-400 dark:hover:border-ink-500'}`}>
                       <div className="text-2xl mb-1">{o.emoji}</div>
-                      <div className="text-xs font-medium text-gray-800 dark:text-gray-200">{o.label}</div>
+                      <div className="text-xs font-medium text-ink-950 dark:text-paper">{o.label}</div>
                     </button>
                   ))}
                 </div>
                 <div className="mt-3">
-                  <label className="text-[11px] text-gray-500 mb-1.5 block">Posición del subtítulo</label>
+                  <label className="text-[11px] text-ink-500 dark:text-ink-400 mb-1.5 block">Posición del subtítulo</label>
                   <input type="range" min="40" max="90" value={draft.sub_position}
                     onChange={e => update({ sub_position: +e.target.value })}
-                    className="w-full accent-purple-500" />
-                  <div className="flex justify-between text-[10px] text-gray-500">
-                    <span>abajo</span><span className="text-yellow-500">zona segura de Instagram</span><span>arriba</span>
+                    className="w-full accent-accent dark:accent-accent-bright" />
+                  <div className="flex justify-between text-[10px] text-ink-500 dark:text-ink-400">
+                    <span>abajo</span><span className="text-warn dark:text-warn-bright">zona segura de Instagram</span><span>arriba</span>
                   </div>
                 </div>
               </section>
 
               <section>
                 <Tooltip text="Efecto en los primeros y últimos segundos del clip. Funciona junto al movimiento de cámara: el movimiento es lento y abarca todo el clip; la transición es un golpe rápido en los bordes.">
-                  <h4 className="text-sm text-gray-500 mb-3 font-semibold">Cómo entra y sale el clip</h4>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-ink-500 dark:text-ink-400 mb-3">Cómo entra y sale el clip</h4>
                 </Tooltip>
                 <div className="grid grid-cols-3 gap-2">
                   {[
@@ -1152,10 +1176,10 @@ const ClipEditor = ({ clip, onClose }) => {
                   ].map(o => (
                     <button key={o.id} type="button" onClick={() => update({ transition: o.id })}
                       className={`border rounded-lg p-2 text-center transition ${draft.transition === o.id
-                        ? 'border-purple-500 bg-purple-500/10'
-                        : 'border-gray-300 dark:border-gray-700 hover:border-gray-400'}`}>
+                        ? 'border-accent bg-accent-soft dark:border-accent-bright dark:bg-accent-deep'
+                        : 'border-ink-200 dark:border-ink-700 hover:border-ink-400 dark:hover:border-ink-500'}`}>
                       <div className="text-xl mb-0.5">{o.emoji}</div>
-                      <div className="text-[10px] font-medium text-gray-700 dark:text-gray-300 leading-tight">{o.label}</div>
+                      <div className="text-[10px] font-medium text-ink-950 dark:text-paper leading-tight">{o.label}</div>
                     </button>
                   ))}
                 </div>
@@ -1165,8 +1189,8 @@ const ClipEditor = ({ clip, onClose }) => {
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-800 flex items-center justify-between bg-gray-50 dark:bg-gray-950/50 gap-3 flex-wrap">
-          <div className="text-xs text-gray-500">
+        <div className="px-6 py-4 border-t border-ink-200 dark:border-ink-700 flex items-center justify-between gap-3 flex-wrap">
+          <div className="text-xs text-ink-500 dark:text-ink-400">
             {saving
               ? 'Guardando…'
               : isLegacy
@@ -1174,12 +1198,12 @@ const ClipEditor = ({ clip, onClose }) => {
                 : 'Edición en vivo · al exportar se quema el MP4 final con tus cambios (rápido, sobre el video base).'}
           </div>
           <div className="flex gap-2 flex-wrap">
-            <button onClick={handleClose} className="px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg text-sm">
+            <button onClick={handleClose} className="btn btn-ghost">
               Cerrar
             </button>
             <button onClick={handleExport} disabled={exporting}
-              className="px-5 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:opacity-90 disabled:opacity-50 text-white rounded-lg text-sm font-semibold">
-              {exporting ? 'Exportando…' : isLegacy ? 'Descargar MP4' : 'Exportar MP4 con subtítulos'}
+              className="btn btn-accent">
+              {exporting ? 'Exportando…' : isLegacy ? 'Descargar MP4 →' : 'Exportar MP4 con subtítulos →'}
             </button>
           </div>
         </div>

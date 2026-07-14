@@ -61,7 +61,7 @@ const VideoPreview = forwardRef(({ clipId, resolution = '1080', overlay, autoPla
           controls
           autoPlay
           playsInline
-          className="absolute inset-0 w-full h-full object-cover bg-black"
+          className="absolute inset-0 w-full h-full object-cover bg-ink-950"
           onError={() => setError('No se pudo reproducir el video')}
         />
         {overlay}
@@ -76,23 +76,23 @@ const VideoPreview = forwardRef(({ clipId, resolution = '1080', overlay, autoPla
         type="button"
         onClick={(e) => { e.stopPropagation(); load(); }}
         disabled={loading}
-        className="absolute inset-0 z-30 flex items-center justify-center hover:bg-black/10 transition cursor-pointer"
+        className="absolute inset-0 z-30 flex items-center justify-center hover:bg-ink-950/20 transition-colors cursor-pointer"
       >
         {loading ? (
-          <div className="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center shadow-2xl">
-            <svg className="w-6 h-6 text-gray-700 animate-spin" fill="none" viewBox="0 0 24 24">
+          <div className="w-14 h-14 rounded-full bg-paper/90 flex items-center justify-center shadow-2xl">
+            <svg className="w-6 h-6 text-ink-600 animate-spin" fill="none" viewBox="0 0 24 24">
               <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25"/>
               <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
             </svg>
           </div>
         ) : (
-          <div className="w-14 h-14 rounded-full bg-white/90 text-gray-900 flex items-center justify-center shadow-2xl opacity-0 group-hover:opacity-100 transition">
+          <div className="w-14 h-14 rounded-full bg-paper/90 text-ink-950 flex items-center justify-center shadow-2xl opacity-0 group-hover:opacity-100 transition">
             <svg className="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
           </div>
         )}
       </button>
       {error && (
-        <div className="absolute bottom-2 left-2 right-2 bg-red-500/90 text-white text-xs px-2 py-1 rounded">
+        <div className="absolute bottom-2 left-2 right-2 bg-danger/90 text-white text-xs px-2 py-1 rounded-lg">
           {error}
         </div>
       )}

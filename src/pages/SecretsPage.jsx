@@ -42,32 +42,33 @@ const SecretsPage = () => {
   };
 
   return (
-    <div className="max-w-3xl mx-auto">
-      <div className="text-center mb-8">
-        <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
-          Secretos
+    <div className="max-w-3xl mx-auto flex flex-col gap-8">
+      <div className="flex flex-col gap-2">
+        <span className="eyebrow">Secretos</span>
+        <h1 className="font-display text-2xl md:text-3xl font-bold tracking-tight">
+          De credencial a link seguro
         </h1>
-        <p className="mt-3 text-gray-600 dark:text-gray-300">
+        <p className="text-ink-500 dark:text-ink-400">
           Comparte credenciales o información sensible de forma segura. El contenido se cifra y solo el destinatario puede verlo. Caduca a los 30 días.
         </p>
       </div>
 
       {!result ? (
-        <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="card p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Título (opcional)</label>
+            <label className="form-label">Título (opcional)</label>
             <input
               type="text"
               value={title}
               onChange={e => setTitle(e.target.value)}
               placeholder="Ej: Accesos WordPress mi-sitio.com"
               maxLength={200}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+              className="input"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Contenido *</label>
+            <label className="form-label">Contenido *</label>
             <textarea
               required
               value={content}
@@ -75,51 +76,45 @@ const SecretsPage = () => {
               rows={14}
               maxLength={50000}
               placeholder={'Escribe aquí lo que quieras compartir:\n\n- URL: https://...\n- Usuario: ...\n- Contraseña: ...\n- Notas: 2FA, etc.'}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-mono text-sm"
+              className="input font-mono text-sm"
             />
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{content.length} / 50000 caracteres</p>
+            <p className="text-xs text-ink-400 dark:text-ink-500 mt-1.5 font-mono tabular-nums">{content.length} / 50000 caracteres</p>
           </div>
 
           {error && (
-            <div className="bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 p-3 rounded-lg text-sm">
-              {error}
+            <div className="p-3 rounded-xl bg-danger-soft dark:bg-danger-deep border border-danger/30 dark:border-danger-bright/30">
+              <p className="text-danger dark:text-danger-bright text-sm">{error}</p>
             </div>
           )}
 
           <button
             type="submit"
             disabled={loading || !content.trim()}
-            className="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 flex items-center justify-center"
+            className="btn btn-accent w-full"
           >
-            {loading ? <Spinner /> : 'Crear secreto'}
+            {loading ? <Spinner /> : 'Crear secreto →'}
           </button>
         </form>
       ) : (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 space-y-4">
-          <div className="text-center">
-            <div className="text-4xl mb-2">🔒</div>
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Secreto creado</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+        <div className="card p-6 space-y-4">
+          <div className="text-center flex flex-col items-center gap-2 pt-2">
+            <span className="eyebrow">Cifrado y listo</span>
+            <h2 className="font-display text-xl font-semibold tracking-tight">Secreto creado</h2>
+            <p className="text-sm text-ink-500 dark:text-ink-400">
               Comparte este link con el destinatario. Caduca el {new Date(result.expiresAt).toLocaleDateString()}.
             </p>
           </div>
 
-          <div className="bg-gray-100 dark:bg-gray-900 p-4 rounded font-mono text-sm break-all select-all border border-gray-200 dark:border-gray-700">
+          <div className="bg-ink-100 dark:bg-ink-900 p-4 rounded-xl font-mono text-sm break-all select-all border border-ink-200 dark:border-ink-700">
             {link}
           </div>
 
-          <div className="flex gap-2">
-            <button
-              onClick={copy}
-              className="flex-1 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg"
-            >
+          <div className="flex justify-end gap-2">
+            <button onClick={copy} className="btn btn-ghost btn-sm">
               {copied ? '✓ Copiado' : 'Copiar link'}
             </button>
-            <button
-              onClick={handleReset}
-              className="flex-1 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
-            >
-              Crear otro
+            <button onClick={handleReset} className="btn btn-ghost btn-sm">
+              Crear otro →
             </button>
           </div>
         </div>

@@ -146,15 +146,10 @@ const ConvertForm = () => {
   };
 
   return (
-    <div className="w-full max-w-3xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-8">
-      <h2 className="text-2xl font-bold mb-2 text-center">Convertir Documento</h2>
-      <p className="text-gray-600 dark:text-gray-300 text-center mb-6">
-        Sube uno o varios documentos y obten su contenido en Markdown o HTML
-      </p>
-
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="w-full card p-6">
+      <form onSubmit={handleSubmit} className="space-y-5">
         <div>
-          <label className="block text-sm font-medium mb-1">Documentos</label>
+          <label className="form-label">Documentos</label>
 
           <label
             htmlFor="document-file"
@@ -162,21 +157,21 @@ const ConvertForm = () => {
             onDragOver={handleDragOver}
             onDragEnter={handleDragOver}
             onDragLeave={handleDragLeave}
-            className={`flex flex-col items-center justify-center w-full h-36 border-2 border-dashed rounded-lg cursor-pointer transition ${
+            className={`flex flex-col items-center justify-center w-full h-36 border-2 border-dashed rounded-2xl cursor-pointer transition-colors ${
               isDragging
-                ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+                ? 'border-accent dark:border-accent-bright bg-accent-soft dark:bg-accent-deep'
                 : fileError
-                ? 'border-red-500 bg-red-50 dark:bg-red-900/10'
-                : 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700'
+                ? 'border-danger dark:border-danger-bright bg-danger-soft dark:bg-danger-deep'
+                : 'border-ink-300 dark:border-ink-600 bg-ink-100/60 dark:bg-ink-900/60 hover:bg-ink-100 dark:hover:bg-ink-900'
             } ${isLoading ? 'pointer-events-none opacity-60' : ''}`}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-ink-400 dark:text-ink-500 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            <span className="text-sm text-gray-500 dark:text-gray-400">
+            <span className="text-sm text-ink-500 dark:text-ink-400">
               Arrastra uno o varios documentos o haz clic para seleccionar
             </span>
-            <span className="text-xs text-gray-400 mt-1">PDF, DOCX, PPTX, XLSX, EPUB (max 200 MB c/u)</span>
+            <span className="text-xs text-ink-400 dark:text-ink-500 mt-1">PDF, DOCX, PPTX, XLSX, EPUB (max 200 MB c/u)</span>
             <input
               ref={fileInputRef}
               id="document-file"
@@ -191,10 +186,10 @@ const ConvertForm = () => {
 
           {selectedFiles.length > 0 && (
             <div className="mt-3 space-y-2">
-              <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+              <div className="flex items-center justify-between text-xs text-ink-500 dark:text-ink-400">
                 <span>{selectedFiles.length} archivo{selectedFiles.length !== 1 ? 's' : ''} listo{selectedFiles.length !== 1 ? 's' : ''}</span>
                 {!isLoading && (
-                  <button type="button" onClick={handleClearAll} className="hover:text-red-500 transition">
+                  <button type="button" onClick={handleClearAll} className="hover:text-danger dark:hover:text-danger-bright transition-colors">
                     Quitar todos
                   </button>
                 )}
@@ -203,24 +198,26 @@ const ConvertForm = () => {
               {selectedFiles.map((file, idx) => (
                 <div
                   key={`${file.name}-${idx}`}
-                  className={`flex items-center gap-3 p-3 border rounded-lg ${
+                  className={`flex items-center gap-3 p-3 border rounded-xl transition-colors ${
                     isLoading && idx === currentIndex
-                      ? 'border-purple-400 bg-purple-50 dark:bg-purple-900/20'
-                      : 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50'
+                      ? 'border-accent/50 dark:border-accent-bright/50 bg-accent-soft dark:bg-accent-deep'
+                      : 'border-ink-200 dark:border-ink-700 bg-ink-100/60 dark:bg-ink-900/60'
                   }`}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-purple-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-accent dark:text-accent-bright flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{file.name}</p>
-                    <p className="text-xs text-gray-400">{getFileExt(file.name)} — {formatFileSize(file.size)}</p>
+                    <p className="text-xs text-ink-400 dark:text-ink-500">
+                      {getFileExt(file.name)} — <span className="font-mono tabular-nums">{formatFileSize(file.size)}</span>
+                    </p>
                   </div>
                   {!isLoading && (
                     <button
                       type="button"
                       onClick={() => handleRemoveFile(idx)}
-                      className="text-gray-400 hover:text-red-500 transition"
+                      className="text-ink-400 hover:text-danger dark:hover:text-danger-bright transition-colors"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
@@ -233,20 +230,20 @@ const ConvertForm = () => {
             </div>
           )}
 
-          {fileError && <p className="mt-1 text-sm text-red-500">{fileError}</p>}
+          {fileError && <p className="mt-1.5 text-sm text-danger dark:text-danger-bright">{fileError}</p>}
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-2">Formato de salida</label>
-          <div className="inline-flex w-full rounded-lg bg-gray-100 dark:bg-gray-700 p-1">
+          <label className="form-label">Formato de salida</label>
+          <div className="flex w-full gap-1 rounded-full bg-ink-100 dark:bg-ink-900 p-1">
             <button
               type="button"
               onClick={() => setOutputFormat('md')}
               disabled={isLoading}
-              className={`flex-1 px-4 py-2 text-sm rounded-md transition ${
+              className={`flex-1 px-4 py-1.5 text-sm rounded-full transition-colors ${
                 outputFormat === 'md'
-                  ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow font-medium'
-                  : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
+                  ? 'bg-white dark:bg-ink-850 text-ink-950 dark:text-paper shadow-sm font-semibold'
+                  : 'text-ink-500 dark:text-ink-400 hover:text-ink-950 dark:hover:text-paper'
               }`}
             >
               Markdown (.md)
@@ -255,10 +252,10 @@ const ConvertForm = () => {
               type="button"
               onClick={() => setOutputFormat('html')}
               disabled={isLoading}
-              className={`flex-1 px-4 py-2 text-sm rounded-md transition ${
+              className={`flex-1 px-4 py-1.5 text-sm rounded-full transition-colors ${
                 outputFormat === 'html'
-                  ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow font-medium'
-                  : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
+                  ? 'bg-white dark:bg-ink-850 text-ink-950 dark:text-paper shadow-sm font-semibold'
+                  : 'text-ink-500 dark:text-ink-400 hover:text-ink-950 dark:hover:text-paper'
               }`}
             >
               HTML (.html)
@@ -269,41 +266,41 @@ const ConvertForm = () => {
         <button
           type="submit"
           disabled={isLoading || !selectedFiles.length}
-          className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition duration-300 disabled:opacity-70"
+          className="btn btn-accent w-full"
         >
           {isLoading ? (
-            <div className="w-full">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <Spinner size="sm" />
-                <span>
-                  Convirtiendo {currentIndex + 1}/{selectedFiles.length}... {elapsedTime}s — {Math.round(estimatedProgress)}%
-                </span>
-              </div>
-              <div className="w-full bg-purple-800 rounded-full h-1.5">
-                <div
-                  className="bg-white rounded-full h-1.5 transition-all duration-1000 ease-linear"
-                  style={{ width: `${estimatedProgress}%` }}
-                />
-              </div>
-            </div>
-          ) : (
             <>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
-              </svg>
-              <span>
-                {selectedFiles.length > 1
-                  ? `Convertir ${selectedFiles.length} documentos`
-                  : 'Convertir documento'}
-              </span>
+              <Spinner size="sm" />
+              <span>Convirtiendo {currentIndex + 1}/{selectedFiles.length}…</span>
             </>
+          ) : (
+            <span>
+              {selectedFiles.length > 1
+                ? `Convertir ${selectedFiles.length} documentos →`
+                : 'Convertir documento →'}
+            </span>
           )}
         </button>
+
+        {isLoading && (
+          <div className="space-y-1.5">
+            <div className="w-full h-1.5 rounded-full bg-ink-200 dark:bg-ink-700 overflow-hidden">
+              <div
+                className="h-1.5 rounded-full bg-accent dark:bg-accent-bright transition-all duration-1000 ease-linear"
+                style={{ width: `${estimatedProgress}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-xs text-ink-500 dark:text-ink-400 font-mono tabular-nums">
+              <span>{elapsedTime}s</span>
+              <span>{Math.round(estimatedProgress)}%</span>
+            </div>
+          </div>
+        )}
       </form>
 
       {error && (
-        <div className="mt-4 p-3 bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg">
-          <p className="text-red-700 dark:text-red-300 text-sm">{error}</p>
+        <div className="mt-4 p-3 rounded-xl bg-danger-soft dark:bg-danger-deep border border-danger/30 dark:border-danger-bright/30">
+          <p className="text-danger dark:text-danger-bright text-sm">{error}</p>
         </div>
       )}
     </div>

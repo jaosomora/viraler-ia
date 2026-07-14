@@ -248,7 +248,7 @@ const ManualClipSelection = ({ job }) => {
 
   if (loading) {
     return (
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-8 text-center text-gray-500 dark:text-gray-400">
+      <div className="card p-8 text-center text-ink-500 dark:text-ink-400">
         <div className="animate-pulse">Cargando transcripción…</div>
       </div>
     );
@@ -256,7 +256,7 @@ const ManualClipSelection = ({ job }) => {
 
   if (loadError) {
     return (
-      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 rounded-xl p-6 text-sm">
+      <div className="rounded-2xl border border-danger/30 dark:border-danger-bright/30 bg-danger-soft dark:bg-danger-deep text-danger dark:text-danger-bright p-6 text-sm">
         Error cargando transcripción: {loadError}
       </div>
     );
@@ -278,21 +278,21 @@ const ManualClipSelection = ({ job }) => {
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
-      <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center gap-3">
-        <span className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-400 flex items-center justify-center font-bold">2</span>
+    <div className="card overflow-hidden">
+      <div className="px-6 py-4 border-b hairline flex items-center gap-3">
         <div className="flex-1 min-w-0">
-          <div className="font-semibold text-gray-900 dark:text-white">Selecciona tus fragmentos</div>
-          <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+          <span className="eyebrow">Paso 2 · Selección</span>
+          <div className="mt-1 font-display font-semibold tracking-tight">Selecciona tus fragmentos</div>
+          <div className="text-xs text-ink-500 dark:text-ink-400 mt-0.5">
             Click en palabra de inicio · click en palabra de fin · se agrega como rango.
-            {transcript?.title && <span className="ml-2 text-gray-400">· {transcript.title}</span>}
+            {transcript?.title && <span className="ml-2 text-ink-400 dark:text-ink-500">· {transcript.title}</span>}
           </div>
         </div>
         <button
           type="button"
           onClick={handleCopyTranscript}
           title="Copia toda la transcripción con timestamps. Útil para llevártela a un LLM y pedir sugerencias antes de marcar."
-          className="shrink-0 text-xs px-3 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg font-medium flex items-center gap-1.5">
+          className="btn btn-ghost btn-sm shrink-0">
           {copiedFeedback ? <>✓ Copiado</> : <>📋 Copiar transcripción</>}
         </button>
       </div>
@@ -302,24 +302,24 @@ const ManualClipSelection = ({ job }) => {
         <div
           ref={transcriptScrollRef}
           onScroll={handleTranscriptScroll}
-          className="p-5 max-h-[80vh] overflow-y-auto border-r border-gray-200 dark:border-gray-700">
+          className="p-5 max-h-[80vh] overflow-y-auto border-r border-ink-200 dark:border-ink-700">
           {sourceVideoUrl && (
-            <div className="sticky top-0 z-10 -mx-5 -mt-5 mb-4 px-5 pt-5 pb-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+            <div className="sticky top-0 z-10 -mx-5 -mt-5 mb-4 px-5 pt-5 pb-3 bg-white dark:bg-ink-850 border-b hairline">
               <video
                 ref={videoRef}
                 src={sourceVideoUrl}
                 controls
                 preload="metadata"
                 onTimeUpdate={(e) => setCurrentTime(e.target.currentTime)}
-                className="w-full max-h-[300px] rounded-lg bg-black"
+                className="w-full max-h-[300px] rounded-xl bg-ink-950"
               >
                 Tu navegador no soporta el tag video.
               </video>
               <div className="mt-1.5 flex items-center justify-between gap-2">
-                <div className="text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-1.5 flex-1 min-w-0">
+                <div className="text-[11px] text-ink-500 dark:text-ink-400 flex items-center gap-1.5 flex-1 min-w-0">
                   {autoFollow ? (
                     <>
-                      <span className="text-purple-600 dark:text-purple-400">●</span>
+                      <span className="text-accent dark:text-accent-bright">●</span>
                       <span className="truncate">Auto-sync activo · el texto avanza con el video. Scrollea manual para pausarlo.</span>
                     </>
                   ) : (
@@ -333,7 +333,7 @@ const ManualClipSelection = ({ job }) => {
                   <button
                     type="button"
                     onClick={resumeAutoFollow}
-                    className="shrink-0 text-[11px] px-2 py-1 bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-700/50 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/50 rounded">
+                    className="btn btn-ghost btn-sm shrink-0">
                     ↩ Volver al momento del video
                   </button>
                 )}
@@ -341,26 +341,26 @@ const ManualClipSelection = ({ job }) => {
             </div>
           )}
           {pendingStartWord && (
-            <div className="mb-3 px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-lg text-xs text-amber-800 dark:text-amber-200 flex items-center justify-between">
-              <span>▶ Inicio marcado en <b>{formatTime(pendingStartWord.time)}</b>. Click en la palabra de fin para cerrar.</span>
-              <button onClick={handleCancelPending} className="text-amber-700 dark:text-amber-300 hover:underline">Cancelar</button>
+            <div className="mb-3 px-3 py-2 rounded-xl bg-accent-soft dark:bg-accent-deep border border-accent/30 dark:border-accent-bright/30 text-xs text-accent dark:text-accent-bright flex items-center justify-between">
+              <span>▶ Inicio marcado en <b className="font-mono tabular-nums">{formatTime(pendingStartWord.time)}</b>. Click en la palabra de fin para cerrar.</span>
+              <button onClick={handleCancelPending} className="link-accent font-medium">Cancelar</button>
             </div>
           )}
-          <div className="font-serif leading-relaxed text-gray-800 dark:text-gray-100" style={{ fontFamily: 'Georgia, serif' }}>
+          <div className="font-serif leading-relaxed text-ink-950 dark:text-ink-100" style={{ fontFamily: 'Georgia, serif' }}>
             {segmentGroups.map((g) => (
               <p key={g.segIdx} className="mb-3">
-                <span className="text-[10px] text-gray-400 mr-1.5 select-none font-sans">{formatTime(g.start)}</span>
+                <span className="font-mono tabular-nums text-[10px] text-ink-400 dark:text-ink-500 mr-1.5 select-none">{formatTime(g.start)}</span>
                 {g.tokens.map((t, i) => {
                   const inSaved = wordInSavedRange.has(t.idx);
                   const isPending = pendingStartWord?.idx === t.idx;
                   const inPending = !inSaved && pendingStartWord && wordInPendingRange.has(t.idx);
                   // Palabra siendo "dicha" ahora en el video (highlight activo)
                   const isActive = currentTime >= t.start && currentTime < t.end;
-                  let cls = 'cursor-pointer rounded px-[1px] transition-colors hover:bg-gray-100 dark:hover:bg-gray-700';
-                  if (isPending) cls += ' bg-amber-500 text-white px-1';
-                  else if (isActive && !inSaved) cls += ' bg-purple-200 dark:bg-purple-700/50 text-purple-900 dark:text-purple-100';
-                  else if (inSaved) cls += ' bg-amber-200/40 dark:bg-amber-700/30 border-b border-amber-500 dark:border-amber-400';
-                  else if (inPending) cls += ' bg-amber-200/50 dark:bg-amber-700/40';
+                  let cls = 'cursor-pointer rounded px-[1px] transition-colors hover:bg-ink-100 dark:hover:bg-ink-800';
+                  if (isPending) cls += ' bg-accent text-white dark:bg-accent-bright dark:text-ink-950 px-1';
+                  else if (isActive && !inSaved) cls += ' bg-accent-soft text-accent dark:bg-accent-deep dark:text-accent-bright';
+                  else if (inSaved) cls += ' bg-accent-soft/60 dark:bg-accent-deep/60 border-b border-accent/60 dark:border-accent-bright/60';
+                  else if (inPending) cls += ' bg-accent-soft/50 dark:bg-accent-deep/50';
                   return (
                     <span key={i}>
                       <span className={cls} data-word-idx={t.idx} onClick={() => handleWordClick(t)}>{t.text}</span>
@@ -374,13 +374,13 @@ const ManualClipSelection = ({ job }) => {
         </div>
 
         {/* RIGHT: ranges panel */}
-        <div className="p-5 bg-gray-50 dark:bg-gray-900/30">
-          <h4 className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 font-semibold mb-3">
-            Tus fragmentos <span className="text-gray-400">({ranges.length})</span>
+        <div className="p-5 bg-ink-100/60 dark:bg-ink-900/40">
+          <h4 className="eyebrow mb-3">
+            Tus fragmentos ({ranges.length})
           </h4>
 
           {ranges.length === 0 && !pendingStartWord && (
-            <div className="text-xs text-gray-500 dark:text-gray-400 italic py-4 text-center border border-dashed border-gray-300 dark:border-gray-700 rounded-lg">
+            <div className="text-xs text-ink-500 dark:text-ink-400 italic py-4 text-center border border-dashed border-ink-300 dark:border-ink-700 rounded-xl">
               Click en cualquier palabra del transcript para marcar el inicio.
             </div>
           )}
@@ -391,44 +391,44 @@ const ManualClipSelection = ({ job }) => {
             const tooLong = dur > MAX_IDEAL;
             const warn = tooShort || tooLong;
             return (
-              <div key={i} className={`mb-2 p-3 rounded-lg border ${warn ? 'border-amber-400 bg-amber-50/50 dark:bg-amber-900/10' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'}`}>
-                <div className="flex justify-between items-baseline mb-1">
-                  <div className="text-sm font-semibold text-gray-900 dark:text-white">{formatTime(r.start_seconds)} → {formatTime(r.end_seconds)}</div>
-                  <div className={`text-[11px] ${warn ? 'text-amber-700 dark:text-amber-400 font-semibold' : 'text-gray-500'}`}>
-                    {Math.round(dur)}s {warn && '⚠'}
-                  </div>
+              <div key={i} className={`mb-2 p-3 rounded-xl border ${warn ? 'border-warn/50 dark:border-warn-bright/40 bg-warn-soft/60 dark:bg-warn-deep/40' : 'border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-850'}`}>
+                <div className="flex justify-between items-baseline mb-1 gap-2">
+                  <div className="timecode font-semibold">{formatTime(r.start_seconds)} → {formatTime(r.end_seconds)}</div>
+                  <span className={`chip font-mono tabular-nums ${warn ? 'chip-warn' : 'chip-neutral'}`}>
+                    {Math.round(dur)}s
+                  </span>
                 </div>
-                <div className="text-xs italic text-gray-600 dark:text-gray-300 leading-snug" style={{ fontFamily: 'Georgia, serif' }}>
+                <div className="text-xs italic text-ink-500 dark:text-ink-400 leading-snug" style={{ fontFamily: 'Georgia, serif' }}>
                   "{r.preview}…"
                 </div>
                 {warn && (
-                  <div className="text-[10px] text-amber-700 dark:text-amber-400 mt-1.5">
+                  <div className="text-[10px] text-warn dark:text-warn-bright mt-1.5">
                     {tooShort ? 'Muy corto' : 'Muy largo'} · suele rendir mejor entre {MIN_IDEAL}-{MAX_IDEAL}s. Puedes generarlo igual.
                   </div>
                 )}
                 <button onClick={() => handleRemoveRange(i)}
-                  className="text-[11px] text-gray-500 hover:text-red-600 mt-2">
-                  🗑 Eliminar
+                  className="text-[11px] text-ink-400 dark:text-ink-500 hover:text-danger dark:hover:text-danger-bright transition-colors mt-2">
+                  Eliminar
                 </button>
               </div>
             );
           })}
 
-          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <div className="text-[11px] text-gray-500 mb-2">
+          <div className="mt-4 pt-4 border-t hairline">
+            <div className="text-[11px] text-ink-500 dark:text-ink-400 mb-2">
               Hook + hashtags por IA: <b>{hookAutoOn ? 'activado' : 'desactivado'}</b>
             </div>
             {submitError && (
-              <div className="mb-2 px-2 py-1.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 rounded text-[11px]">
+              <div className="mb-2 px-2 py-1.5 bg-danger-soft dark:bg-danger-deep border border-danger/30 dark:border-danger-bright/30 text-danger dark:text-danger-bright rounded-lg text-[11px]">
                 {submitError}
               </div>
             )}
             <button onClick={handleSubmit}
               disabled={submitting || ranges.length === 0}
-              className="w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-semibold text-white text-sm">
-              {submitting ? 'Enviando…' : `✨ Generar ${ranges.length} clip${ranges.length === 1 ? '' : 's'}`}
+              className="btn btn-accent w-full">
+              {submitting ? 'Enviando…' : `Generar ${ranges.length} clip${ranges.length === 1 ? '' : 's'} →`}
             </button>
-            <div className="text-[10px] text-gray-500 dark:text-gray-400 text-center mt-1.5">
+            <div className="text-[10px] text-ink-500 dark:text-ink-400 text-center mt-1.5 font-mono tabular-nums">
               {ranges.length > 0 && <>~{Math.round(totalDuration)}s totales</>}
             </div>
           </div>

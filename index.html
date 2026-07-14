@@ -1,10 +1,23 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="dark">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Algo Sentido Tools</title>
+    <meta name="theme-color" content="#0D0B0C" />
+    <title>Algo Sentido · Estudio</title>
+    <script>
+      // Dark-first sin parpadeo: se decide el tema ANTES de montar React.
+      // Por defecto oscuro; solo se respeta la elección explícita del usuario.
+      (function () {
+        try {
+          var dark = localStorage.getItem('darkMode') !== 'false';
+          document.documentElement.classList.toggle('dark', dark);
+        } catch (e) {
+          /* sin localStorage: se queda en oscuro */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

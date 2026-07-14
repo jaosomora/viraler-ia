@@ -37,7 +37,7 @@ const ViewSecretPage = () => {
 
   if (error) {
     return (
-      <div className="max-w-2xl mx-auto bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 p-6 rounded-xl">
+      <div className="max-w-2xl mx-auto p-6 rounded-2xl bg-danger-soft dark:bg-danger-deep border border-danger/30 dark:border-danger-bright/30 text-danger dark:text-danger-bright">
         {error}
       </div>
     );
@@ -45,28 +45,28 @@ const ViewSecretPage = () => {
 
   return (
     <div className="max-w-3xl mx-auto">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 space-y-4">
-        <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+      <div className="card p-6 space-y-4">
+        <div className="border-b border-ink-200 dark:border-ink-700 pb-4 flex flex-col gap-2">
+          <span className="eyebrow">Secreto compartido</span>
+          <h1 className="font-display text-2xl font-bold tracking-tight">
             {data.title || 'Secreto'}
           </h1>
-          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 space-x-3">
+          <div className="text-xs text-ink-500 dark:text-ink-400 space-x-3">
             {data.creator && <span>De: {data.creator.name} ({data.creator.email})</span>}
             <span>Creado: {new Date(data.createdAt).toLocaleString()}</span>
             <span>Caduca: {new Date(data.expiresAt).toLocaleDateString()}</span>
           </div>
         </div>
 
-        <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-          <pre className="whitespace-pre-wrap break-words text-sm text-gray-800 dark:text-gray-200 font-mono">{data.content}</pre>
+        <div className="bg-ink-100 dark:bg-ink-900 p-4 rounded-xl border border-ink-200 dark:border-ink-700">
+          <pre className="whitespace-pre-wrap break-words text-sm font-mono">{data.content}</pre>
         </div>
 
-        <button
-          onClick={copy}
-          className="w-full py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg"
-        >
-          {copied ? '✓ Copiado' : 'Copiar contenido'}
-        </button>
+        <div className="flex justify-end">
+          <button onClick={copy} className="btn btn-ghost btn-sm">
+            {copied ? '✓ Copiado' : 'Copiar contenido'}
+          </button>
+        </div>
       </div>
     </div>
   );

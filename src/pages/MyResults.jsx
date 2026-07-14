@@ -18,23 +18,24 @@ const MyResults = () => {
 
   return (
     <div className="flex flex-col space-y-8">
-      <div className="text-center">
-        <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
-          Mis Resultados
+      <div className="max-w-4xl mx-auto w-full flex flex-col gap-2">
+        <span className="eyebrow">Tus resultados</span>
+        <h1 className="font-display text-2xl md:text-3xl font-bold tracking-tight">
+          Mis resultados
         </h1>
-        <p className="mt-3 text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-          Aqui encontraras todas tus transcripciones, clips y conversiones guardadas
+        <p className="text-ink-500 dark:text-ink-400">
+          Todas tus transcripciones, clips, reels, mapas de ideas y conversiones en un solo lugar.
         </p>
       </div>
 
       <div className="max-w-4xl mx-auto w-full">
-        <div className="flex border-b border-gray-200 dark:border-gray-700 mb-6">
+        <div className="flex border-b border-ink-200 dark:border-ink-700 mb-6">
           {TABS.map(t => (
             <button key={t.id} onClick={() => setActiveTab(t.id)}
-              className={`flex-1 py-3 text-sm font-medium text-center border-b-2 transition ${
+              className={`flex-1 py-3 text-sm font-medium text-center border-b-2 -mb-px transition-colors ${
                 activeTab === t.id
-                  ? 'border-purple-600 text-purple-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                  ? 'border-accent dark:border-accent-bright text-accent dark:text-accent-bright'
+                  : 'border-transparent text-ink-500 dark:text-ink-400 hover:text-ink-950 dark:hover:text-paper'
               }`}>
               {t.label}
             </button>

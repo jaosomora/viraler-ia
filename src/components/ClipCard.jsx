@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { useClips } from '../context/ClipsContext';
 import VideoPreview from './VideoPreview';
 import { FONT_FAMILY } from './LiveCaptionOverlay';
+import { useToast } from './ui/feedback';
 
-const scoreClass = (s) => {
-  if (s >= 80) return 'bg-purple-500 text-white';
-  if (s >= 70) return 'bg-amber-500 text-gray-900';
-  return 'bg-gray-500 text-white';
+const scoreChipClass = (s) => {
+  if (s >= 80) return 'chip chip-accent';
+  if (s >= 70) return 'chip chip-warn';
+  return 'chip chip-neutral';
 };
 
 const renderCaptionWithKeywords = (caption, keywords, color) => {
@@ -27,6 +28,7 @@ const renderCaptionWithKeywords = (caption, keywords, color) => {
 
 const ClipCard = ({ clip, onEdit }) => {
   const { downloadClip } = useClips();
+  const toast = useToast();
   const [downloading, setDownloading] = useState(false);
   const [copied, setCopied] = useState(false);
   const aspect = clip.aspect_ratio || '9:16';
@@ -38,7 +40,7 @@ const ClipCard = ({ clip, onEdit }) => {
 
   const handleDownload = async () => {
     setDownloading(true);
-    try { await downloadClip(clip, resolution); } catch (e) { alert(e.message); }
+    try { await downloadClip(clip, resolution); } catch (e) { toast(e.message, { type: 'danger' }); }
     setDownloading(false);
   };
 
@@ -72,14 +74,14 @@ const ClipCard = ({ clip, onEdit }) => {
   const cameraIcon = clip.camera_motion === 'zoom-in' ? '🔍' : clip.camera_motion === 'zoom-out' ? '🔎' : '⏸';
 
   return (
-    <article className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:border-purple-300 dark:hover:border-purple-700 transition group">
-      <div className={`${aspectClass} relative bg-gradient-to-br from-indigo-900 via-purple-700 to-cyan-700 overflow-hidden`}>
-        <div className={`absolute top-3 left-3 z-20 px-2.5 py-1 rounded-md text-xs font-bold ${scoreClass(clip.virality_score)}`}>
+    <article className="card overflow-hidden hover:border-accent/50 dark:hover:border-accent-bright/50 transition-colors group">
+      <div className={`${aspectClass} relative bg-ink-950 overflow-hidden`}>
+        <div className={`absolute top-3 left-3 z-20 font-mono tabular-nums ${scoreChipClass(clip.virality_score)}`}>
           {clip.virality_score} / 100
         </div>
         <div className="absolute top-3 right-3 z-20 flex items-center gap-1">
-          <span className="px-1.5 py-1 bg-black/60 backdrop-blur rounded text-[11px] text-white" title={`Cámara: ${clip.camera_motion || 'static'}`}>{cameraIcon}</span>
-          <span className="px-2 py-1 bg-black/60 backdrop-blur rounded-md text-xs text-white">{durStr}</span>
+          <span className="px-1.5 py-1 bg-ink-950/70 backdrop-blur rounded-full text-[11px] text-paper" title={`Cámara: ${clip.camera_motion || 'static'}`}>{cameraIcon}</span>
+          <span className="px-2 py-1 bg-ink-950/70 backdrop-blur rounded-full text-xs font-mono tabular-nums text-paper">{durStr}</span>
         </div>
         <VideoPreview
           clipId={clip.id}
@@ -99,28 +101,28 @@ const ClipCard = ({ clip, onEdit }) => {
       </div>
 
       <div className="p-4">
-        <h4 className="font-semibold text-sm text-gray-900 dark:text-white mb-1 line-clamp-1">{clip.title}</h4>
-        <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 italic">"{clip.hook}"</p>
+        <h4 className="font-semibold text-sm mb-1 line-clamp-1">{clip.title}</h4>
+        <p className="text-xs text-ink-500 dark:text-ink-400 line-clamp-2 italic">"{clip.hook}"</p>
 
         {clip.post_caption && (
-          <div className="mt-3 bg-gray-50 dark:bg-gray-900/60 border border-gray-200 dark:border-gray-800 rounded-lg p-2.5">
+          <div className="mt-3 bg-ink-100/60 dark:bg-ink-900/60 border hairline rounded-xl p-2.5">
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[10px] uppercase tracking-wide text-gray-500 font-medium">Texto sugerido para el post</span>
-              <button onClick={handleCopy} className={`text-[10px] font-medium transition ${copied ? 'text-green-500' : 'text-purple-600 dark:text-purple-400 hover:text-purple-500'}`}>
-                {copied ? '¡Copiado!' : 'Copiar'}
+              <span className="text-[10px] uppercase tracking-wider text-ink-500 dark:text-ink-400 font-semibold">Texto sugerido para el post</span>
+              <button onClick={handleCopy} className={`text-[10px] font-semibold transition-colors ${copied ? 'text-ok dark:text-ok-bright' : 'text-accent dark:text-accent-bright hover:underline'}`}>
+                {copied ? 'Copiado' : 'Copiar'}
               </button>
             </div>
-            <p className="text-[11px] text-gray-700 dark:text-gray-300 leading-relaxed line-clamp-3">{clip.post_caption}</p>
+            <p className="text-[11px] text-ink-500 dark:text-ink-400 leading-relaxed line-clamp-3">{clip.post_caption}</p>
           </div>
         )}
 
         <div className="mt-3 flex gap-2">
           <button onClick={handleDownload} disabled={downloading}
-            className="flex-1 px-3 py-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white rounded-lg text-xs font-medium">
+            className="btn btn-accent btn-sm flex-1">
             {downloading ? 'Descargando…' : `Descargar ${resolution === '720' ? '720p' : resolution === '1080' ? '1080p' : resolution.toUpperCase()}`}
           </button>
           <button onClick={() => onEdit(clip)}
-            className="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg text-xs">
+            className="btn btn-ghost btn-sm">
             Editar
           </button>
         </div>
