@@ -119,11 +119,11 @@ Required in `.env`:
 - `markitdown` — Document conversion (Python CLI, installed via `pipx install 'markitdown[all]'`)
 
 ## Conventions
-- Language: Spanish for UI text and comments, English for code identifiers
+- Language: Spanish for UI text and comments, English for code identifiers. Español **neutro** (tú/tienes) — nada de voseo en UI, copy, prompts ni docs.
 - ESM modules throughout (`"type": "module"` in package.json)
 - API routes prefixed with `/api/`
 - Frontend uses React functional components + hooks
-- TailwindCSS for styling with dark mode support
+- **Estilo visual: sistema "Sala de edición" — `docs/DESIGN.md` es la ley.** Dark-first, tokens `ink/paper/accent/ok/warn/danger` y primitivas `.btn/.card/.input/.chip/.eyebrow/.timecode`. No inventar colores/gradientes ni escribir classNames sueltos de `gray-*`/`purple-*`. Ver regla obligatoria abajo.
 - SQLite for all persistence (no external DB needed)
 - Each tool has its own Context, Form, Results, and Saved components
 - ToolHub (`/`) serves as the home dashboard; each tool gets its own route
@@ -135,7 +135,44 @@ Required in `.env`:
 4. New page in `src/pages/`, new route in `App.jsx`
 5. Add card to `ToolHub.jsx`, link in `Header.jsx` and `Footer.jsx`
 6. Add tab in `MyResults.jsx`, section in `AdminPanel.jsx`
-7. **MCP**: ver regla obligatoria abajo. Considerar exponer la funcionalidad vía MCP en `api/mcp/tools/` siguiendo la receta de `docs/MCP.md` sección 4.
+7. **Diseño**: toda pantalla/componente nuevo se construye con las primitivas de `docs/DESIGN.md` (ver regla obligatoria abajo). Nada de estilos ad-hoc.
+8. **MCP**: ver regla obligatoria abajo. Considerar exponer la funcionalidad vía MCP en `api/mcp/tools/` siguiendo la receta de `docs/MCP.md` sección 4.
+
+## Sistema de diseño — "Sala de edición" (rebrand 2026)
+La app viste la marca real de algosentido.com: **dark-first** (vive en oscuro como una suite de
+edición), tinta cálida y el azul de marca como único acento. Wordmark **AlgoSentido · Estudio**.
+Se vende a clientes del estudio, así que la UI es cara al cliente y debe verse premium y consistente.
+
+**Documentación viva**: `docs/DESIGN.md` cubre tokens, primitivas, patrones de página, mapeos
+antes→después y la lista de intocables. **Léelo antes de tocar cualquier `.jsx` de `src/` o
+`src/index.css`/`tailwind.config.js`.**
+
+**Piezas del sistema** (reusar, no reinventar):
+- Tokens de color: `ink-*` (neutros tinta), `paper`, `accent{,-bright,-soft,-deep}`, y semánticos
+  `ok/warn/danger` — todos con par claro/oscuro. Definidos en `tailwind.config.js`.
+- Primitivas CSS (`src/index.css`, `@layer components`): `.btn` (+`btn-primary/accent/ghost/danger/sm`),
+  `.input`, `.form-label`, `.card`, `.chip` (+variantes), `.eyebrow`, `.timecode`, `.link-accent`.
+- Componentes: `Wordmark.jsx` (único logo), `ui/feedback.jsx` → `useToast()` y `useConfirm()`
+  (reemplazan `alert()`/`confirm()` nativos — está **prohibido** volver a usar los nativos).
+- Tipografía: `font-sans` (Inter) cuerpo · `font-display` (Archivo) titulares · `font-mono` tabular
+  para timecodes/costos/contadores.
+
+### Regla obligatoria — todo cambio de frontend sale del sistema
+Cualquier sesión que cree o modifique UI (`src/**/*.jsx`, estilos) **debe** construir con los tokens
+y primitivas de `docs/DESIGN.md`. El default mental es "¿esto ya existe como primitiva?" — crear un
+botón/card/modal/estilo a mano es la excepción y hay que justificarla.
+
+Aplica a:
+- ✅ Pantallas y componentes nuevos → primitivas del sistema desde el inicio
+- ✅ Ediciones a UI existente → si tocas un bloque, déjalo en tokens (no perpetúes `gray-*`/`purple-*`)
+- ✅ Feedback al usuario → `useToast`/`useConfirm`, nunca `alert`/`confirm`/`prompt` nativos
+- ❌ NO aplica al render de subtítulos/captions ni a las paletas ofrecidas como opción (son **contenido**
+  del video del usuario, no UI — lista de intocables en `docs/DESIGN.md`)
+
+**Definition of done de cualquier UI**: (1) cero `purple/indigo/violet/fuchsia` y cero gradientes de
+marca; (2) `gray-*` solo si es deliberado (raro); (3) revisado en claro **y** oscuro; (4) superficies de
+video en `bg-ink-950` en ambos temas; (5) `npm test` verde. Si agregas algo al sistema (una primitiva
+nueva, p. ej. el `promptDialog` pendiente), documéntalo en `docs/DESIGN.md` en el mismo commit.
 
 ## MCP Server (Model Context Protocol)
 AS Tools tiene un **servidor MCP remoto** en `https://as-tools.algosentido.com/mcp` que expone funcionalidades del backend a clientes de IA como Claude.ai vía OAuth 2.1. Permite que los clientes finales usen AS Tools directamente desde su chat de Claude (transcribir, analizar ideas, etc).

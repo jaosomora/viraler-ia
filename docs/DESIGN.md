@@ -84,6 +84,55 @@ Patrón de uso: `text-accent dark:text-accent-bright`, `bg-accent-soft dark:bg-a
 - `.link-accent` — enlace azul con hover underline.
 - `.hairline` — `border-ink-200 dark:border-ink-700` (para divisores).
 
+Pendiente de construir (usar nativo temporal solo si es imprescindible y anotarlo): `promptDialog`
+para pedir texto (hoy queda un único `prompt()` en `ClipEditor.jsx` al nombrar una plantilla).
+
+## Receta: construir una pantalla nueva
+
+El camino feliz para que una pantalla nazca ya en el sistema, sin decisiones sueltas:
+
+```jsx
+import { useToast, useConfirm } from '../components/ui/feedback';
+
+function MiHerramienta() {
+  const toast = useToast();
+  const confirmDialog = useConfirm();
+
+  return (
+    <div className="flex flex-col gap-8 max-w-3xl mx-auto py-4">
+      {/* 1. Header de página: eyebrow + h1 display + subtítulo muted */}
+      <header className="flex flex-col gap-2">
+        <span className="eyebrow">De X a Y</span>
+        <h1 className="font-display text-2xl md:text-3xl font-bold tracking-tight">
+          Título en una frase
+        </h1>
+        <p className="text-ink-500 dark:text-ink-400">Subtítulo que dice qué hace.</p>
+      </header>
+
+      {/* 2. Contenido en cards con primitivas */}
+      <section className="card p-6 flex flex-col gap-4">
+        <label className="form-label" htmlFor="url">Pega el enlace</label>
+        <input id="url" className="input" placeholder="https://…" />
+        <div className="flex items-center gap-2">
+          <span className="chip chip-warn">Procesando</span>
+          <span className="timecode text-ink-500 dark:text-ink-400">00:42 · $0.004</span>
+        </div>
+        <button className="btn btn-accent self-start" onClick={() => toast('Listo', { type: 'ok' })}>
+          Generar →
+        </button>
+      </section>
+    </div>
+  );
+}
+```
+
+Reglas del camino feliz:
+- Encabezado de página alineado a la izquierda (el hub centrado es la excepción).
+- Toda acción destructiva pasa por `await confirmDialog({ danger: true })`; todo aviso por `toast()`.
+- Números (tiempos, costos, contadores) en `.timecode` o `font-mono tabular-nums`.
+- Un solo botón de máxima jerarquía por vista (`btn-primary` o `btn-accent`); el resto `btn-ghost`.
+- Si la pantalla muestra/edita video, su superficie es `bg-ink-950` en ambos temas.
+
 ## Mapeo mecánico antes → después
 
 | Antes (patrón actual) | Después |
